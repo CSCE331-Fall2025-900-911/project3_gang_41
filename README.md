@@ -1,7 +1,7 @@
 # project3_gang_41
 
 
-# how to run for dummies
+# how to run for dummies (oliver)
 ```bash
 npm install
 
