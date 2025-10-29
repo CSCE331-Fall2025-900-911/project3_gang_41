@@ -1,0 +1,12 @@
+{
+  "name": "project3_gang_41",
+  "private": true,
+  "workspaces": [
+    "frontend",
+    "backend",
+    "shared"
+  ],
+  "devDependencies": {
+    "@types/node": "^24.9.2"
+  }
+}
