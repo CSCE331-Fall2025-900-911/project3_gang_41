@@ -1,12 +1,17 @@
 {
   "name": "project3_gang_41",
   "private": true,
+  "main": "index.js",
+  "scripts": {
+    "build": "tsc"
+  },
   "workspaces": [
     "frontend",
     "backend",
     "shared"
   ],
   "devDependencies": {
-    "@types/node": "^24.9.2"
+    "@types/node": "^24.9.2",
+    "typescript": "^5.9.3"
   }
 }

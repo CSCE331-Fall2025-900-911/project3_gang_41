@@ -7,10 +7,6 @@
     "strict": true,
     "esModuleInterop": true,
     "skipLibCheck": true,
-    "moduleResolution": "node",
-    "baseUrl": ".",
-    "paths": {
-      "*": ["../node_modules/*"]
-    }
+    "moduleResolution": "node"
   }
 }
