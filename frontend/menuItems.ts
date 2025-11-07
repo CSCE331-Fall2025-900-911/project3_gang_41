@@ -8,12 +8,17 @@
 interface MenuItem {
     item_id: number;
     item_name: string;
-    cost: number; // Cost is expected as a numeric value
+    cost: string; // Cost is expected as a string from the DB
+}
+
+interface InventoryItem {
+    item_id: number;
+    item_name: string;
+    quantity: number;
 }
 
 // --- 2. UI Element References (Type Assertion is necessary here) ---
 
-// Using 'as' assertion to tell TypeScript what type of HTML element we expect
 const menuTableBody = document.querySelector('#menu-table tbody') as HTMLTableSectionElement;
 const refreshButton = document.getElementById('refresh-button') as HTMLButtonElement;
 const selectedItemLabel = document.getElementById('selected-item-label') as HTMLLabelElement;
@@ -24,11 +29,19 @@ const newItemNameField = document.getElementById('new-item-name-field') as HTMLI
 const newItemCostField = document.getElementById('new-item-cost-field') as HTMLInputElement;
 const addItemButton = document.getElementById('add-item-button') as HTMLButtonElement;
 
+// Modal Element References
+const ingredientModal = document.getElementById('ingredient-modal') as HTMLDivElement;
+const modalCloseButton = document.getElementById('modal-close-button') as HTMLSpanElement;
+const modalSaveButton = document.getElementById('modal-save-button') as HTMLButtonElement;
+const modalItemName = document.getElementById('modal-item-name') as HTMLSpanElement;
+const modalIngredientList = document.getElementById('modal-ingredient-list') as HTMLDivElement;
+
+
 // --- 3. State Variables (Explicit Typing) ---
 
 let selectedItemId: number | null = null;
 let selectedItemName: string | null = null;
-const API_BASE_URL: string = 'http://localhost:3000/api/menu';
+const API_BASE_URL: string = 'http://localhost:3000/api/menu'; 
 
 // --- 4. Utility and UI Functions ---
 
@@ -59,9 +72,6 @@ function updateSelectionState(): void {
 
 // --- 5. Data Loading & Table Population ---
 
-/**
- * Loads menu items from the backend API and populates the HTML table.
- */
 async function loadMenuItems(): Promise<void> {
     refreshButton.disabled = true;
     refreshButton.textContent = 'Loading...';
@@ -73,21 +83,20 @@ async function loadMenuItems(): Promise<void> {
     try {
         const response: Response = await fetch(API_BASE_URL); 
         if (!response.ok) {
-            throw new Error(`HTTP error! status: ${response.status}`);
+            const errorData = await response.json();
+            throw new Error(errorData.message || `HTTP error! status: ${response.status}`);
         }
         
-        // Explicitly cast the incoming JSON to an array of MenuItems
         const menuItems: MenuItem[] = await response.json() as MenuItem[]; 
         
         menuItems.forEach((item: MenuItem) => {
             const row: HTMLTableRowElement = menuTableBody.insertRow();
             
-            // Add event listener, passing typed parameters
             row.addEventListener('click', () => handleTableSelection(row, item));
             
             row.insertCell().textContent = item.item_id.toString();
             row.insertCell().textContent = item.item_name;
-            row.insertCell().textContent = `$${item.cost.toFixed(2)}`; 
+            row.insertCell().textContent = `$${parseFloat(item.cost).toFixed(2)}`; 
         });
 
     } catch (e: unknown) {
@@ -103,11 +112,6 @@ async function loadMenuItems(): Promise<void> {
     }
 }
 
-/**
- * Handles table row clicks to set the selected item state.
- * @param row The clicked table row element.
- * @param item The data object for the selected item.
- */
 function handleTableSelection(row: HTMLTableRowElement, item: MenuItem): void {
     document.querySelectorAll('#menu-table tbody tr').forEach((r: Element) => r.classList.remove('selected-row'));
     row.classList.add('selected-row');
@@ -136,7 +140,6 @@ async function updateItemPrice(): Promise<void> {
             const response: Response = await fetch(`${API_BASE_URL}/${selectedItemId}`, {
                 method: 'PUT',
                 headers: { 'Content-Type': 'application/json' },
-                // Sending the raw string cost to the backend
                 body: JSON.stringify({ cost: newPriceStr }) 
             });
 
@@ -188,17 +191,14 @@ async function addNewItem(): Promise<void> {
              throw new Error(errorData.message || 'Failed to add new item.');
         }
 
-        // Assuming backend returns an object with the new item_id
         const result: { item_id: number } = await response.json(); 
         const newDrinkId: number = result.item_id; 
 
-        alert("Item added successfully!\nNow, please add its ingredients.");
+        openIngredientModal(newDrinkId, itemName);
         
         newItemNameField.value = "";
         newItemCostField.value = "";
         loadMenuItems();
-
-        console.log(`Opening Ingredient Dialog for new item ID: ${newDrinkId}`); 
 
     } catch (e: unknown) {
         let errorMessage = 'An unknown error occurred.';
@@ -246,24 +246,116 @@ async function deleteSelectedItem(): Promise<void> {
     }
 }
 
+// --- 7. Modal Functions ---
 
-// --- 7. Initialization ---
+async function openIngredientModal(itemId: number, itemName: string) {
+    modalItemName.textContent = itemName;
+    ingredientModal.dataset.itemId = itemId.toString(); 
+    
+    modalIngredientList.innerHTML = '<p>Loading ingredients...</p>';
+    ingredientModal.style.display = 'block';
+
+    try {
+        const response = await fetch('http://localhost:3000/api/inventory');
+        if (!response.ok) {
+            throw new Error('Failed to fetch inventory.');
+        }
+        const ingredients: InventoryItem[] = await response.json();
+
+        modalIngredientList.innerHTML = '';
+        ingredients.forEach(item => {
+            const div = document.createElement('div');
+            div.innerHTML = `
+                <input type="checkbox" id="inv-${item.item_id}" value="${item.item_id}">
+                <label for="inv-${item.item_id}">${item.item_name}</label>
+                <input type="number" class="ingredient-quantity" min="1" value="1" style="width: 50px; margin-left: 10px;" disabled>
+            `;
+            modalIngredientList.appendChild(div);
+
+            const checkbox = div.querySelector('input[type="checkbox"]') as HTMLInputElement;
+            const quantityInput = div.querySelector('input[type="number"]') as HTMLInputElement;
+            checkbox.addEventListener('change', () => {
+                quantityInput.disabled = !checkbox.checked;
+            });
+        });
+
+    } catch (e: unknown) {
+        if (e instanceof Error) {
+            modalIngredientList.innerHTML = `<p style="color: red;">Error: ${e.message}</p>`;
+        }
+    }
+}
+
+function closeIngredientModal() {
+    ingredientModal.style.display = 'none';
+    modalIngredientList.innerHTML = ''; 
+}
+
+async function saveIngredients() {
+    const itemId = ingredientModal.dataset.itemId;
+
+    console.log('Attempting to save ingredients for item ID:', itemId);
+
+    if (!itemId) {
+        alert('Error: No item ID found.');
+        return;
+    }
+
+    const checkedBoxes = modalIngredientList.querySelectorAll<HTMLInputElement>('input[type="checkbox"]:checked');
+    
+    const ingredients = Array.from(checkedBoxes).map(box => {
+        const quantityInput = box.nextElementSibling?.nextElementSibling as HTMLInputElement;
+        return {
+            id: parseInt(box.value),
+            quantity: parseInt(quantityInput.value)
+        };
+    });
+
+    if (ingredients.length === 0) {
+        alert("No ingredients selected. Click 'Close' if you don't want to add any.");
+        return;
+    }
+
+    try {
+        const response = await fetch(`${API_BASE_URL}/${itemId}/ingredients`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ ingredients: ingredients }) 
+        });
+
+        if (!response.ok) {
+            const errorData = await response.json();
+            throw new Error(errorData.message || 'Failed to save ingredients.');
+        }
+
+        alert('Ingredients saved successfully!');
+        closeIngredientModal();
+
+    } catch (e: unknown) {
+        if (e instanceof Error) {
+            alert(`Error saving: ${e.message}`);
+        }
+    }
+}
+
+// --- 8. Initialization ---
 
 function init(): void {
-    // Left Menu Button Listeners
     document.getElementById('menuButton2')?.addEventListener('click', () => navigateToPage('Inventory'));
     document.getElementById('menuButton3')?.addEventListener('click', () => navigateToPage('Order History'));
     document.getElementById('menuButton4')?.addEventListener('click', () => navigateToPage('Employees'));
     document.getElementById('menuButton5')?.addEventListener('click', () => navigateToPage('Log Out'));
     
-    // Main Panel Button Listeners
     refreshButton.addEventListener('click', loadMenuItems);
     updatePriceButton.addEventListener('click', updateItemPrice);
     addItemButton.addEventListener('click', addNewItem);
     deleteItemButton.addEventListener('click', deleteSelectedItem);
     
+    // Add listeners for the modal
+    modalCloseButton.addEventListener('click', closeIngredientModal);
+    modalSaveButton.addEventListener('click', saveIngredients);
+    
     loadMenuItems();
 }
 
-// Start the application when the HTML structure is ready 
 document.addEventListener('DOMContentLoaded', init);
