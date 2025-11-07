@@ -14,7 +14,9 @@ interface MenuItem {
 interface InventoryItem {
     item_id: number;
     item_name: string;
-    quantity: number;
+    supply: number;
+    unit: string;
+    cost: string;
 }
 
 // --- 2. UI Element References (Type Assertion is necessary here) ---
@@ -28,6 +30,10 @@ const deleteItemButton = document.getElementById('delete-item-button') as HTMLBu
 const newItemNameField = document.getElementById('new-item-name-field') as HTMLInputElement;
 const newItemCostField = document.getElementById('new-item-cost-field') as HTMLInputElement;
 const addItemButton = document.getElementById('add-item-button') as HTMLButtonElement;
+const newIngredientName = document.getElementById('new-ingredient-name') as HTMLInputElement;
+const newIngredientQuantity = document.getElementById('new-ingredient-quantity') as HTMLInputElement;
+const addNewIngredientButton = document.getElementById('add-new-ingredient-button') as HTMLButtonElement;
+const newIngredientCost = document.getElementById('new-ingredient-cost') as HTMLInputElement;
 
 // Modal Element References
 const ingredientModal = document.getElementById('ingredient-modal') as HTMLDivElement;
@@ -248,12 +254,9 @@ async function deleteSelectedItem(): Promise<void> {
 
 // --- 7. Modal Functions ---
 
-async function openIngredientModal(itemId: number, itemName: string) {
-    modalItemName.textContent = itemName;
-    ingredientModal.dataset.itemId = itemId.toString(); 
-    
+
+async function loadIngredientsForModal() {
     modalIngredientList.innerHTML = '<p>Loading ingredients...</p>';
-    ingredientModal.style.display = 'block';
 
     try {
         const response = await fetch('http://localhost:3000/api/inventory');
@@ -284,6 +287,14 @@ async function openIngredientModal(itemId: number, itemName: string) {
             modalIngredientList.innerHTML = `<p style="color: red;">Error: ${e.message}</p>`;
         }
     }
+}
+
+async function openIngredientModal(itemId: number, itemName: string) {
+    modalItemName.textContent = itemName;
+    ingredientModal.dataset.itemId = itemId.toString(); 
+    ingredientModal.style.display = 'block';
+
+    loadIngredientsForModal();
 }
 
 function closeIngredientModal() {
@@ -338,6 +349,45 @@ async function saveIngredients() {
     }
 }
 
+
+async function addNewIngredient() {
+    const name = newIngredientName.value;
+    const quantity = parseInt(newIngredientQuantity.value);
+    const cost = newIngredientCost.value; // Get the cost value
+
+    // 3. Update validation
+    if (!name || isNaN(quantity) || !cost) {
+        alert('Please enter a valid ingredient name, stock quantity, and cost.');
+        return;
+    }
+
+    try {
+        const response = await fetch('http://localhost:3000/api/inventory', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            // 4. Add cost to the request body
+            body: JSON.stringify({ item_name: name, quantity: quantity, cost: cost })
+        });
+
+        if (!response.ok) {
+            const err = await response.json();
+            throw new Error(err.message || 'Failed to add item.');
+        }
+
+        alert(`Successfully added '${name}' to inventory.`);
+        newIngredientName.value = '';
+        newIngredientQuantity.value = '0';
+        newIngredientCost.value = ''; // Clear the cost field
+
+        loadIngredientsForModal(); 
+
+    } catch (e: unknown) {
+        if (e instanceof Error) {
+            alert(`Error: ${e.message}`);
+        }
+    }
+}
+
 // --- 8. Initialization ---
 
 function init(): void {
@@ -354,6 +404,7 @@ function init(): void {
     // Add listeners for the modal
     modalCloseButton.addEventListener('click', closeIngredientModal);
     modalSaveButton.addEventListener('click', saveIngredients);
+    addNewIngredientButton.addEventListener('click', addNewIngredient);
     
     loadMenuItems();
 }
