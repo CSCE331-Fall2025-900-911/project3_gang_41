@@ -6,6 +6,7 @@ import cors from 'cors';
 import pool from './db';
 import menuRoutes from './menuRoutes';
 import inventoryRoutes from './inventoryRoutes';
+import orderHistoryRoutes from './orderHistoryRoutes';
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -35,6 +36,7 @@ app.get('/api/inventory', async (req: Request, res: Response) => {
 
 app.use('/api/inventory', inventoryRoutes);
 app.use('/api/menu', menuRoutes);
+app.use('/api/order-history', orderHistoryRoutes);
 
 // start server
 app.listen(PORT, () => {

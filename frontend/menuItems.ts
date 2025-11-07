@@ -52,7 +52,7 @@ const API_BASE_URL: string = 'http://localhost:3000/api/menu';
 // --- 4. Utility and UI Functions ---
 
 function navigateToPage(pageName: string): void {
-    alert(`Navigating to ${pageName}. (Implementation requires actual routing.)`);
+    window.location.href = pageName;
 }
 
 function isValidPrice(str: string): boolean {
@@ -392,7 +392,7 @@ async function addNewIngredient() {
 
 function init(): void {
     document.getElementById('menuButton2')?.addEventListener('click', () => navigateToPage('Inventory'));
-    document.getElementById('menuButton3')?.addEventListener('click', () => navigateToPage('Order History'));
+    document.getElementById('menuButton3')?.addEventListener('click', () => navigateToPage('orderHistory.html'));
     document.getElementById('menuButton4')?.addEventListener('click', () => navigateToPage('Employees'));
     document.getElementById('menuButton5')?.addEventListener('click', () => navigateToPage('Log Out'));
     
