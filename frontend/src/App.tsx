@@ -5,7 +5,7 @@ function App() {
   return (
     <BrowserRouter>
       <Routes>
-        <Route path="/" element={<div>Home</div>} />
+        <Route path="/" element={<Cashier />} />
         <Route path="/cashier" element={<Cashier />} />
         <Route path="/kiosk" element={<div>Kiosk</div>} />
         <Route path="/manager" element={<div>Manager</div>} />
