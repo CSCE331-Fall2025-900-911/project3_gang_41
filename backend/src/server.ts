@@ -3,13 +3,54 @@ dotenv.config();
 
 import express from 'express'; // web framework handling http
 import cors from 'cors'; // middleware from frontend to backend
+import session from 'express-session';
+import passport from 'passport';
+import { Strategy as GoogleStrategy } from 'passport-google-oauth20';
 import pool from './db'; // db connection pool
 
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-app.use(cors());
+app.use(cors({
+  origin: process.env.FRONTEND_URL || 'http://localhost:5173',
+  credentials: true
+}));
 app.use(express.json());
+app.use(session({
+  secret: process.env.SESSION_SECRET || 'your-secret-key',
+  resave: false,
+  saveUninitialized: false,
+  cookie: { secure: false } // Set to true if using HTTPS
+}));
+app.use(passport.initialize());
+app.use(passport.session());
+
+// Passport serialization
+passport.serializeUser((user: any, done) => {
+  done(null, user);
+});
+
+passport.deserializeUser((user: any, done) => {
+  done(null, user);
+});
+
+// Google OAuth Strategy
+passport.use(new GoogleStrategy({
+    clientID: process.env.GOOGLE_CLIENT_ID!,
+    clientSecret: process.env.GOOGLE_CLIENT_SECRET!,
+    callbackURL: '/auth/google/callback'
+  },
+  (accessToken, refreshToken, profile, done) => {
+    // Simple user object with Google profile data
+    const user = {
+      id: profile.id,
+      email: profile.emails?.[0]?.value,
+      name: profile.displayName,
+      picture: profile.photos?.[0]?.value
+    };
+    return done(null, user);
+  }
+));
 
 app.get('/health', async (req, res) => {
   try {
@@ -22,12 +63,41 @@ app.get('/health', async (req, res) => {
 
 app.get('/api/menu', async (req, res) => {
   try {
-    const result = await pool.query('SELECT item_id, item_name, cost FROM menuitems ORDER BY item_name');
+    const result = await pool.query('SELECT item_id, item_name, cost FROM menu_item ORDER BY item_name');
     res.json(result.rows);
   } catch (err: any) {
     console.error('Error fetching menu:', err);
     res.status(500).json({ error: 'Failed to fetch menu items' });
   }
+});
+
+// Google OAuth routes
+app.get('/auth/google',
+  passport.authenticate('google', { scope: ['profile', 'email'] })
+);
+
+app.get('/auth/google/callback',
+  passport.authenticate('google', { failureRedirect: '/login' }),
+  (req, res) => {
+    // Successful authentication, redirect to cashier
+    res.redirect(`${process.env.FRONTEND_URL || 'http://localhost:5173'}/cashier`);
+  }
+);
+
+// Get current user
+app.get('/auth/user', (req, res) => {
+  if (req.isAuthenticated()) {
+    res.json(req.user);
+  } else {
+    res.status(401).json({ error: 'Not authenticated' });
+  }
+});
+
+// Logout
+app.get('/auth/logout', (req, res) => {
+  req.logout(() => {
+    res.json({ success: true });
+  });
 });
 
 // start server
