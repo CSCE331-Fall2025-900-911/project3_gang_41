@@ -14,9 +14,9 @@ export function LoginForm({
   className,
   ...props
 }: React.ComponentProps<"div">) {
-  const handleGoogleLogin = () => {
-    window.location.href = 'http://localhost:3000/auth/google';
-  };
+  // const handleGoogleLogin = () => {
+  //   window.location.href = 'http://localhost:3000/auth/google';
+  // };
 
   return (
     <div className={cn("flex flex-col gap-6", className)} {...props}>
