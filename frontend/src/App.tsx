@@ -2,8 +2,7 @@ import React from 'react';
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import Cashier from './Cashier';
 import LoginPage from './Login';
-import KioskLogin from "./kioskLogin"
-import Kioskmenu from "./kioskmenu"
+import Kiosk from './Kiosk';
 
 function App() {
   return (
@@ -12,7 +11,7 @@ function App() {
         <Route path="/" element={<LoginPage />} />
         <Route path="/login" element={<LoginPage />} />
         <Route path="/cashier" element={<Cashier />} />
-        <Route path="/kiosk" element={<KioskLogin/>} />
+        <Route path="/kiosk" element={<Kiosk />} />
         <Route path="/manager" element={<div>Manager</div>} />
         <Route path="/menu-board" element={<div>Menu Board</div>} />
 
