@@ -1,8 +1,8 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardHeader, CardTitle, CardContent, CardFooter } from '@/components/ui/card';
-import { Package, Users, History, LayoutDashboard, SquareMenu } from 'lucide-react'; //icons
-import MenuPage from './menupage';
+import { Package, Users, History } from 'lucide-react'; //icons
+import MenuPage from './MenuPage';
 import EmployeesPage from './EmployeesPage';
 import InventoryPage from './InventoryPage';
 import HistoryPage from './HistoryPage';
@@ -141,14 +141,13 @@ function Manager() {
         }
     };
     
-    // Optional: Map categories to icons for a better sidebar look
-    const categoryIcons = {
-        'Dashboard': <LayoutDashboard className="h-4 w-4 mr-2" />,
-        'Menu Items': <SquareMenu className="h-4 w-4 mr-2" />,
-        'Inventory': <Package className="h-4 w-4 mr-2" />,
-        'Employees': <Users className="h-4 w-4 mr-2" />,
-        'Order History': <History className="h-4 w-4 mr-2" />,
-    };
+    // const categoryIcons = {
+    //     'Dashboard': <LayoutDashboard className="h-4 w-4 mr-2" />,
+    //     'Menu Items': <SquareMenu className="h-4 w-4 mr-2" />,
+    //     'Inventory': <Package className="h-4 w-4 mr-2" />,
+    //     'Employees': <Users className="h-4 w-4 mr-2" />,
+    //     'Order History': <History className="h-4 w-4 mr-2" />,
+    // };
 
     return (
         <div className="flex h-screen bg-background">
@@ -161,7 +160,6 @@ function Manager() {
                         className="w-full justify-start text-left"
                         onClick={() => setActiveCategory(category)}
                     >
-                        {categoryIcons[category]}
                         {category}
                     </Button>
                 ))}
