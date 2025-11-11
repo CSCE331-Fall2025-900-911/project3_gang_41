@@ -82,3 +82,17 @@
     @apply bg-background text-foreground;
   }
 }
+
+/*
+Source - https://stackoverflow.com/a
+Posted by Tyron, modified by community. See post 'Timeline' for change history
+Retrieved 2025-11-09, License - CC BY-SA 4.0
+*/
+
+@layer base {
+  input[type="number"]::-webkit-inner-spin-button,
+  input[type="number"]::-webkit-outer-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+  }
+}
