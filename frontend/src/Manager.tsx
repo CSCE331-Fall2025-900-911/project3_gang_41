@@ -1,13 +1,13 @@
 import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardHeader, CardTitle, CardContent, CardFooter } from '@/components/ui/card';
-import { Package, Users, History, LayoutDashboard } from 'lucide-react'; //icons
+import { Package, Users, History, LayoutDashboard, SquareMenu } from 'lucide-react'; //icons
 import MenuPage from './menupage';
 import EmployeesPage from './EmployeesPage';
 import InventoryPage from './InventoryPage';
 import HistoryPage from './HistoryPage';
 
-const categories = ['Dashboard', 'Menu Items', 'Inventory', 'Employees', 'Order History',];
+const categories = ['Dashboard', 'Menu Items', 'Inventory', 'Employees', 'Order History'];
 
 const InventoryContent = () => (
     <InventoryPage/>
@@ -122,10 +122,8 @@ const DashboardContent = () => (
 
 
 function Manager() {
-    // Set initial category to Dashboard to show analytics cards first
     const [activeCategory, setActiveCategory] = useState('Dashboard'); 
 
-    // Function to conditionally render content
     const renderContent = () => {
         switch (activeCategory) {
             case 'Dashboard':
@@ -146,7 +144,7 @@ function Manager() {
     // Optional: Map categories to icons for a better sidebar look
     const categoryIcons = {
         'Dashboard': <LayoutDashboard className="h-4 w-4 mr-2" />,
-        'Menu Items': <Package className="h-4 w-4 mr-2" />,
+        'Menu Items': <SquareMenu className="h-4 w-4 mr-2" />,
         'Inventory': <Package className="h-4 w-4 mr-2" />,
         'Employees': <Users className="h-4 w-4 mr-2" />,
         'Order History': <History className="h-4 w-4 mr-2" />,
