@@ -63,11 +63,17 @@ app.get('/health', async (req, res) => {
 
 app.get('/api/menu', async (req, res) => {
   try {
-    const result = await pool.query('SELECT item_id, item_name, cost FROM menu_item ORDER BY item_name');
+    const result = await pool.query('SELECT item_id, item_name, cost FROM menuitems ORDER BY item_name');
     res.json(result.rows);
   } catch (err: any) {
-    console.error('Error fetching menu:', err);
-    res.status(500).json({ error: 'Failed to fetch menu items' });
+    console.error('Error fetching menu - Full error:', err);
+    console.error('Error message:', err.message);
+    console.error('Error code:', err.code);
+    res.status(500).json({
+      error: 'Failed to fetch menu items',
+      details: err.message,
+      code: err.code
+    });
   }
 });
 
