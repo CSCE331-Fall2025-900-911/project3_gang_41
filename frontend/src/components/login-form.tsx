@@ -27,7 +27,7 @@ export function LoginForm({
               <div className="flex flex-col items-center gap-2 text-center">
                 <h1 className="text-2xl font-bold">Welcome back</h1>
                 <p className="text-muted-foreground text-balance">
-                  Login to your Acme Inc account
+                  Login to your account
                 </p>
               </div>
               <Field>
@@ -58,7 +58,7 @@ export function LoginForm({
                 Or continue with
               </FieldSeparator>
               <Field>
-                <a href="http://localhost:3000/auth/google" className="w-full">
+                <a href={`${import.meta.env.VITE_API_URL || 'http://localhost:3000'}/auth/google`} className="w-full">
                   <Button
                     variant="outline"
                     type="button"
