@@ -1,3 +1,7 @@
+import { useState } from "react"
+import { useNavigate } from "react-router-dom"
+import { GoogleLogin, CredentialResponse } from "@react-oauth/google"
+import { useAuth } from "@/contexts/AuthContext"
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
@@ -14,9 +18,33 @@ export function LoginForm({
   className,
   ...props
 }: React.ComponentProps<"div">) {
-  // const handleGoogleLogin = () => {
-  //   window.location.href = 'http://localhost:3000/auth/google';
-  // };
+  const navigate = useNavigate();
+  const { verifyGoogleToken } = useAuth();
+  const [error, setError] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState(false);
+
+  const handleGoogleSuccess = async (credentialResponse: CredentialResponse) => {
+    try {
+      setIsLoading(true);
+      setError(null);
+
+      if (!credentialResponse.credential) {
+        throw new Error('No credential received');
+      }
+
+      await verifyGoogleToken(credentialResponse.credential);
+      navigate('/cashier');
+    } catch (err) {
+      console.error('Login failed:', err);
+      setError('Failed to login. Please try again.');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleGoogleError = () => {
+    setError('Google login failed. Please try again.');
+  };
 
   return (
     <div className={cn("flex flex-col gap-6", className)} {...props}>

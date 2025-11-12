@@ -1,9 +1,18 @@
-import { useState, useEffect } from 'react';
-import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
-import { Separator } from '@/components/ui/separator';
-import { Minus, Plus, ShoppingCart, Trash2 } from 'lucide-react';
+import { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
+import { Button } from "@/components/ui/button";
+import {
+  Card,
+  CardContent,
+  CardFooter,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Separator } from "@/components/ui/separator";
+import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
+import { Minus, Plus, ShoppingCart, Trash2, LogOut } from "lucide-react";
+import { useAuth } from "@/contexts/AuthContext";
 
 interface MenuItem {
   item_id: number;
@@ -19,18 +28,25 @@ interface CartItem {
 }
 
 const categories = [
-  'All Items',
-  'Milk Tea',
-  'Fruit Tea',
-  'Coffee',
-  'Smoothies',
-  'Seasonal',
+  "All Items",
+  "Milk Tea",
+  "Fruit Tea",
+  "Coffee",
+  "Smoothies",
+  "Seasonal",
 ];
 
 function Cashier() {
+  const navigate = useNavigate();
+  const { logout, user } = useAuth();
   const [menu, setMenu] = useState<MenuItem[]>([]);
   const [cart, setCart] = useState<CartItem[]>([]);
-  const [activeCategory, setActiveCategory] = useState('All Items');
+  const [activeCategory, setActiveCategory] = useState("All Items");
+
+  const handleLogout = async () => {
+    await logout();
+    navigate("/login");
+  };
 
   useEffect(() => {
     fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:3000'}/api/menu`)
@@ -38,50 +54,48 @@ function Cashier() {
       .then(data => {
         console.log('Menu data:', data);
         if (Array.isArray(data)) {
-          const menuWithNumbers = data.map(item => ({
+          const menuWithNumbers = data.map((item) => ({
             ...item,
-            cost: parseFloat(item.cost)
+            cost: parseFloat(item.cost),
           }));
           setMenu(menuWithNumbers);
         } else {
-          console.error('Menu data is not an array:', data);
+          console.error("Menu data is not an array:", data);
           setMenu([]);
         }
       })
-      .catch(err => {
-        console.error('Error fetching menu:', err);
+      .catch((err) => {
+        console.error("Error fetching menu:", err);
         setMenu([]);
       });
   }, []);
 
   const addToCart = (item: MenuItem) => {
-    const existing = cart.find(c => c.item_id === item.item_id);
+    const existing = cart.find((c) => c.item_id === item.item_id);
     if (existing) {
-      setCart(cart.map(c =>
-        c.item_id === item.item_id
-          ? { ...c, quantity: c.quantity + 1 }
-          : c
-      ));
+      setCart(
+        cart.map((c) =>
+          c.item_id === item.item_id ? { ...c, quantity: c.quantity + 1 } : c
+        )
+      );
     } else {
       setCart([...cart, { ...item, quantity: 1 }]);
     }
   };
 
   const removeFromCart = (itemId: number) => {
-    setCart(cart.filter(c => c.item_id !== itemId));
+    setCart(cart.filter((c) => c.item_id !== itemId));
   };
 
   const updateQuantity = (itemId: number, quantity: number) => {
     if (quantity <= 0) {
       removeFromCart(itemId);
     } else {
-      setCart(cart.map(c =>
-        c.item_id === itemId ? { ...c, quantity } : c
-      ));
+      setCart(cart.map((c) => (c.item_id === itemId ? { ...c, quantity } : c)));
     }
   };
 
-  const total = cart.reduce((sum, item) => sum + (item.cost * item.quantity), 0);
+  const total = cart.reduce((sum, item) => sum + item.cost * item.quantity, 0);
 
   return (
     <div className="flex h-screen bg-background">
@@ -89,8 +103,33 @@ function Cashier() {
       <div className="flex-1 flex flex-col overflow-hidden">
         {/* Header */}
         <div className="border-b">
-          <div className="flex h-16 items-center px-6">
+          <div className="flex h-16 items-center px-6 justify-between">
             <h1 className="text-2xl font-bold">Cashier</h1>
+            <div className="flex items-center gap-3">
+              {user && (
+                <div className="flex items-center gap-3">
+                  <Avatar className="h-9 w-9">
+                    <AvatarImage src={user.picture} alt={user.name} />
+                    <AvatarFallback className="bg-primary text-primary-foreground">
+                      {user.name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2)}
+                    </AvatarFallback>
+                  </Avatar>
+                  <div className="text-sm">
+                    <div className="font-medium">{user.name}</div>
+                    <div className="text-xs text-muted-foreground">{user.email}</div>
+                  </div>
+                </div>
+              )}
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleLogout}
+                className="gap-2"
+              >
+                <LogOut className="h-4 w-4" />
+                Logout
+              </Button>
+            </div>
           </div>
         </div>
 
@@ -103,8 +142,8 @@ function Cashier() {
                 onClick={() => setActiveCategory(category)}
                 className={`whitespace-nowrap px-3 py-1.5 text-sm font-medium transition-all hover:text-primary ${
                   activeCategory === category
-                    ? 'border-b-2 border-primary text-primary'
-                    : 'text-muted-foreground'
+                    ? "border-b-2 border-primary text-primary"
+                    : "text-muted-foreground"
                 }`}
               >
                 {category}
@@ -116,14 +155,16 @@ function Cashier() {
         {/* Menu Grid */}
         <div className="flex-1 overflow-auto p-6">
           <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
-            {menu.map(item => (
+            {menu.map((item) => (
               <Card
                 key={item.item_id}
                 className="cursor-pointer transition-all hover:shadow-lg hover:scale-105"
                 onClick={() => addToCart(item)}
               >
                 <CardHeader className="p-4">
-                  <CardTitle className="text-lg line-clamp-2">{item.item_name}</CardTitle>
+                  <CardTitle className="text-lg line-clamp-2">
+                    {item.item_name}
+                  </CardTitle>
                 </CardHeader>
                 <CardFooter className="p-4 pt-0 flex justify-between items-center">
                   <span className="text-2xl font-bold text-primary">
@@ -161,13 +202,15 @@ function Cashier() {
               <p className="text-sm">Add items from the menu to get started</p>
             </div>
           ) : (
-            cart.map(item => (
+            cart.map((item) => (
               <Card key={item.item_id}>
                 <CardContent className="p-4">
                   <div className="flex flex-col gap-3">
                     <div className="flex justify-between items-start">
                       <div className="flex-1">
-                        <h3 className="font-medium leading-tight">{item.item_name}</h3>
+                        <h3 className="font-medium leading-tight">
+                          {item.item_name}
+                        </h3>
                         <p className="text-sm text-muted-foreground mt-1">
                           ${item.cost.toFixed(2)} each
                         </p>
@@ -190,16 +233,22 @@ function Cashier() {
                           variant="outline"
                           size="icon"
                           className="h-8 w-8"
-                          onClick={() => updateQuantity(item.item_id, item.quantity - 1)}
+                          onClick={() =>
+                            updateQuantity(item.item_id, item.quantity - 1)
+                          }
                         >
                           <Minus className="h-4 w-4" />
                         </Button>
-                        <span className="w-8 text-center font-medium">{item.quantity}</span>
+                        <span className="w-8 text-center font-medium">
+                          {item.quantity}
+                        </span>
                         <Button
                           variant="outline"
                           size="icon"
                           className="h-8 w-8"
-                          onClick={() => updateQuantity(item.item_id, item.quantity + 1)}
+                          onClick={() =>
+                            updateQuantity(item.item_id, item.quantity + 1)
+                          }
                         >
                           <Plus className="h-4 w-4" />
                         </Button>
@@ -227,7 +276,9 @@ function Cashier() {
               </div>
               <div className="flex justify-between text-sm">
                 <span className="text-muted-foreground">Tax (8.25%)</span>
-                <span className="font-medium">${(total * 0.0825).toFixed(2)}</span>
+                <span className="font-medium">
+                  ${(total * 0.0825).toFixed(2)}
+                </span>
               </div>
               <Separator />
               <div className="flex justify-between text-lg font-bold">
