@@ -30,7 +30,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
   const checkAuthStatus = async () => {
     try {
       const response = await fetch(
-        `${import.meta.env.VITE_BACKEND_URL}/auth/user`,
+        `${import.meta.env.VITE_API_URL}/auth/user`,
         {
           credentials: "include",
         }
@@ -55,7 +55,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
     try {
       setIsLoading(true);
       const response = await fetch(
-        `${import.meta.env.VITE_BACKEND_URL}/auth/google/verify`,
+        `${import.meta.env.VITE_API_URL}/auth/google/verify`,
         {
           method: "POST",
           headers: {
@@ -83,7 +83,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
   // Logout user
   const logout = async () => {
     try {
-      await fetch(`${import.meta.env.VITE_BACKEND_URL}/auth/logout`, {
+      await fetch(`${import.meta.env.VITE_API_URL}/auth/logout`, {
         method: "POST",
         credentials: "include",
       });
