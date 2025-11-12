@@ -1,8 +1,14 @@
 // backend/src/orderHistoryRoutes.ts
 import express, { Request, Response } from 'express';
-import db from './db'; 
+import db from './db';
 
 const router = express.Router();
+
+
+router.post('/', async (req: Request, res: Response) => {
+    // TODO: Add impelemtnion for vackend 
+    res.status(201).json({ success: true });
+});
 
 // GET /api/order-history
 router.get('/', async (req: Request, res: Response) => {

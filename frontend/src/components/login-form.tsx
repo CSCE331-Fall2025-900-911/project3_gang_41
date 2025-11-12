@@ -63,7 +63,7 @@ export function LoginForm({
                 <Input
                   id="email"
                   type="email"
-                  placeholder="m@example.com | ‼️‼️‼️ LOGIN WITH GOOGLE ‼️‼️‼️ "
+                  placeholder="Login with Google below"
                   required
                 />
               </Field>

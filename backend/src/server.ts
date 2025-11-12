@@ -72,6 +72,7 @@ app.get("/api/inventory", async (req: Request, res: Response) => {
 app.use('/api/inventory', inventoryRoutes);
 app.use('/api/menu', menuRoutes);
 app.use('/api/order-history', orderHistoryRoutes);
+
 app.get('/api/menu', async (req, res) => {
   try {
     const result = await pool.query(
