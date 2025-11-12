@@ -8,6 +8,7 @@ import {
   CardContent,
   CardFooter,
 } from "@/components/ui/card";
+import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { Package, Users, History, LogOut } from "lucide-react"; //icons
 import { useAuth } from "@/contexts/AuthContext";
 import MenuPage from "./MenuPage";
@@ -171,10 +172,19 @@ function Manager() {
         <div className="flex-1" />
 
         {/* User info and logout button */}
-        <div className="border-t pt-4 mt-2">
+        <div className="border-t pt-4 mt-2 space-y-3">
           {user && (
-            <div className="text-sm text-muted-foreground mb-2 px-2">
-              {user.name}
+            <div className="flex items-center gap-3 px-2">
+              <Avatar className="h-10 w-10">
+                <AvatarImage src={user.picture} alt={user.name} />
+                <AvatarFallback className="bg-primary text-primary-foreground text-sm">
+                  {user.name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2)}
+                </AvatarFallback>
+              </Avatar>
+              <div className="flex-1 min-w-0">
+                <div className="text-sm font-medium truncate">{user.name}</div>
+                <div className="text-xs text-muted-foreground truncate">{user.email}</div>
+              </div>
             </div>
           )}
           <Button

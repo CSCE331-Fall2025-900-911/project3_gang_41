@@ -10,6 +10,7 @@ import {
 } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
+import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { Minus, Plus, ShoppingCart, Trash2, LogOut } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 
@@ -48,7 +49,7 @@ function Cashier() {
   };
 
   useEffect(() => {
-    fetch("http://localhost:3000/api/menu")
+    fetch(`${import.meta.env.VITE_BACKEND_URL}/api/menu`)
       .then((res) => res.json())
       .then((data) => {
         console.log("Menu data:", data);
@@ -104,9 +105,20 @@ function Cashier() {
         <div className="border-b">
           <div className="flex h-16 items-center px-6 justify-between">
             <h1 className="text-2xl font-bold">Cashier</h1>
-            <div className="flex items-center gap-4">
+            <div className="flex items-center gap-3">
               {user && (
-                <div className="text-sm text-muted-foreground">{user.name}</div>
+                <div className="flex items-center gap-3">
+                  <Avatar className="h-9 w-9">
+                    <AvatarImage src={user.picture} alt={user.name} />
+                    <AvatarFallback className="bg-primary text-primary-foreground">
+                      {user.name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2)}
+                    </AvatarFallback>
+                  </Avatar>
+                  <div className="text-sm">
+                    <div className="font-medium">{user.name}</div>
+                    <div className="text-xs text-muted-foreground">{user.email}</div>
+                  </div>
+                </div>
               )}
               <Button
                 variant="outline"
