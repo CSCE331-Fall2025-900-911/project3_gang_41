@@ -1,26 +1,21 @@
 {
   "name": "project3_gang_41",
   "private": true,
-  "main": "index.js",
-  "scripts": {
-    "build": "tsc"
-  },
   "workspaces": [
     "frontend",
     "backend",
     "shared"
   ],
-  "devDependencies": {
-    "@types/cors": "^2.8.19",
-    "@types/express": "^5.0.5",
-    "@types/node": "^24.10.0",
-    "@types/pg": "^8.15.6",
-    "typescript": "^5.9.3"
+  "scripts": {
+    "dev": "concurrently -n front,back -c \"#00A3FF,#8B5CF6\" \"npm:dev --workspace frontend\" \"npm:dev --workspace backend\"",
+    "build": "npm run -ws build",
+    "start": "npm --workspace backend start",
+    "typecheck": "npm run -ws build --dry-run"
   },
-  "dependencies": {
-    "cors": "^2.8.5",
-    "dotenv": "^17.2.3",
-    "express": "^5.1.0",
-    "pg": "^8.16.3"
+  "devDependencies": {
+    "@types/express": "^4.17.21",
+    "@types/node": "^24.10.0",
+    "concurrently": "^8.2.2",
+    "typescript": "^5.9.3"
   }
 }
