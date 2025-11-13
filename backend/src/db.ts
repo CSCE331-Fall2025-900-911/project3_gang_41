@@ -1,3 +1,9 @@
+/**
+ * Centralized Postgres pool.
+ * - Reads connection options from environment variables.
+ * - Supports optional SSL for managed DBs (set DB_SSL=true).
+ * - Adds a pool error handler to avoid silent crashes.
+ */
 import 'dotenv/config';
 import { Pool } from 'pg';
 
