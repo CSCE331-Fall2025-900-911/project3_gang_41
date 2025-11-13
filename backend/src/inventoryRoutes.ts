@@ -1,47 +1,30 @@
-// backend/src/inventoryRoutes.ts
+/**
+ * Inventory routes:
+ * - POST / => create an inventory item
+ *   Expects: { item_name: string, quantity: number, cost: number }
+ *   Note: Column names in DB are (item_name, supply, cost)
+ */
 import express, { Request, Response } from 'express';
-import db from './db'; // Use db, not pool, if your db.ts exports 'db'
+import db from './db';
 
 const router = express.Router();
-const pool = db; // Assuming db.ts exports { query, connect } as default
 
-// POST /api/inventory
 router.post('/', async (req: Request, res: Response) => {
-    // 1. Get cost from req.body
-    const { item_name, quantity, cost } = req.body;
-    
-    // 2. Update validation
-    if (!item_name || quantity === undefined || cost === undefined) {
-        return res.status(400).json({ message: 'Missing item_name, quantity, or cost.' });
-    }
+  const { item_name, quantity, cost } = req.body;
 
-    let client;
-    try {
-        client = await pool.connect();
-        await client.query('BEGIN');
+  if (!item_name || quantity === undefined || cost === undefined) {
+    return res.status(400).json({ message: 'Missing item_name, quantity, or cost.' });
+  }
 
-        const maxIdQuery = "SELECT MAX(item_id) AS max_id FROM inventory";
-        const maxIdResult = await client.query(maxIdQuery);
-        const nextId = (maxIdResult.rows[0].max_id || 0) + 1;
-
-        // 3. Update SQL query to use 'supply' and 'cost'
-        const sql = "INSERT INTO inventory (item_id, item_name, supply, cost) VALUES ($1, $2, $3, $4) RETURNING *";
-        
-        // 4. Update query parameters
-        const result = await client.query(sql, [nextId, item_name, quantity, cost]);
-        
-        await client.query('COMMIT');
-        res.status(201).json(result.rows[0]);
-
-    } catch (error) {
-        if (client) await client.query('ROLLBACK');
-        console.error('Error adding new inventory item:', error);
-        res.status(500).json({ message: 'Failed to add inventory item.' });
-    } finally {
-        if (client) client.release();
-    }
+  try {
+    // Rely on DB identity/serial to generate item_id automatically
+    const sql = "INSERT INTO inventory (item_name, supply, cost) VALUES ($1, $2, $3) RETURNING *";
+    const result = await db.query(sql, [item_name, quantity, cost]);
+    res.status(201).json(result.rows[0]);
+  } catch (error) {
+    console.error('Error adding new inventory item:', error);
+    res.status(500).json({ message: 'Failed to add inventory item.' });
+  }
 });
-
-// You would also add GET, PUT, DELETE for inventory here later
 
 export default router;

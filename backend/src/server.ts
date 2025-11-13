@@ -28,7 +28,11 @@ declare module "express-session" {
   }
 }
 
-// Allow comma-separated list in FRONTEND_URL
+/**
+ * CORS setup:
+ * - Supports comma-separated FRONTEND_URL so you can allow multiple local hosts.
+ * - Allows requests with no Origin header (curl/Postman).
+ */
 const allowedOrigins = (process.env.FRONTEND_URL || "http://localhost:5173")
   .split(",")
   .map((s) => s.trim());
@@ -38,7 +42,6 @@ app.set("trust proxy", 1);
 app.use(
   cors({
     origin: (origin, cb) => {
-      // Allow requests with no origin (e.g., mobile apps, curl, server-to-server)
       if (!origin || allowedOrigins.includes(origin)) return cb(null, true);
       return cb(new Error(`Not allowed by CORS: ${origin}`));
     },
@@ -48,6 +51,11 @@ app.use(
 
 app.use(express.json());
 
+/**
+ * Session setup:
+ * - In production, cookies are secure and SameSite=None (for cross-site frontends).
+ * - In dev, cookies are non-secure and SameSite=Lax for convenience.
+ */
 app.use(
   session({
     secret: process.env.SESSION_SECRET || "your-secret-key",
@@ -57,11 +65,12 @@ app.use(
       secure: process.env.NODE_ENV === "production",
       httpOnly: true,
       sameSite: process.env.NODE_ENV === "production" ? "none" : "lax",
-      maxAge: 24 * 60 * 60 * 1000,
+      maxAge: 24 * 60 * 60 * 1000, // 24 hours
     },
-  }) as any
+  })
 );
 
+// Health check with DB ping
 app.get("/health", async (req: Request, res: Response) => {
   try {
     const result = await pool.query("SELECT NOW()");
@@ -73,6 +82,7 @@ app.get("/health", async (req: Request, res: Response) => {
   }
 });
 
+// Inventory listing endpoint (kept here for clarity; POST lives in inventoryRoutes)
 app.get("/api/inventory", async (req: Request, res: Response) => {
   try {
     const sql = "SELECT * FROM inventory ORDER BY item_name ASC";
@@ -84,6 +94,7 @@ app.get("/api/inventory", async (req: Request, res: Response) => {
   }
 });
 
+// Feature routes
 app.use('/api/inventory', inventoryRoutes);
 app.use('/api/menu', menuRoutes);
 app.use('/api/order-history', orderHistoryRoutes);
