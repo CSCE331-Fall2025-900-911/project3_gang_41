@@ -72,23 +72,6 @@ app.get("/api/inventory", async (req: Request, res: Response) => {
 app.use('/api/inventory', inventoryRoutes);
 app.use('/api/menu', menuRoutes);
 app.use('/api/order-history', orderHistoryRoutes);
-app.get('/api/menu', async (req, res) => {
-  try {
-    const result = await pool.query(
-      "SELECT item_id, item_name, cost FROM menuitems ORDER BY item_name"
-    );
-    res.json(result.rows);
-  } catch (err: any) {
-    console.error("Error fetching menu - Full error:", err);
-    console.error("Error message:", err.message);
-    console.error("Error code:", err.code);
-    res.status(500).json({
-      error: "Failed to fetch menu items",
-      details: err.message,
-      code: err.code,
-    });
-  }
-});
 
 // Google OAuth token verification endpoint
 app.post("/auth/google/verify", async (req, res) => {
