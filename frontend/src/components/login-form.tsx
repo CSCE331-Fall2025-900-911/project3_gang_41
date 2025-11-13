@@ -90,12 +90,11 @@ export function LoginForm({
                   <GoogleLogin
                     onSuccess={handleGoogleSuccess}
                     onError={handleGoogleError}
-                    useOneTap
+                    useOneTap={false}
                     text="signin_with"
                     shape="rectangular"
                     theme="outline"
                     size="large"
-                    width="100%"
                     logo_alignment="left"
                   />
                 </div>
