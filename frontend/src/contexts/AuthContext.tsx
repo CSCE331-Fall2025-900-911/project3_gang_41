@@ -1,4 +1,5 @@
 import React, { createContext, useContext, useState, useEffect } from "react";
+import { API_URL } from "@/lib/api";
 
 interface User {
   id: string;
@@ -29,12 +30,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
   // Check authentication status on mount
   const checkAuthStatus = async () => {
     try {
-      const response = await fetch(
-        `${import.meta.env.VITE_API_URL}/auth/user`,
-        {
-          credentials: "include",
-        }
-      );
+      const response = await fetch(`${API_URL}/auth/user`, {
+        credentials: "include",
+      });
 
       if (response.ok) {
         const userData = await response.json();
@@ -54,17 +52,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
   const verifyGoogleToken = async (credential: string) => {
     try {
       setIsLoading(true);
-      const response = await fetch(
-        `${import.meta.env.VITE_API_URL}/auth/google/verify`,
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          credentials: "include",
-          body: JSON.stringify({ credential }),
-        }
-      );
+      const response = await fetch(`${API_URL}/auth/google/verify`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        credentials: "include",
+        body: JSON.stringify({ credential }),
+      });
 
       if (!response.ok) {
         throw new Error("Failed to verify token");
@@ -83,7 +78,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
   // Logout user
   const logout = async () => {
     try {
-      await fetch(`${import.meta.env.VITE_API_URL}/auth/logout`, {
+      await fetch(`${API_URL}/auth/logout`, {
         method: "POST",
         credentials: "include",
       });

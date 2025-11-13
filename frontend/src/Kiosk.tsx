@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { API_URL } from '@/lib/api';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -40,7 +41,7 @@ function Kiosk() {
   const [buttonPulse, setButtonPulse] = useState(false);
 
   useEffect(() => {
-    fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:3000'}/api/menu`)
+    fetch(`${API_URL}/api/menu`)
       .then(res => res.json())
       .then(data => {
         console.log('Menu data:', data);

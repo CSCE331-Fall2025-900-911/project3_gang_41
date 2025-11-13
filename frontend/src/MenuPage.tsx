@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
+import { API_URL } from '@/lib/api';
 
-const API_BASE_URL = 'http://localhost:3000/api';
+const API_BASE_URL = `${API_URL}/api`;
 
 interface MenuItem {
   item_id: number;
@@ -242,7 +243,7 @@ interface IngredientModalProps {
 
 function IngredientModal({ item, onClose }: IngredientModalProps) {
   const [inventory, setInventory] = useState<InventoryItem[]>([]);
-  const [selectedIngredients, setSelectedIngredients] = useState<Record<string, number>>({});
+  const [selectedIngredients, setSelectedIngredients] = useState<Record<number, number>>({});
   
   // Form for new ingredient
   const [newIngName, setNewIngName] = useState('');
@@ -350,7 +351,7 @@ function IngredientModal({ item, onClose }: IngredientModalProps) {
                   id={`inv-${invItem.item_id}`}
                   value={invItem.item_id}
                   onChange={handleCheckboxChange}
-                  checked={selectedIngredients.hasOwnProperty(invItem.item_id)}
+                  checked={selectedIngredients[invItem.item_id] !== undefined}
                 />
                 <label htmlFor={`inv-${invItem.item_id}`} className="ml-2">{invItem.item_name}</label>
               </div>
@@ -360,7 +361,7 @@ function IngredientModal({ item, onClose }: IngredientModalProps) {
                 value={selectedIngredients[invItem.item_id] || 1}
                 onChange={(e) => handleQuantityChange(invItem.item_id, parseInt(e.target.value))}
                 className="w-16 px-2 py-1 border rounded"
-                disabled={!selectedIngredients.hasOwnProperty(invItem.item_id)}
+                disabled={selectedIngredients[invItem.item_id] === undefined}
               />
             </div>
           ))}
