@@ -248,7 +248,7 @@ function Kiosk() {
                         </div>
                         <div className="text-sm text-muted-foreground mt-3 space-y-1">
                           <div>Subtotal: ${total.toFixed(2)}</div>
-                          <div>Tax: ${(tax.toFixed(2))}</div>
+                          <div>Tax: (${tax.toFixed(2)})</div>
                         </div>
                       </div>
                       <Button size="lg" className="w-full h-16 text-xl">
