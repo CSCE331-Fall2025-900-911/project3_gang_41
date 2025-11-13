@@ -28,24 +28,39 @@ declare module "express-session" {
   }
 }
 
+// Allow comma-separated list in FRONTEND_URL
+const allowedOrigins = (process.env.FRONTEND_URL || "http://localhost:5173")
+  .split(",")
+  .map((s) => s.trim());
+
+app.set("trust proxy", 1);
+
 app.use(
   cors({
-    origin: process.env.FRONTEND_URL || "http://localhost:5173",
+    origin: (origin, cb) => {
+      // Allow requests with no origin (e.g., mobile apps, curl, server-to-server)
+      if (!origin || allowedOrigins.includes(origin)) return cb(null, true);
+      return cb(new Error(`Not allowed by CORS: ${origin}`));
+    },
     credentials: true,
   })
 );
+
 app.use(express.json());
 
-app.use(session({
-  secret: process.env.SESSION_SECRET || "your-secret-key",
-  resave: false,
-  saveUninitialized: false,
-  cookie: {
-    secure: false, // Set to true if using HTTPS
-    httpOnly: true,
-    maxAge: 24 * 60 * 60 * 1000, // 24 hours
-  },
-}) as any);
+app.use(
+  session({
+    secret: process.env.SESSION_SECRET || "your-secret-key",
+    resave: false,
+    saveUninitialized: false,
+    cookie: {
+      secure: process.env.NODE_ENV === "production",
+      httpOnly: true,
+      sameSite: process.env.NODE_ENV === "production" ? "none" : "lax",
+      maxAge: 24 * 60 * 60 * 1000,
+    },
+  }) as any
+);
 
 app.get("/health", async (req: Request, res: Response) => {
   try {
