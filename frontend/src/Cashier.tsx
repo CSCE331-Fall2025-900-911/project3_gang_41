@@ -13,6 +13,7 @@ import { Separator } from "@/components/ui/separator";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { Minus, Plus, ShoppingCart, Trash2, LogOut } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
+import { toast } from "sonner";
 
 interface MenuItem {
   item_id: number;
@@ -96,6 +97,47 @@ function Cashier() {
   };
 
   const total = cart.reduce((sum, item) => sum + item.cost * item.quantity, 0);
+
+  const handleCheckout = () => {
+    toast.promise(
+      async () => {
+        // Prepare order data
+        const orderData = {
+          items: cart.map(item => ({
+            item_id: item.item_id,
+            item_name: item.item_name,
+            quantity: item.quantity,
+            cost: item.cost
+          }))
+        };
+
+        // Call the API
+        const response = await fetch(
+          `${import.meta.env.VITE_API_URL || 'http://localhost:3000'}/api/order-history`,
+          {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(orderData),
+          }
+        );
+
+        if (!response.ok) {
+          throw new Error('Failed to create order');
+        }
+
+        // Clear cart on success
+        setCart([]);
+        return { success: true };
+      },
+      {
+        loading: "Adding order...",
+        success: "Order created",
+        error: "Error creating order",
+      }
+    );
+  };
 
   return (
     <div className="flex h-screen bg-background">
@@ -287,7 +329,7 @@ function Cashier() {
               </div>
             </div>
 
-            <Button size="lg" className="w-full text-lg h-12">
+            <Button size="lg" className="w-full text-lg h-12" onClick={handleCheckout}>
               Checkout
             </Button>
           </div>
