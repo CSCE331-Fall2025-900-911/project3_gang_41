@@ -9,7 +9,7 @@ import {
   CardFooter,
 } from "@/components/ui/card";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
-import { Package, Users, History, LogOut } from "lucide-react"; //icons
+import { Package, Users, History, LogOut, LayoutDashboard, SquareMenu } from "lucide-react"; //icons
 import { useAuth } from "@/contexts/AuthContext";
 import MenuPage from "./MenuPage";
 import EmployeesPage from "./EmployeesPage";
@@ -50,7 +50,7 @@ const DashboardContent = () => (
               <Package className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">67 items</div>
+              <div className="text-2xl font-bold">69 items</div>
               <p className="text-xs text-muted-foreground">placeholder info</p>
             </CardContent>
             <CardFooter>
@@ -143,13 +143,13 @@ function Manager() {
     }
   };
 
-  // const categoryIcons = {
-  //     'Dashboard': <LayoutDashboard className="h-4 w-4 mr-2" />,
-  //     'Menu Items': <SquareMenu className="h-4 w-4 mr-2" />,
-  //     'Inventory': <Package className="h-4 w-4 mr-2" />,
-  //     'Employees': <Users className="h-4 w-4 mr-2" />,
-  //     'Order History': <History className="h-4 w-4 mr-2" />,
-  // };
+  const categoryIcons = {
+      'Dashboard': <LayoutDashboard className="h-4 w-4 mr-2" />,
+      'Menu Items': <SquareMenu className="h-4 w-4 mr-2" />,
+      'Inventory': <Package className="h-4 w-4 mr-2" />,
+      'Employees': <Users className="h-4 w-4 mr-2" />,
+      'Order History': <History className="h-4 w-4 mr-2" />,
+  };
 
   return (
     <div className="flex h-screen bg-background">
@@ -164,6 +164,7 @@ function Manager() {
             className="w-full justify-start text-left"
             onClick={() => setActiveCategory(category)}
           >
+            {categoryIcons[category as keyof typeof categoryIcons]}
             {category}
           </Button>
         ))}
