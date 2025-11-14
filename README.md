@@ -1,15 +1,17 @@
-# project3_gang_41
+# Boba Tea POS System - Project 3 Gang 41
 
+## Setup
 
-# how to run for dummies (NOT OLIVER NOT OLIVER NOT HIM!! ) 🤬💢💢💢🧋
 ```bash
 npm install
-
-npm run dev --workspace=backend # run for backend
-npm run dev --workspace=frontend # run for frontend
+npm run dev --workspace=backend   # Start backend server
+npm run dev --workspace=frontend  # Start frontend app
 ```
 
 ## Structure
 - `frontend/` - React and TypeScript
 - `backend/` - Express and TypeScript
 - `shared/` - Shared types
+
+## Tech Stack
+TypeScript, React, Node.js, Express, PostgreSQL (AWS RDS), Tailwind CSS

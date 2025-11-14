@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { API_URL } from "@/lib/api";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import {
@@ -50,10 +51,9 @@ function Cashier() {
   };
 
   useEffect(() => {
-    fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:3000'}/api/menu`)
+    fetch(`${API_URL}/api/menu`)
       .then(res => res.json())
       .then(data => {
-        console.log('Menu data:', data);
         if (Array.isArray(data)) {
           const menuWithNumbers = data.map((item) => ({
             ...item,
@@ -61,12 +61,10 @@ function Cashier() {
           }));
           setMenu(menuWithNumbers);
         } else {
-          console.error("Menu data is not an array:", data);
           setMenu([]);
         }
       })
-      .catch((err) => {
-        console.error("Error fetching menu:", err);
+      .catch(() => {
         setMenu([]);
       });
   }, []);
@@ -112,16 +110,13 @@ function Cashier() {
         };
 
         // Call the API
-        const response = await fetch(
-          `${import.meta.env.VITE_API_URL || 'http://localhost:3000'}/api/order-history`,
-          {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-            },
-            body: JSON.stringify(orderData),
-          }
-        );
+        const response = await fetch(`${API_URL}/api/order-history`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(orderData),
+        });
 
         if (!response.ok) {
           throw new Error('Failed to create order');

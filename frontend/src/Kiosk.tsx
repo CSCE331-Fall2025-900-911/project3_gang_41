@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { API_URL } from '@/lib/api';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -11,6 +12,7 @@ import {
   DrawerTrigger,
 } from '@/components/ui/drawer';
 import { Minus, Plus, ShoppingCart, Trash2 } from 'lucide-react';
+import { toast } from 'sonner';
 
 interface MenuItem {
   item_id: number;
@@ -40,10 +42,9 @@ function Kiosk() {
   const [buttonPulse, setButtonPulse] = useState(false);
 
   useEffect(() => {
-    fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:3000'}/api/menu`)
+    fetch(`${API_URL}/api/menu`)
       .then(res => res.json())
       .then(data => {
-        console.log('Menu data:', data);
         if (Array.isArray(data)) {
           const menuWithNumbers = data.map(item => ({
             ...item,
@@ -51,12 +52,10 @@ function Kiosk() {
           }));
           setMenu(menuWithNumbers);
         } else {
-          console.error('Menu data is not an array:', data);
           setMenu([]);
         }
       })
-      .catch(err => {
-        console.error('Error fetching menu:', err);
+      .catch(() => {
         setMenu([]);
       });
   }, []);
@@ -95,6 +94,42 @@ function Kiosk() {
   const total = cart.reduce((sum, item) => sum + (item.cost * item.quantity), 0);
   const tax = total * 0.0825;
   const finalTotal = total + tax;
+
+  const handleCheckout = () => {
+    toast.promise(
+      async () => {
+        const orderData = {
+          items: cart.map(item => ({
+            item_id: item.item_id,
+            item_name: item.item_name,
+            quantity: item.quantity,
+            cost: item.cost
+          }))
+        };
+
+        const response = await fetch(`${API_URL}/api/order-history`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(orderData),
+        });
+
+        if (!response.ok) {
+          throw new Error('Failed to create order');
+        }
+
+        setCart([]);
+        setDrawerOpen(false);
+        return { success: true };
+      },
+      {
+        loading: "Processing payment...",
+        success: "Order complete!",
+        error: "Payment failed",
+      }
+    );
+  };
 
   return (
     <div className="flex h-screen bg-background">
@@ -248,10 +283,10 @@ function Kiosk() {
                         </div>
                         <div className="text-sm text-muted-foreground mt-3 space-y-1">
                           <div>Subtotal: ${total.toFixed(2)}</div>
-                          <div>Tax: ${tax.toFixed(2)}</div>
+                          <div>Tax: (${tax.toFixed(2)})</div>
                         </div>
                       </div>
-                      <Button size="lg" className="w-full h-16 text-xl">
+                      <Button size="lg" className="w-full h-16 text-xl" onClick={handleCheckout}>
                         Pay Now
                       </Button>
                     </div>
