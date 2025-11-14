@@ -4,6 +4,11 @@ build
 .env
 *.log
 .vite
+.DS_Store
+
+# IDEs
+.vscode/
+.idea/
 
 # local dev utils
 zMiscDevUtils/

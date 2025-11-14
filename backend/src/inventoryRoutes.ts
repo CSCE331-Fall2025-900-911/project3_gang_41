@@ -1,14 +1,21 @@
-/**
- * Inventory routes:
- * - POST / => create an inventory item
- *   Expects: { item_name: string, quantity: number, cost: number }
- *   Note: Column names in DB are (item_name, supply, cost)
- */
 import express, { Request, Response } from 'express';
 import db from './db';
 
 const router = express.Router();
 
+// Get all inventory items
+router.get('/', async (_req: Request, res: Response) => {
+  try {
+    const sql = "SELECT * FROM inventory ORDER BY item_name ASC";
+    const result = await db.query(sql);
+    res.json(result.rows);
+  } catch (err: any) {
+    console.error("Error fetching inventory:", err.message);
+    res.status(500).json({ message: "Failed to load inventory." });
+  }
+});
+
+// Create new inventory item
 router.post('/', async (req: Request, res: Response) => {
   const { item_name, quantity, cost } = req.body;
 

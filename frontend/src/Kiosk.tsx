@@ -44,7 +44,6 @@ function Kiosk() {
     fetch(`${API_URL}/api/menu`)
       .then(res => res.json())
       .then(data => {
-        console.log('Menu data:', data);
         if (Array.isArray(data)) {
           const menuWithNumbers = data.map(item => ({
             ...item,
@@ -52,12 +51,10 @@ function Kiosk() {
           }));
           setMenu(menuWithNumbers);
         } else {
-          console.error('Menu data is not an array:', data);
           setMenu([]);
         }
       })
-      .catch(err => {
-        console.error('Error fetching menu:', err);
+      .catch(() => {
         setMenu([]);
       });
   }, []);

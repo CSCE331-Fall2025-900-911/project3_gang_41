@@ -1,10 +1,9 @@
-// backend/src/orderHistoryRoutes.ts
 import express, { Request, Response } from 'express';
 import db from './db';
 
 const router = express.Router();
 
-// POST /api/order-history — create a new order (multiple rows share same orderid)
+// Create new order with multiple items
 router.post('/', async (req: Request, res: Response) => {
     const { items, customerid, employeeId, paymentmethod } = req.body as {
         items: { item_id: number; item_name: string; quantity: number; cost: number }[];
@@ -21,7 +20,7 @@ router.post('/', async (req: Request, res: Response) => {
     try {
         await client.query('BEGIN');
 
-        // Mint a single orderid from the identity sequence.
+        // Generate new order ID
         const { rows } = await client.query(
             "SELECT nextval(pg_get_serial_sequence('order_history', 'orderid')) AS new_order_id"
         );
@@ -39,6 +38,7 @@ router.post('/', async (req: Request, res: Response) => {
                 ($1, $2, $3, $4, $5, $6, $7, $8)
         `;
 
+        // Insert each item with same orderid
         for (const item of items) {
             const totalprice = item.cost * item.quantity;
             await client.query(insertSql, [
@@ -64,7 +64,7 @@ router.post('/', async (req: Request, res: Response) => {
     }
 });
 
-// GET /api/order-history — paginated, aggregated by orderid
+// Get paginated order history with items aggregated by order
 router.get('/', async (req: Request, res: Response) => {
     try {
         const page = parseInt((req.query.page as string) || '1', 10);
@@ -77,11 +77,11 @@ router.get('/', async (req: Request, res: Response) => {
         const totalPages = Math.ceil(totalCount / limit);
 
         const dataSql = `
-            SELECT 
-                orderid, 
-                customerid, 
-                orderdate, 
-                employeeatcheckout, 
+            SELECT
+                orderid,
+                customerid,
+                orderdate,
+                employeeatcheckout,
                 paymentmethod,
                 SUM(CAST(totalprice AS numeric)) AS total_order_price,
                 json_agg(
@@ -93,7 +93,7 @@ router.get('/', async (req: Request, res: Response) => {
                     ORDER BY itemname
                 ) AS items
             FROM order_history
-            GROUP BY 
+            GROUP BY
                 orderid, customerid, orderdate, employeeatcheckout, paymentmethod
             ORDER BY orderid DESC
             OFFSET $1 LIMIT $2;
