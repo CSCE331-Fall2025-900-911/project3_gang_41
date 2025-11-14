@@ -20,9 +20,9 @@ router.post('/', async (req: Request, res: Response) => {
     try {
         await client.query('BEGIN');
 
-        // Generate new order ID
+        // Generate new order ID using MAX + 1
         const { rows } = await client.query(
-            "SELECT nextval(pg_get_serial_sequence('order_history', 'orderid')) AS new_order_id"
+            "SELECT COALESCE(MAX(orderid), 0) + 1 AS new_order_id FROM order_history"
         );
         const orderid = Number(rows[0].new_order_id);
 

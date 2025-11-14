@@ -12,6 +12,7 @@ import {
   DrawerTrigger,
 } from '@/components/ui/drawer';
 import { Minus, Plus, ShoppingCart, Trash2 } from 'lucide-react';
+import { toast } from 'sonner';
 
 interface MenuItem {
   item_id: number;
@@ -93,6 +94,42 @@ function Kiosk() {
   const total = cart.reduce((sum, item) => sum + (item.cost * item.quantity), 0);
   const tax = total * 0.0825;
   const finalTotal = total + tax;
+
+  const handleCheckout = () => {
+    toast.promise(
+      async () => {
+        const orderData = {
+          items: cart.map(item => ({
+            item_id: item.item_id,
+            item_name: item.item_name,
+            quantity: item.quantity,
+            cost: item.cost
+          }))
+        };
+
+        const response = await fetch(`${API_URL}/api/order-history`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(orderData),
+        });
+
+        if (!response.ok) {
+          throw new Error('Failed to create order');
+        }
+
+        setCart([]);
+        setDrawerOpen(false);
+        return { success: true };
+      },
+      {
+        loading: "Processing payment...",
+        success: "Order complete!",
+        error: "Payment failed",
+      }
+    );
+  };
 
   return (
     <div className="flex h-screen bg-background">
@@ -249,7 +286,7 @@ function Kiosk() {
                           <div>Tax: (${tax.toFixed(2)})</div>
                         </div>
                       </div>
-                      <Button size="lg" className="w-full h-16 text-xl">
+                      <Button size="lg" className="w-full h-16 text-xl" onClick={handleCheckout}>
                         Pay Now
                       </Button>
                     </div>
