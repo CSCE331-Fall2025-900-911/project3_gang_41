@@ -9,7 +9,7 @@ import {
   CardFooter,
 } from "@/components/ui/card";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
-import { Package, Users, History, LogOut } from "lucide-react"; //icons
+import { Package, Users, History, LogOut, ShoppingCart } from "lucide-react"; //icons
 import { useAuth } from "@/contexts/AuthContext";
 import MenuPage from "./MenuPage";
 import EmployeesPage from "./EmployeesPage";
@@ -187,6 +187,14 @@ function Manager() {
               </div>
             </div>
           )}
+          <Button
+            variant="outline"
+            className="w-full justify-start gap-2"
+            onClick={() => navigate('/cashier')}
+          >
+            <ShoppingCart className="h-4 w-4" />
+            Cashier
+          </Button>
           <Button
             variant="outline"
             className="w-full justify-start gap-2"

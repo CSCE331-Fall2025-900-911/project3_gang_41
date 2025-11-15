@@ -6,7 +6,7 @@ const router = express.Router();
 // Get all menu items
 router.get('/', async (_req: Request, res: Response) => {
   try {
-    const sql = "SELECT item_id, item_name, cost FROM menuitems ORDER BY item_id ASC";
+    const sql = "SELECT item_id, item_name, cost, category FROM menuitems ORDER BY item_id ASC";
     const result = await db.query(sql);
     res.json(result.rows);
   } catch (error) {

@@ -18,6 +18,7 @@ interface MenuItem {
   item_id: number;
   item_name: string;
   cost: number;
+  category: string;
 }
 
 interface CartItem {
@@ -29,15 +30,17 @@ interface CartItem {
 
 const categories = [
   'All Items',
-  'Coffee',
-  'Smoothie',
-  'Specials',
+  'Milk Tea',
+  'Matcha',
+  'Fruit Tea',
+  'Slush',
+  'Seasonal',
 ];
 
 function Kiosk() {
   const [menu, setMenu] = useState<MenuItem[]>([]);
   const [cart, setCart] = useState<CartItem[]>([]);
-  const [activeCategory, setActiveCategory] = useState('');
+  const [activeCategory, setActiveCategory] = useState('All Items');
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [buttonPulse, setButtonPulse] = useState(false);
 
@@ -153,7 +156,9 @@ function Kiosk() {
         <div className="flex-1 overflow-auto p-8 pt-12">
           <div className="max-w-6xl mx-auto">
             <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
-              {menu.map(item => (
+              {menu
+                .filter((item) => activeCategory === 'All Items' || item.category === activeCategory)
+                .map(item => (
                 <Card
                   key={item.item_id}
                   className="cursor-pointer transition-all duration-150 hover:shadow-xl hover:scale-105 active:scale-95 active:shadow-md h-40"

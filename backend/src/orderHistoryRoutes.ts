@@ -26,29 +26,52 @@ router.post('/', async (req: Request, res: Response) => {
         );
         const orderid = Number(rows[0].new_order_id);
 
-        const orderdate = new Date();
-        const method = paymentmethod ?? 'cash';
-        const employee = employeeId ?? null;
-        const cust = customerid ?? null;
+        const method = paymentmethod ?? 'card';
+        const employee = employeeId ?? 0;
+        const cust = customerid ?? 0;
+
+        // Aggregate items by item_id (like Java implementation)
+        const aggregatedItems = new Map<number, {
+            item_id: number;
+            item_name: string;
+            quantity: number;
+            unitprice: number;
+        }>();
+
+        for (const item of items) {
+            const existing = aggregatedItems.get(item.item_id);
+            if (existing) {
+                existing.quantity += item.quantity;
+            } else {
+                aggregatedItems.set(item.item_id, {
+                    item_id: item.item_id,
+                    item_name: item.item_name,
+                    quantity: item.quantity,
+                    unitprice: item.cost,
+                });
+            }
+        }
 
         const insertSql = `
             INSERT INTO order_history
-                (orderid, customerid, orderdate, employeeatcheckout, paymentmethod, itemname, quantity, totalprice)
+                (orderid, customerid, orderdate, employeeatcheckout, paymentmethod,
+                 menuitemid, itemname, quantity, unitprice, totalprice)
             VALUES
-                ($1, $2, $3, $4, $5, $6, $7, $8)
+                ($1, $2, NOW(), $3, $4, $5, $6, $7, $8, $9)
         `;
 
-        // Insert each item with same orderid
-        for (const item of items) {
-            const totalprice = item.cost * item.quantity;
+        // Insert each aggregated item
+        for (const item of aggregatedItems.values()) {
+            const totalprice = item.unitprice * item.quantity;
             await client.query(insertSql, [
                 orderid,
                 cust,
-                orderdate,
                 employee,
                 method,
+                item.item_id,
                 item.item_name,
                 item.quantity,
+                item.unitprice,
                 totalprice,
             ]);
         }
@@ -58,7 +81,7 @@ router.post('/', async (req: Request, res: Response) => {
     } catch (err) {
         await client.query('ROLLBACK');
         console.error('Failed to create order:', err);
-        res.status(500).json({ message: 'Failed to create order' });
+        res.status(500).json({ message: 'Failed to create order', error: String(err) });
     } finally {
         client.release();
     }

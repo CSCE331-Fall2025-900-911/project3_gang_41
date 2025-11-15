@@ -12,7 +12,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
-import { Minus, Plus, ShoppingCart, Trash2, LogOut } from "lucide-react";
+import { Minus, Plus, ShoppingCart, Trash2, LogOut, Settings } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
 
@@ -20,6 +20,7 @@ interface MenuItem {
   item_id: number;
   item_name: string;
   cost: number;
+  category: string;
 }
 
 interface CartItem {
@@ -32,9 +33,9 @@ interface CartItem {
 const categories = [
   "All Items",
   "Milk Tea",
+  "Matcha",
   "Fruit Tea",
-  "Coffee",
-  "Smoothies",
+  "Slush",
   "Seasonal",
 ];
 
@@ -160,6 +161,15 @@ function Cashier() {
               <Button
                 variant="outline"
                 size="sm"
+                onClick={() => navigate('/manager')}
+                className="gap-2"
+              >
+                <Settings className="h-4 w-4" />
+                Manager
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
                 onClick={handleLogout}
                 className="gap-2"
               >
@@ -192,7 +202,9 @@ function Cashier() {
         {/* Menu Grid */}
         <div className="flex-1 overflow-auto p-6">
           <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
-            {menu.map((item) => (
+            {menu
+              .filter((item) => activeCategory === "All Items" || item.category === activeCategory)
+              .map((item) => (
               <Card
                 key={item.item_id}
                 className="cursor-pointer transition-all hover:shadow-lg hover:scale-105"
