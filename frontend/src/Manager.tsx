@@ -1,5 +1,6 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
+import { API_URL } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -11,6 +12,7 @@ import {
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { Package, Users, History, LogOut, ShoppingCart } from "lucide-react"; //icons
 import { useAuth } from "@/contexts/AuthContext";
+import { WeatherDisplay } from "@/components/WeatherDisplay";
 import MenuPage from "./MenuPage";
 import EmployeesPage from "./EmployeesPage";
 import InventoryPage from "./InventoryPage";
@@ -120,6 +122,14 @@ function Manager() {
   const navigate = useNavigate();
   const { logout, user } = useAuth();
   const [activeCategory, setActiveCategory] = useState("Dashboard");
+  const [weather, setWeather] = useState<{ temperature: number; icon: string } | null>(null);
+
+  useEffect(() => {
+    fetch(`${API_URL}/api/weather/current`)
+      .then(res => res.json())
+      .then(data => setWeather(data))
+      .catch(() => setWeather(null));
+  }, []);
 
   const handleLogout = async () => {
     await logout();
@@ -185,6 +195,11 @@ function Manager() {
                 <div className="text-sm font-medium truncate">{user.name}</div>
                 <div className="text-xs text-muted-foreground truncate">{user.email}</div>
               </div>
+            </div>
+          )}
+          {weather && (
+            <div className="px-2 py-2">
+              <WeatherDisplay temperature={weather.temperature} icon={weather.icon} />
             </div>
           )}
           <Button
