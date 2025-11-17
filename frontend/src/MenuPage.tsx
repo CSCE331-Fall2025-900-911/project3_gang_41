@@ -1,6 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
 import { API_URL } from "@/lib/api";
-import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import {
   Card,
@@ -46,7 +45,6 @@ import {
   Loader2,
   RefreshCw,
   Coffee,
-  ArrowLeft,
 } from "lucide-react";
 
 const API_BASE_URL = `${API_URL}/api`;
@@ -54,7 +52,8 @@ const API_BASE_URL = `${API_URL}/api`;
 interface MenuItem {
   item_id: number;
   item_name: string;
-  cost: string; // comes back as string (numeric)
+  cost: string;     // numeric -> string from API
+  category: string; // now in DB
 }
 
 interface InventoryItem {
@@ -69,8 +68,6 @@ const currency = (n: number) =>
   n.toLocaleString("en-US", { style: "currency", currency: "USD" });
 
 function MenuPage() {
-  const navigate = useNavigate();
-
   const [menuItems, setMenuItems] = useState<MenuItem[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -82,12 +79,14 @@ function MenuPage() {
   const [addOpen, setAddOpen] = useState(false);
   const [newItemName, setNewItemName] = useState("");
   const [newItemCost, setNewItemCost] = useState("");
+  const [newItemCategory, setNewItemCategory] = useState("");
   const [openIngredientsAfterCreate, setOpenIngredientsAfterCreate] =
     useState(true);
 
   // Edit item dialog
   const [editOpen, setEditOpen] = useState(false);
   const [selectedItem, setSelectedItem] = useState<MenuItem | null>(null);
+  const [updateName, setUpdateName] = useState("");
   const [updatePrice, setUpdatePrice] = useState("");
 
   // Delete confirm
@@ -119,17 +118,34 @@ function MenuPage() {
   const filtered = useMemo(() => {
     if (!query.trim()) return menuItems;
     const q = query.toLowerCase();
-    return menuItems.filter((m) => m.item_name.toLowerCase().includes(q));
+    return menuItems.filter(
+      (m) =>
+        m.item_name.toLowerCase().includes(q) ||
+        (m.category || "").toLowerCase().includes(q)
+    );
   }, [menuItems, query]);
+
+  const categoryOptions = useMemo(
+    () => Array.from(new Set(menuItems.map((m) => m.category))).sort(),
+    [menuItems]
+  );
 
   // Add
   const handleAddItem = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!newItemCategory.trim()) {
+      toast.error("Please provide a category");
+      return;
+    }
     try {
       const res = await fetch(`${API_BASE_URL}/menu`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ item_name: newItemName, cost: newItemCost }),
+        body: JSON.stringify({
+          item_name: newItemName,
+          cost: newItemCost,
+          category: newItemCategory,
+        }),
       });
       if (!res.ok) throw new Error("Failed to add new item");
       const created: MenuItem = await res.json();
@@ -138,6 +154,7 @@ function MenuPage() {
       setAddOpen(false);
       setNewItemName("");
       setNewItemCost("");
+      setNewItemCategory("");
       await loadMenuItems();
 
       if (openIngredientsAfterCreate) {
@@ -152,27 +169,33 @@ function MenuPage() {
   // Edit
   const openEdit = (item: MenuItem) => {
     setSelectedItem(item);
-    setUpdatePrice(parseFloat(item.cost).toFixed(2));
+    setUpdateName(item.item_name);
+    setUpdatePrice(parseFloat(item.cost || "0").toFixed(2));
     setEditOpen(true);
   };
 
-  const handleUpdatePrice = async (e: React.FormEvent) => {
+  const handleUpdateItem = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!selectedItem) return;
     try {
       const res = await fetch(`${API_BASE_URL}/menu/${selectedItem.item_id}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ cost: updatePrice }),
+        body: JSON.stringify({
+          item_name: updateName,
+          cost: updatePrice,
+          // include category here too if you want to edit it later
+        }),
       });
-      if (!res.ok) throw new Error("Failed to update price");
-      toast.success("Price updated");
+      if (!res.ok) throw new Error("Failed to update item");
+      toast.success("Item updated");
       setEditOpen(false);
       setSelectedItem(null);
+      setUpdateName("");
       setUpdatePrice("");
       await loadMenuItems();
     } catch (e: any) {
-      toast.error(e?.message ?? "Error updating price");
+      toast.error(e?.message ?? "Error updating item");
     }
   };
 
@@ -219,7 +242,7 @@ function MenuPage() {
             <div className="flex items-center gap-3">
               <div className="hidden md:block">
                 <Input
-                  placeholder="Search menu..."
+                  placeholder="Search by name or category..."
                   value={query}
                   onChange={(e) => setQuery(e.target.value)}
                   className="w-[260px]"
@@ -267,6 +290,7 @@ function MenuPage() {
                       <TableRow>
                         <TableHead className="w-24">ID</TableHead>
                         <TableHead>Name</TableHead>
+                        <TableHead>Category</TableHead>
                         <TableHead className="w-32">Price</TableHead>
                         <TableHead className="w-48 text-right">Actions</TableHead>
                       </TableRow>
@@ -280,6 +304,7 @@ function MenuPage() {
                           <TableCell className="font-medium">
                             {item.item_name}
                           </TableCell>
+                          <TableCell>{item.category}</TableCell>
                           <TableCell>
                             {currency(parseFloat(item.cost || "0"))}
                           </TableCell>
@@ -318,7 +343,7 @@ function MenuPage() {
                       ))}
                       {filtered.length === 0 && (
                         <TableRow>
-                          <TableCell colSpan={4} className="text-center py-10 text-muted-foreground">
+                          <TableCell colSpan={5} className="text-center py-10 text-muted-foreground">
                             No items found.
                           </TableCell>
                         </TableRow>
@@ -338,13 +363,10 @@ function MenuPage() {
           <DialogHeader>
             <DialogTitle>Add new item</DialogTitle>
             <DialogDescription>
-              Create a menu item with a base (pre-tax) price.
+              Create a menu item with a base (pre-tax) price and category.
             </DialogDescription>
           </DialogHeader>
-          <form
-            onSubmit={handleAddItem}
-            className="grid gap-4"
-          >
+          <form onSubmit={handleAddItem} className="grid gap-4">
             <div className="grid gap-2">
               <Label htmlFor="newName">Name</Label>
               <Input
@@ -363,6 +385,23 @@ function MenuPage() {
                 placeholder="e.g. 5.99"
                 required
               />
+            </div>
+            <div className="grid gap-2">
+              <Label htmlFor="newCategory">Category</Label>
+              {/* Using native datalist for suggestions based on existing categories */}
+              <Input
+                id="newCategory"
+                list="categoryOptions"
+                value={newItemCategory}
+                onChange={(e) => setNewItemCategory(e.target.value)}
+                placeholder="e.g. Milk Tea, Matcha, Fruit Tea, Slush"
+                required
+              />
+              <datalist id="categoryOptions">
+                {categoryOptions.map((c) => (
+                  <option key={c} value={c} />
+                ))}
+              </datalist>
             </div>
             <div className="flex items-center gap-2">
               <input
@@ -387,20 +426,29 @@ function MenuPage() {
         </DialogContent>
       </Dialog>
 
-      {/* Edit Item Dialog */}
+      {/* Edit Item Dialog (name + price) */}
       <Dialog open={editOpen} onOpenChange={setEditOpen}>
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Edit item</DialogTitle>
             <DialogDescription>
-              Update the price for {selectedItem?.item_name}.
+              Update the name and price for {selectedItem?.item_name}.
             </DialogDescription>
           </DialogHeader>
-          <form onSubmit={handleUpdatePrice} className="grid gap-4">
+          <form onSubmit={handleUpdateItem} className="grid gap-4">
             <div className="grid gap-2">
-              <Label htmlFor="price">Price</Label>
+              <Label htmlFor="editName">Name</Label>
               <Input
-                id="price"
+                id="editName"
+                value={updateName}
+                onChange={(e) => setUpdateName(e.target.value)}
+                required
+              />
+            </div>
+            <div className="grid gap-2">
+              <Label htmlFor="editPrice">Price</Label>
+              <Input
+                id="editPrice"
                 value={updatePrice}
                 onChange={(e) => setUpdatePrice(e.target.value)}
                 required
@@ -453,6 +501,8 @@ function MenuPage() {
   );
 }
 
+/* ---------- Ingredients Dialog (unchanged behavior) ---------- */
+
 type IngredientsDialogProps = {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -475,28 +525,46 @@ function IngredientsDialog({ open, onOpenChange, item, onSaved }: IngredientsDia
       const res = await fetch(`${API_BASE_URL}/inventory`);
       const data: InventoryItem[] = await res.json();
       setInventory(data);
-    } catch (e) {
+    } catch {
       toast.error("Failed to load inventory");
+    }
+  };
+
+  const loadExisting = async () => {
+    try {
+      const res = await fetch(`${API_BASE_URL}/menu/${item.item_id}/ingredients`);
+      if (!res.ok) throw new Error("Failed to load existing ingredients");
+      const payload = await res.json();
+      const list: { id: number; name?: string; quantity: number }[] =
+        Array.isArray(payload) ? payload : payload.ingredients || [];
+
+      // Map to { [inventory_id]: quantity }
+      const preselected: Record<number, number> = {};
+      for (const ing of list) {
+        preselected[ing.id] = Number(ing.quantity) || 1;
+      }
+      setSelected(preselected);
+    } catch (e: any) {
+      // Not fatal—dialog still works
+      console.warn(e?.message || e);
     }
   };
 
   useEffect(() => {
     if (open) {
       loadInventory();
-      // Optionally fetch existing ingredients for this item and prefill `selected`
-      // Example: GET /api/menu/:id/ingredients -> { id, quantity }[]
-      // setSelected(mapFromResponse)
+      loadExisting();
+    } else {
+      // reset when closing to avoid leak across items
+      setSelected({});
     }
-  }, [open]);
+  }, [open, item.item_id]);
 
   const toggleIngredient = (id: number, checked: boolean) => {
     setSelected((prev) => {
       const copy = { ...prev };
-      if (checked) {
-        copy[id] = copy[id] ?? 1;
-      } else {
-        delete copy[id];
-      }
+      if (checked) copy[id] = copy[id] ?? 1;
+      else delete copy[id];
       return copy;
     });
   };
@@ -534,7 +602,7 @@ function IngredientsDialog({ open, onOpenChange, item, onSaved }: IngredientsDia
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           item_name: newIngName,
-          quantity: newIngStock || 0, // your API expects `quantity` per your original code
+          quantity: newIngStock || 0,
           cost: newIngCost,
         }),
       });
@@ -641,7 +709,6 @@ function IngredientsDialog({ open, onOpenChange, item, onSaved }: IngredientsDia
               />
             </div>
             <Button type="submit" variant="outline" className="gap-2">
-              <Plus className="h-4 w-4" />
               Add to inventory
             </Button>
           </form>
