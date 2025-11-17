@@ -1,6 +1,5 @@
 import { useEffect, useState } from "react";
 import { API_URL } from "@/lib/api";
-import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import {
   Card,
