@@ -13,11 +13,13 @@ import {
 } from '@/components/ui/drawer';
 import { Minus, Plus, ShoppingCart, Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
+import { WeatherDisplay } from '@/components/WeatherDisplay';
 
 interface MenuItem {
   item_id: number;
   item_name: string;
   cost: number;
+  category: string;
 }
 
 interface CartItem {
@@ -29,17 +31,20 @@ interface CartItem {
 
 const categories = [
   'All Items',
-  'Coffee',
-  'Smoothie',
-  'Specials',
+  'Milk Tea',
+  'Matcha',
+  'Fruit Tea',
+  'Slush',
+  'Seasonal',
 ];
 
 function Kiosk() {
   const [menu, setMenu] = useState<MenuItem[]>([]);
   const [cart, setCart] = useState<CartItem[]>([]);
-  const [activeCategory, setActiveCategory] = useState('');
+  const [activeCategory, setActiveCategory] = useState('All Items');
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [buttonPulse, setButtonPulse] = useState(false);
+  const [weather, setWeather] = useState<{ temperature: number; icon: string } | null>(null);
 
   useEffect(() => {
     fetch(`${API_URL}/api/menu`)
@@ -58,6 +63,11 @@ function Kiosk() {
       .catch(() => {
         setMenu([]);
       });
+
+    fetch(`${API_URL}/api/weather/current`)
+      .then(res => res.json())
+      .then(data => setWeather(data))
+      .catch(() => setWeather(null));
   }, []);
 
   const addToCart = (item: MenuItem) => {
@@ -145,6 +155,11 @@ function Kiosk() {
             {category}
           </Button>
         ))}
+        {weather && (
+          <div className="px-2 py-2">
+            <WeatherDisplay temperature={weather.temperature} icon={weather.icon} />
+          </div>
+        )}
       </div>
 
       {/* Main content area with product cards */}
@@ -153,7 +168,9 @@ function Kiosk() {
         <div className="flex-1 overflow-auto p-8 pt-12">
           <div className="max-w-6xl mx-auto">
             <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
-              {menu.map(item => (
+              {menu
+                .filter((item) => activeCategory === 'All Items' || item.category === activeCategory)
+                .map(item => (
                 <Card
                   key={item.item_id}
                   className="cursor-pointer transition-all duration-150 hover:shadow-xl hover:scale-105 active:scale-95 active:shadow-md h-40"
