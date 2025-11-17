@@ -1,12 +1,60 @@
-import React, { useState, useEffect } from 'react';
-import { API_URL } from '@/lib/api';
+import { useEffect, useMemo, useState } from "react";
+import { API_URL } from "@/lib/api";
+import { useNavigate } from "react-router-dom";
+import { toast } from "sonner";
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+} from "@/components/ui/dialog";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import { Separator } from "@/components/ui/separator";
+import {
+  Plus,
+  Pencil,
+  Trash2,
+  ListChecks,
+  Loader2,
+  RefreshCw,
+  Coffee,
+  ArrowLeft,
+} from "lucide-react";
 
 const API_BASE_URL = `${API_URL}/api`;
 
 interface MenuItem {
   item_id: number;
   item_name: string;
-  cost: string;
+  cost: string; // comes back as string (numeric)
 }
 
 interface InventoryItem {
@@ -17,396 +65,601 @@ interface InventoryItem {
   cost: string;
 }
 
-function MenuPage() {
-    const [menuItems, setMenuItems] = useState<MenuItem[]>([]);
-      const [isLoading, setIsLoading] = useState(false);
-      const [error, setError] = useState<string | null>(null);
-    
-      // State for forms
-      const [newItemName, setNewItemName] = useState('');
-      const [newItemCost, setNewItemCost] = useState('');
-      
-      // State for selected item and update
-      const [selectedItem, setSelectedItem] = useState<MenuItem | null>(null);
-      const [updatePrice, setUpdatePrice] = useState('');
-      
-      // State for the ingredient modal
-      const [isModalOpen, setIsModalOpen] = useState(false);
-      const [modalItem, setModalItem] = useState<MenuItem | null>(null);
-    
-      // --- Data Loading ---
-      const loadMenuItems = async () => {
-        setIsLoading(true);
-        setError(null);
-        try {
-          const response = await fetch(`${API_BASE_URL}/menu`);
-          if (!response.ok) throw new Error('Failed to fetch menu items.');
-          const data: MenuItem[] = await response.json();
-          setMenuItems(data);
-        } catch (err) {
-          setError(err instanceof Error ? err.message : 'An unknown error occurred.');
-        } finally {
-          setIsLoading(false);
-        }
-      };
-    
-      // Load menu items on component mount
-      useEffect(() => {
-        loadMenuItems();
-      }, []);
-    
-      // --- CRUD Functions ---
-      const handleAddItem = async (e: React.FormEvent) => {
-        e.preventDefault();
-        try {
-          const response = await fetch(`${API_BASE_URL}/menu`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ item_name: newItemName, cost: newItemCost }),
-          });
-          if (!response.ok) throw new Error('Failed to add new item.');
-          
-          const newItem: MenuItem = await response.json();
-          
-          setNewItemName('');
-          setNewItemCost('');
-          
-          // Show ingredient modal for the new item
-          setModalItem(newItem);
-          setIsModalOpen(true);
-          
-          loadMenuItems(); // Refresh the list
-        } catch (err) {
-          alert(`Error: ${err instanceof Error ? err.message : 'Unknown error'}`);
-        }
-      };
-    
-      const handleUpdatePrice = async (e: React.FormEvent) => {
-        e.preventDefault();
-        if (!selectedItem) return;
-        try {
-          const response = await fetch(`${API_BASE_URL}/menu/${selectedItem.item_id}`, {
-            method: 'PUT',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ cost: updatePrice }),
-          });
-          if (!response.ok) throw new Error('Failed to update price.');
-          
-          setUpdatePrice('');
-          setSelectedItem(null);
-          loadMenuItems(); // Refresh the list
-        } catch (err) {
-          alert(`Error: ${err instanceof Error ? err.message : 'Unknown error'}`);
-        }
-      };
-    
-      const handleDeleteItem = async () => {
-        if (!selectedItem) return;
-        if (window.confirm(`Are you sure you want to delete ${selectedItem.item_name}?`)) {
-          try {
-            const response = await fetch(`${API_BASE_URL}/menu/${selectedItem.item_id}`, {
-              method: 'DELETE',
-            });
-            if (!response.ok) throw new Error('Failed to delete item.');
-            
-            setSelectedItem(null);
-            loadMenuItems(); // Refresh the list
-          } catch (err) {
-            alert(`Error: ${err instanceof Error ? err.message : 'Unknown error'}`);
-          }
-        }
-      };
-    
-      const openModalForExisting = () => {
-        if (!selectedItem) return;
-        setModalItem(selectedItem);
-        setIsModalOpen(true);
-      };
+const currency = (n: number) =>
+  n.toLocaleString("en-US", { style: "currency", currency: "USD" });
 
-    return (
-        <div className="p-4">
-      <h1 className="text-2xl font-bold mb-4">Menu Items Management</h1>
-      
-      {isLoading && <p>Loading menu...</p>}
-      {error && <p className="text-red-500">{error}</p>}
-      
-      {/* Table of Menu Items */}
-      <div className="overflow-x-auto shadow-md rounded-lg">
-        <table className="w-full text-sm text-left text-gray-500">
-          <thead className="text-xs text-gray-700 uppercase bg-gray-50">
-            <tr>
-              <th scope="col" className="px-6 py-3">Item ID</th>
-              <th scope="col" className="px-6 py-3">Item Name</th>
-              <th scope="col" className="px-6 py-3">Cost</th>
-            </tr>
-          </thead>
-          <tbody>
-            {menuItems.map((item) => (
-              <tr
-                key={item.item_id}
-                className="bg-white border-b hover:bg-gray-50 cursor-pointer"
-                onClick={() => {
-                  setSelectedItem(item);
-                  setUpdatePrice(parseFloat(item.cost).toFixed(2));
-                }}
+function MenuPage() {
+  const navigate = useNavigate();
+
+  const [menuItems, setMenuItems] = useState<MenuItem[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  // Search
+  const [query, setQuery] = useState("");
+
+  // Add item dialog
+  const [addOpen, setAddOpen] = useState(false);
+  const [newItemName, setNewItemName] = useState("");
+  const [newItemCost, setNewItemCost] = useState("");
+  const [openIngredientsAfterCreate, setOpenIngredientsAfterCreate] =
+    useState(true);
+
+  // Edit item dialog
+  const [editOpen, setEditOpen] = useState(false);
+  const [selectedItem, setSelectedItem] = useState<MenuItem | null>(null);
+  const [updatePrice, setUpdatePrice] = useState("");
+
+  // Delete confirm
+  const [deleteOpen, setDeleteOpen] = useState(false);
+
+  // Ingredients dialog
+  const [ingredientsOpen, setIngredientsOpen] = useState(false);
+
+  const loadMenuItems = async () => {
+    setIsLoading(true);
+    setError(null);
+    try {
+      const res = await fetch(`${API_BASE_URL}/menu`);
+      if (!res.ok) throw new Error("Failed to fetch menu items");
+      const data: MenuItem[] = await res.json();
+      setMenuItems(data);
+    } catch (e: any) {
+      setError(e?.message ?? "Unknown error");
+      toast.error("Failed to load menu");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    loadMenuItems();
+  }, []);
+
+  const filtered = useMemo(() => {
+    if (!query.trim()) return menuItems;
+    const q = query.toLowerCase();
+    return menuItems.filter((m) => m.item_name.toLowerCase().includes(q));
+  }, [menuItems, query]);
+
+  // Add
+  const handleAddItem = async (e: React.FormEvent) => {
+    e.preventDefault();
+    try {
+      const res = await fetch(`${API_BASE_URL}/menu`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ item_name: newItemName, cost: newItemCost }),
+      });
+      if (!res.ok) throw new Error("Failed to add new item");
+      const created: MenuItem = await res.json();
+
+      toast.success(`Added ${created.item_name}`);
+      setAddOpen(false);
+      setNewItemName("");
+      setNewItemCost("");
+      await loadMenuItems();
+
+      if (openIngredientsAfterCreate) {
+        setSelectedItem(created);
+        setIngredientsOpen(true);
+      }
+    } catch (e: any) {
+      toast.error(e?.message ?? "Error adding item");
+    }
+  };
+
+  // Edit
+  const openEdit = (item: MenuItem) => {
+    setSelectedItem(item);
+    setUpdatePrice(parseFloat(item.cost).toFixed(2));
+    setEditOpen(true);
+  };
+
+  const handleUpdatePrice = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selectedItem) return;
+    try {
+      const res = await fetch(`${API_BASE_URL}/menu/${selectedItem.item_id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ cost: updatePrice }),
+      });
+      if (!res.ok) throw new Error("Failed to update price");
+      toast.success("Price updated");
+      setEditOpen(false);
+      setSelectedItem(null);
+      setUpdatePrice("");
+      await loadMenuItems();
+    } catch (e: any) {
+      toast.error(e?.message ?? "Error updating price");
+    }
+  };
+
+  // Delete
+  const confirmDelete = (item: MenuItem) => {
+    setSelectedItem(item);
+    setDeleteOpen(true);
+  };
+
+  const handleDeleteItem = async () => {
+    if (!selectedItem) return;
+    try {
+      const res = await fetch(
+        `${API_BASE_URL}/menu/${selectedItem.item_id}`,
+        { method: "DELETE" }
+      );
+      if (!res.ok) throw new Error("Failed to delete item");
+      toast.success(`Deleted ${selectedItem.item_name}`);
+      setDeleteOpen(false);
+      setSelectedItem(null);
+      await loadMenuItems();
+    } catch (e: any) {
+      toast.error(e?.message ?? "Error deleting item");
+    }
+  };
+
+  // Ingredients
+  const openIngredients = (item: MenuItem) => {
+    setSelectedItem(item);
+    setIngredientsOpen(true);
+  };
+
+  return (
+    <div className="flex h-screen bg-background">
+      <div className="flex-1 flex flex-col overflow-hidden">
+        {/* Header */}
+        <div className="border-b">
+          <div className="flex h-16 items-center px-6 justify-between">
+            <div className="flex items-center gap-2">
+              <Coffee className="h-5 w-5" />
+              <h1 className="text-2xl font-bold">Menu Items</h1>
+            </div>
+
+            <div className="flex items-center gap-3">
+              <div className="hidden md:block">
+                <Input
+                  placeholder="Search menu..."
+                  value={query}
+                  onChange={(e) => setQuery(e.target.value)}
+                  className="w-[260px]"
+                />
+              </div>
+              <Button
+                variant="outline"
+                className="gap-2"
+                onClick={() => loadMenuItems()}
+                disabled={isLoading}
               >
-                <td className="px-6 py-4">{item.item_id}</td>
-                <td className="px-6 py-4 font-medium text-gray-900">{item.item_name}</td>
-                <td className="px-6 py-4">${parseFloat(item.cost).toFixed(2)}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+                {isLoading ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <RefreshCw className="h-4 w-4" />
+                )}
+                Refresh
+              </Button>
+              <Button className="gap-2" onClick={() => setAddOpen(true)}>
+                <Plus className="h-4 w-4" />
+                New Item
+              </Button>
+            </div>
+          </div>
+        </div>
+
+        {/* Content */}
+        <div className="flex-1 overflow-auto p-6">
+          <Card>
+            <CardHeader className="p-4">
+              <CardTitle className="text-lg">All Menu Items</CardTitle>
+            </CardHeader>
+            <CardContent className="p-0">
+              {isLoading && menuItems.length === 0 ? (
+                <div className="flex items-center justify-center py-16 text-muted-foreground">
+                  <Loader2 className="h-5 w-5 animate-spin mr-2" />
+                  Loading menu...
+                </div>
+              ) : error ? (
+                <div className="p-6 text-sm text-destructive">{error}</div>
+              ) : (
+                <div className="overflow-x-auto">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead className="w-24">ID</TableHead>
+                        <TableHead>Name</TableHead>
+                        <TableHead className="w-32">Price</TableHead>
+                        <TableHead className="w-48 text-right">Actions</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {filtered.map((item) => (
+                        <TableRow key={item.item_id} className="hover:bg-muted/50">
+                          <TableCell className="font-mono text-xs">
+                            #{item.item_id}
+                          </TableCell>
+                          <TableCell className="font-medium">
+                            {item.item_name}
+                          </TableCell>
+                          <TableCell>
+                            {currency(parseFloat(item.cost || "0"))}
+                          </TableCell>
+                          <TableCell className="text-right">
+                            <div className="flex justify-end gap-2">
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                className="gap-2"
+                                onClick={() => openEdit(item)}
+                              >
+                                <Pencil className="h-4 w-4" />
+                                Edit
+                              </Button>
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                className="gap-2"
+                                onClick={() => openIngredients(item)}
+                              >
+                                <ListChecks className="h-4 w-4" />
+                                Ingredients
+                              </Button>
+                              <Button
+                                variant="destructive"
+                                size="sm"
+                                className="gap-2"
+                                onClick={() => confirmDelete(item)}
+                              >
+                                <Trash2 className="h-4 w-4" />
+                                Delete
+                              </Button>
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                      {filtered.length === 0 && (
+                        <TableRow>
+                          <TableCell colSpan={4} className="text-center py-10 text-muted-foreground">
+                            No items found.
+                          </TableCell>
+                        </TableRow>
+                      )}
+                    </TableBody>
+                  </Table>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </div>
       </div>
 
-      {/* Forms Section */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-6">
-        {/* Add New Item Form */}
-        <form onSubmit={handleAddItem} className="bg-white p-4 rounded-lg shadow">
-          <h2 className="text-lg font-semibold mb-3">Add New Item</h2>
-          <div className="mb-2">
-            <label htmlFor="itemName" className="block text-sm font-medium text-gray-700">Item Name</label>
-            <input
-              type="text"
-              id="itemName"
-              value={newItemName}
-              onChange={(e) => setNewItemName(e.target.value)}
-              className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm"
-              required
-            />
-          </div>
-          <div className="mb-2">
-            <label htmlFor="itemCost" className="block text-sm font-medium text-gray-700">Cost</label>
-            <input
-              type="text"
-              id="itemCost"
-              value={newItemCost}
-              onChange={(e) => setNewItemCost(e.target.value)}
-              className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm"
-              placeholder="e.g., 5.99"
-              required
-            />
-          </div>
-          <button type="submit" className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700">
-            Add Item
-          </button>
-        </form>
-
-        {/* Manage Selected Item Form */}
-        {selectedItem && (
-          <form onSubmit={handleUpdatePrice} className="bg-white p-4 rounded-lg shadow">
-            <h2 className="text-lg font-semibold mb-3">Manage: {selectedItem.item_name}</h2>
-            <div className="mb-2">
-              <label htmlFor="newPrice" className="block text-sm font-medium text-gray-700">New Price</label>
-              <input
-                type="text"
-                id="newPrice"
-                value={updatePrice}
-                onChange={(e) => setUpdatePrice(e.target.value)}
-                className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm"
+      {/* Add Item Dialog */}
+      <Dialog open={addOpen} onOpenChange={setAddOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Add new item</DialogTitle>
+            <DialogDescription>
+              Create a menu item with a base (pre-tax) price.
+            </DialogDescription>
+          </DialogHeader>
+          <form
+            onSubmit={handleAddItem}
+            className="grid gap-4"
+          >
+            <div className="grid gap-2">
+              <Label htmlFor="newName">Name</Label>
+              <Input
+                id="newName"
+                value={newItemName}
+                onChange={(e) => setNewItemName(e.target.value)}
                 required
               />
             </div>
-            <div className="flex space-x-2">
-              <button type="submit" className="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700">
-                Update Price
-              </button>
-              <button type="button" onClick={openModalForExisting} className="px-4 py-2 bg-yellow-500 text-white rounded-md hover:bg-yellow-600">
-                Edit Ingredients
-              </button>
-              <button type="button" onClick={handleDeleteItem} className="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700">
-                Delete Item
-              </button>
+            <div className="grid gap-2">
+              <Label htmlFor="newCost">Price</Label>
+              <Input
+                id="newCost"
+                value={newItemCost}
+                onChange={(e) => setNewItemCost(e.target.value)}
+                placeholder="e.g. 5.99"
+                required
+              />
             </div>
+            <div className="flex items-center gap-2">
+              <input
+                id="afterCreate"
+                type="checkbox"
+                className="h-4 w-4"
+                checked={openIngredientsAfterCreate}
+                onChange={(e) => setOpenIngredientsAfterCreate(e.target.checked)}
+              />
+              <Label htmlFor="afterCreate">Open ingredients after create</Label>
+            </div>
+            <DialogFooter className="gap-2">
+              <Button type="button" variant="outline" onClick={() => setAddOpen(false)}>
+                Cancel
+              </Button>
+              <Button type="submit" className="gap-2">
+                <Plus className="h-4 w-4" />
+                Add
+              </Button>
+            </DialogFooter>
           </form>
-        )}
-      </div>
+        </DialogContent>
+      </Dialog>
 
-      {/* Ingredient Modal */}
-      {isModalOpen && modalItem && (
-        <IngredientModal
-          item={modalItem}
-          onClose={() => {
-            setIsModalOpen(false);
-            setModalItem(null);
+      {/* Edit Item Dialog */}
+      <Dialog open={editOpen} onOpenChange={setEditOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Edit item</DialogTitle>
+            <DialogDescription>
+              Update the price for {selectedItem?.item_name}.
+            </DialogDescription>
+          </DialogHeader>
+          <form onSubmit={handleUpdatePrice} className="grid gap-4">
+            <div className="grid gap-2">
+              <Label htmlFor="price">Price</Label>
+              <Input
+                id="price"
+                value={updatePrice}
+                onChange={(e) => setUpdatePrice(e.target.value)}
+                required
+              />
+            </div>
+            <DialogFooter className="gap-2">
+              <Button type="button" variant="outline" onClick={() => setEditOpen(false)}>
+                Cancel
+              </Button>
+              <Button type="submit" className="gap-2">
+                <Pencil className="h-4 w-4" />
+                Save
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete Confirm */}
+      <AlertDialog open={deleteOpen} onOpenChange={setDeleteOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete {selectedItem?.item_name}?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This action cannot be undone and will remove the item from the menu.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={handleDeleteItem} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Ingredients Dialog */}
+      {selectedItem && (
+        <IngredientsDialog
+          open={ingredientsOpen}
+          onOpenChange={setIngredientsOpen}
+          item={selectedItem}
+          onSaved={() => {
+            toast.success("Ingredients saved");
+            setIngredientsOpen(false);
           }}
         />
       )}
     </div>
-    );
+  );
 }
 
-interface IngredientModalProps {
+type IngredientsDialogProps = {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
   item: MenuItem;
-  onClose: () => void;
-}
+  onSaved: () => void;
+};
 
-function IngredientModal({ item, onClose }: IngredientModalProps) {
+function IngredientsDialog({ open, onOpenChange, item, onSaved }: IngredientsDialogProps) {
   const [inventory, setInventory] = useState<InventoryItem[]>([]);
-  const [selectedIngredients, setSelectedIngredients] = useState<Record<number, number>>({});
-  
-  // Form for new ingredient
-  const [newIngName, setNewIngName] = useState('');
-  const [newIngStock, setNewIngStock] = useState(0);
-  const [newIngCost, setNewIngCost] = useState('0.00');
+  const [selected, setSelected] = useState<Record<number, number>>({});
+  const [loading, setLoading] = useState(false);
+
+  // Add new inventory
+  const [newIngName, setNewIngName] = useState("");
+  const [newIngStock, setNewIngStock] = useState<number | "">("");
+  const [newIngCost, setNewIngCost] = useState("0.00");
 
   const loadInventory = async () => {
     try {
-      const response = await fetch(`${API_BASE_URL}/inventory`);
-      const data: InventoryItem[] = await response.json();
+      const res = await fetch(`${API_BASE_URL}/inventory`);
+      const data: InventoryItem[] = await res.json();
       setInventory(data);
-    } catch (err) {
-      console.error("Failed to load inventory", err);
+    } catch (e) {
+      toast.error("Failed to load inventory");
     }
   };
 
-  // Load inventory when modal opens
   useEffect(() => {
-    loadInventory();
-    // You could also fetch the *currently selected* ingredients here
-  }, []);
-
-  const handleCheckboxChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const { value, checked } = e.target;
-    const invId = parseInt(value);
-    
-    if (checked) {
-      setSelectedIngredients(prev => ({ ...prev, [invId]: 1 }));
-    } else {
-      setSelectedIngredients(prev => {
-        const newState = { ...prev };
-        delete newState[invId];
-        return newState;
-      });
+    if (open) {
+      loadInventory();
+      // Optionally fetch existing ingredients for this item and prefill `selected`
+      // Example: GET /api/menu/:id/ingredients -> { id, quantity }[]
+      // setSelected(mapFromResponse)
     }
+  }, [open]);
+
+  const toggleIngredient = (id: number, checked: boolean) => {
+    setSelected((prev) => {
+      const copy = { ...prev };
+      if (checked) {
+        copy[id] = copy[id] ?? 1;
+      } else {
+        delete copy[id];
+      }
+      return copy;
+    });
   };
 
-  const handleQuantityChange = (invId: number, quantity: number) => {
-    if (quantity >= 0) {
-      setSelectedIngredients(prev => ({ ...prev, [invId]: quantity }));
-    }
+  const changeQty = (id: number, qty: number) => {
+    setSelected((prev) => ({ ...prev, [id]: Math.max(1, qty) }));
   };
 
-  const handleSaveIngredients = async () => {
+  const saveIngredients = async () => {
+    setLoading(true);
     try {
-      const ingredientsToSave = Object.entries(selectedIngredients).map(([id, quantity]) => ({
-        id: parseInt(id),
+      const ingredientsToSave = Object.entries(selected).map(([id, quantity]) => ({
+        id: Number(id),
         quantity,
       }));
-
-      const response = await fetch(`${API_BASE_URL}/menu/${item.item_id}/ingredients`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+      const res = await fetch(`${API_BASE_URL}/menu/${item.item_id}/ingredients`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ ingredients: ingredientsToSave }),
       });
-
-      if (!response.ok) throw new Error('Failed to save ingredients.');
-      
-      alert('Ingredients saved!');
-      onClose();
-    } catch (err) {
-      alert(`Error: ${err instanceof Error ? err.message : 'Unknown error'}`);
+      if (!res.ok) throw new Error("Failed to save ingredients");
+      onSaved();
+    } catch (e: any) {
+      toast.error(e?.message ?? "Error saving ingredients");
+    } finally {
+      setLoading(false);
     }
   };
-  
-  const handleAddNewIngredient = async (e: React.FormEvent) => {
+
+  const addInventoryItem = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
-      const response = await fetch(`${API_BASE_URL}/inventory`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ 
-            item_name: newIngName, 
-            quantity: newIngStock, 
-            cost: newIngCost 
-          })
+      const res = await fetch(`${API_BASE_URL}/inventory`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          item_name: newIngName,
+          quantity: newIngStock || 0, // your API expects `quantity` per your original code
+          cost: newIngCost,
+        }),
       });
-      if (!response.ok) throw new Error('Failed to add new ingredient.');
-      
-      setNewIngName('');
-      setNewIngStock(0);
-      setNewIngCost('0.00');
-      loadInventory(); // Refresh the list
-      
-    } catch (err) {
-      alert(`Error: ${err instanceof Error ? err.message : 'Unknown error'}`);
+      if (!res.ok) throw new Error("Failed to add inventory item");
+      toast.success("Inventory item added");
+      setNewIngName("");
+      setNewIngStock("");
+      setNewIngCost("0.00");
+      await loadInventory();
+    } catch (e: any) {
+      toast.error(e?.message ?? "Error adding inventory item");
     }
   };
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex justify-center items-center">
-      <div className="bg-white p-6 rounded-lg shadow-xl max-w-2xl w-full">
-        <div className="flex justify-between items-center mb-4">
-          <h2 className="text-xl font-semibold">Add Ingredients for: {item.item_name}</h2>
-          <button onClick={onClose} className="text-gray-500 text-2xl">&times;</button>
-        </div>
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-3xl">
+        <DialogHeader>
+          <DialogTitle>Ingredients for {item.item_name}</DialogTitle>
+          <DialogDescription>
+            Select ingredients and set the quantity used per drink.
+          </DialogDescription>
+        </DialogHeader>
 
-        {/* Ingredient List */}
-        <div className="max-h-64 overflow-y-auto border p-4 rounded-md mb-4">
-          {inventory.map(invItem => (
-            <div key={invItem.item_id} className="flex items-center justify-between mb-2">
-              <div>
-                <input
-                  type="checkbox"
-                  id={`inv-${invItem.item_id}`}
-                  value={invItem.item_id}
-                  onChange={handleCheckboxChange}
-                  checked={selectedIngredients[invItem.item_id] !== undefined}
-                />
-                <label htmlFor={`inv-${invItem.item_id}`} className="ml-2">{invItem.item_name}</label>
-              </div>
-              <input
-                type="number"
-                min="1"
-                value={selectedIngredients[invItem.item_id] || 1}
-                onChange={(e) => handleQuantityChange(invItem.item_id, parseInt(e.target.value))}
-                className="w-16 px-2 py-1 border rounded"
-                disabled={selectedIngredients[invItem.item_id] === undefined}
+        <div className="grid md:grid-cols-2 gap-6">
+          {/* Ingredient picker */}
+          <div>
+            <div className="text-sm font-medium mb-2">Inventory</div>
+            <div className="max-h-72 overflow-auto rounded border">
+              {inventory.map((inv) => {
+                const checked = selected[inv.item_id] !== undefined;
+                return (
+                  <div
+                    key={inv.item_id}
+                    className="flex items-center justify-between px-3 py-2 border-b last:border-0"
+                  >
+                    <div className="flex items-center gap-2">
+                      <input
+                        id={`inv-${inv.item_id}`}
+                        type="checkbox"
+                        className="h-4 w-4"
+                        checked={checked}
+                        onChange={(e) => toggleIngredient(inv.item_id, e.target.checked)}
+                      />
+                      <Label htmlFor={`inv-${inv.item_id}`} className="cursor-pointer">
+                        {inv.item_name}
+                      </Label>
+                    </div>
+                    <Input
+                      type="number"
+                      min={1}
+                      className="w-20"
+                      value={checked ? selected[inv.item_id] : 1}
+                      disabled={!checked}
+                      onChange={(e) =>
+                        changeQty(inv.item_id, parseInt(e.target.value || "1", 10))
+                      }
+                    />
+                  </div>
+                );
+              })}
+              {inventory.length === 0 && (
+                <div className="p-4 text-sm text-muted-foreground">
+                  No inventory items yet.
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Add new inventory item */}
+          <form onSubmit={addInventoryItem} className="space-y-3">
+            <div className="text-sm font-medium">Add inventory item</div>
+            <div className="grid gap-2">
+              <Label htmlFor="ingName">Name</Label>
+              <Input
+                id="ingName"
+                value={newIngName}
+                onChange={(e) => setNewIngName(e.target.value)}
+                placeholder="e.g. Tapioca pearls"
+                required
               />
             </div>
-          ))}
+            <div className="grid gap-2">
+              <Label htmlFor="ingStock">Starting stock</Label>
+              <Input
+                id="ingStock"
+                type="number"
+                min={0}
+                value={newIngStock}
+                onChange={(e) =>
+                  setNewIngStock(e.target.value === "" ? "" : parseInt(e.target.value, 10))
+                }
+                placeholder="e.g. 100"
+              />
+            </div>
+            <div className="grid gap-2">
+              <Label htmlFor="ingCost">Cost</Label>
+              <Input
+                id="ingCost"
+                value={newIngCost}
+                onChange={(e) => setNewIngCost(e.target.value)}
+                placeholder="e.g. 4.99"
+                required
+              />
+            </div>
+            <Button type="submit" variant="outline" className="gap-2">
+              <Plus className="h-4 w-4" />
+              Add to inventory
+            </Button>
+          </form>
         </div>
-        
-        {/* Add New Ingredient Form */}
-        <form onSubmit={handleAddNewIngredient} className="border-t pt-4">
-          <h3 className="text-md font-semibold mb-2">Add New Ingredient to Inventory</h3>
-          <div className="grid grid-cols-3 gap-2">
-            <input 
-              type="text" 
-              placeholder="Ingredient Name" 
-              value={newIngName}
-              onChange={e => setNewIngName(e.target.value)}
-              className="col-span-1 px-3 py-2 border border-gray-300 rounded-md" 
-            />
-            <input 
-              type="number" 
-              placeholder="Stock" 
-              value={newIngStock}
-              onChange={e => setNewIngStock(parseInt(e.target.value))}
-              className="col-span-1 px-3 py-2 border border-gray-300 rounded-md" 
-            />
-            <input 
-              type="text" 
-              placeholder="Cost (e.g. 4.99)" 
-              value={newIngCost}
-              onChange={e => setNewIngCost(e.target.value)}
-              className="col-span-1 px-3 py-2 border border-gray-300 rounded-md" 
-            />
-          </div>
-          <button type="submit" className="mt-2 px-4 py-2 text-sm bg-gray-600 text-white rounded-md hover:bg-gray-700">
-            Add to Inventory
-          </button>
-        </form>
 
-        {/* Save/Close Buttons */}
-        <div className="flex justify-end space-x-2 mt-6 border-t pt-4">
-          <button onClick={onClose} className="px-4 py-2 bg-gray-300 rounded-md">Close</button>
-          <button onClick={handleSaveIngredients} className="px-4 py-2 bg-blue-600 text-white rounded-md">
-            Save Ingredients
-          </button>
-        </div>
-      </div>
-    </div>
+        <Separator className="my-2" />
+
+        <DialogFooter className="gap-2">
+          <Button variant="outline" onClick={() => onOpenChange(false)}>
+            Close
+          </Button>
+          <Button className="gap-2" onClick={saveIngredients} disabled={loading}>
+            {loading && <Loader2 className="h-4 w-4 animate-spin" />}
+            Save
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }
 
