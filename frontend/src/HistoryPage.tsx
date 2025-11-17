@@ -14,7 +14,7 @@ import { Separator } from "@/components/ui/separator";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
-import { ArrowLeft, ChevronDown, ChevronUp, Loader2, ReceiptText } from "lucide-react";
+import { ChevronDown, ChevronUp, Loader2, ReceiptText } from "lucide-react";
 
 // ----- Types based on your Express GET -----
 type ApiOrderItem = {
@@ -108,8 +108,7 @@ const normalizeOrder = (o: ApiOrder): Order => {
 };
 
 function HistoryPage() {
-  const navigate = useNavigate();
-  const { user, logout } = useAuth();
+  const { user} = useAuth();
 
   const [orders, setOrders] = useState<Order[]>([]);
   const [page, setPage] = useState(1);
@@ -154,10 +153,6 @@ function HistoryPage() {
   const toggleExpand = (id: number) =>
     setExpanded((prev) => ({ ...prev, [id]: !prev[id] }));
 
-  const handleLogout = async () => {
-    await logout();
-    navigate("/login");
-  };
 
   return (
     <div className="flex h-screen bg-background">
