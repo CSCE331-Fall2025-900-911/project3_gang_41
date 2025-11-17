@@ -10,13 +10,11 @@ import menuRoutes from "./menuRoutes";
 import inventoryRoutes from "./inventoryRoutes";
 import orderHistoryRoutes from "./orderHistoryRoutes";
 
-// Initialize Google OAuth2 Client for token verification
 const client = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
-
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-// Extend Express Session type to include user data
+// Extend session type to include user data from Google OAuth
 declare module "express-session" {
   interface SessionData {
     user?: {
@@ -28,15 +26,12 @@ declare module "express-session" {
   }
 }
 
-/**
- * CORS setup:
- * - Supports comma-separated FRONTEND_URL so you can allow multiple local hosts.
- * - Allows requests with no Origin header (curl/Postman).
- */
+// Support multiple frontend origins (comma-separated)
 const allowedOrigins = (process.env.FRONTEND_URL || "http://localhost:5173")
   .split(",")
   .map((s) => s.trim());
 
+// Trust proxy headers for correct client IP and session handling
 app.set("trust proxy", 1);
 
 app.use(
@@ -51,11 +46,6 @@ app.use(
 
 app.use(express.json());
 
-/**
- * Session setup:
- * - In production, cookies are secure and SameSite=None (for cross-site frontends).
- * - In dev, cookies are non-secure and SameSite=Lax for convenience.
- */
 app.use(
   session({
     secret: process.env.SESSION_SECRET || "your-secret-key",
@@ -82,24 +72,41 @@ app.get("/health", async (req: Request, res: Response) => {
   }
 });
 
-// Inventory listing endpoint (kept here for clarity; POST lives in inventoryRoutes)
-app.get("/api/inventory", async (req: Request, res: Response) => {
-  try {
-    const sql = "SELECT * FROM inventory ORDER BY item_name ASC";
-    const result = await pool.query(sql);
-    res.json(result.rows);
-  } catch (err: any) {
-    console.error("Error fetching inventory:", err.message);
-    res.status(500).json({ message: "Failed to load inventory." });
-  }
-});
-
-// Feature routes
+// API routes
 app.use('/api/inventory', inventoryRoutes);
 app.use('/api/menu', menuRoutes);
 app.use('/api/order-history', orderHistoryRoutes);
 
-// Google OAuth token verification endpoint
+// National Weather endpoint for TAMU
+app.get('/api/weather/current', async (req: Request, res: Response) => {
+  try {
+    const response = await fetch(
+      'https://api.weather.gov/gridpoints/HGX/26,133/forecast',
+      { headers: { 'User-Agent': 'Restaurant POS System Project' } }
+    );
+    const data = await response.json();
+
+    const current = data.properties.periods[0];
+    const forecast = current.shortForecast.toLowerCase();
+
+    let icon = 'sun'; // default sunny if no other match
+    if (forecast.includes('thunder') || forecast.includes('storm')) icon = 'cloud-lightning';
+    else if (forecast.includes('rain') || forecast.includes('shower')) icon = 'cloud-rain';
+    else if (forecast.includes('wind')) icon = 'wind';
+    else if (forecast.includes('cloudy') && !forecast.includes('partly')) icon = 'cloud';
+    else if (forecast.includes('partly')) icon = 'cloud-sun';
+
+    res.json({
+      temperature: current.temperature,
+      icon: icon
+    });
+  } catch (error) {
+    console.error('Weather fetch error:', error);
+    res.status(500).json({ error: 'Failed to fetch weather' });
+  }
+});
+
+// Verify Google OAuth token and create session
 app.post("/auth/google/verify", async (req, res) => {
   try {
     const { credential } = req.body;
@@ -108,7 +115,6 @@ app.post("/auth/google/verify", async (req, res) => {
       return res.status(400).json({ error: "No credential provided" });
     }
 
-    // Verify the Google token
     const ticket = await client.verifyIdToken({
       idToken: credential,
       audience: process.env.GOOGLE_CLIENT_ID,
@@ -120,7 +126,6 @@ app.post("/auth/google/verify", async (req, res) => {
       return res.status(401).json({ error: "Invalid token" });
     }
 
-    // Create user object from Google profile
     const user = {
       id: payload.sub,
       email: payload.email!,
@@ -128,10 +133,8 @@ app.post("/auth/google/verify", async (req, res) => {
       picture: payload.picture,
     };
 
-    // Store user in session
     req.session.user = user;
 
-    // Save session and respond
     req.session.save((err) => {
       if (err) {
         console.error("Session save error:", err);
@@ -145,7 +148,7 @@ app.post("/auth/google/verify", async (req, res) => {
   }
 });
 
-// Get current user from session
+// Get current authenticated user
 app.get("/auth/user", (req, res) => {
   if (req.session.user) {
     res.json(req.session.user);
@@ -154,7 +157,7 @@ app.get("/auth/user", (req, res) => {
   }
 });
 
-// Logout endpoint
+// Destroy session and logout
 app.post("/auth/logout", (req, res) => {
   req.session.destroy((err) => {
     if (err) {
@@ -166,7 +169,6 @@ app.post("/auth/logout", (req, res) => {
   });
 });
 
-// start server
 app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
 });

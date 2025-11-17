@@ -12,11 +12,14 @@ import {
   DrawerTrigger,
 } from '@/components/ui/drawer';
 import { Minus, Plus, ShoppingCart, Trash2 } from 'lucide-react';
+import { toast } from 'sonner';
+import { WeatherDisplay } from '@/components/WeatherDisplay';
 
 interface MenuItem {
   item_id: number;
   item_name: string;
   cost: number;
+  category: string;
 }
 
 interface CartItem {
@@ -28,23 +31,25 @@ interface CartItem {
 
 const categories = [
   'All Items',
-  'Coffee',
-  'Smoothie',
-  'Specials',
+  'Milk Tea',
+  'Matcha',
+  'Fruit Tea',
+  'Slush',
+  'Seasonal',
 ];
 
 function Kiosk() {
   const [menu, setMenu] = useState<MenuItem[]>([]);
   const [cart, setCart] = useState<CartItem[]>([]);
-  const [activeCategory, setActiveCategory] = useState('');
+  const [activeCategory, setActiveCategory] = useState('All Items');
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [buttonPulse, setButtonPulse] = useState(false);
+  const [weather, setWeather] = useState<{ temperature: number; icon: string } | null>(null);
 
   useEffect(() => {
     fetch(`${API_URL}/api/menu`)
       .then(res => res.json())
       .then(data => {
-        console.log('Menu data:', data);
         if (Array.isArray(data)) {
           const menuWithNumbers = data.map(item => ({
             ...item,
@@ -52,14 +57,17 @@ function Kiosk() {
           }));
           setMenu(menuWithNumbers);
         } else {
-          console.error('Menu data is not an array:', data);
           setMenu([]);
         }
       })
-      .catch(err => {
-        console.error('Error fetching menu:', err);
+      .catch(() => {
         setMenu([]);
       });
+
+    fetch(`${API_URL}/api/weather/current`)
+      .then(res => res.json())
+      .then(data => setWeather(data))
+      .catch(() => setWeather(null));
   }, []);
 
   const addToCart = (item: MenuItem) => {
@@ -97,6 +105,42 @@ function Kiosk() {
   const tax = total * 0.0825;
   const finalTotal = total + tax;
 
+  const handleCheckout = () => {
+    toast.promise(
+      async () => {
+        const orderData = {
+          items: cart.map(item => ({
+            item_id: item.item_id,
+            item_name: item.item_name,
+            quantity: item.quantity,
+            cost: item.cost
+          }))
+        };
+
+        const response = await fetch(`${API_URL}/api/order-history`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(orderData),
+        });
+
+        if (!response.ok) {
+          throw new Error('Failed to create order');
+        }
+
+        setCart([]);
+        setDrawerOpen(false);
+        return { success: true };
+      },
+      {
+        loading: "Processing payment...",
+        success: "Order complete!",
+        error: "Payment failed",
+      }
+    );
+  };
+
   return (
     <div className="flex h-screen bg-background">
       {/* Sidebar with categories */}
@@ -111,6 +155,11 @@ function Kiosk() {
             {category}
           </Button>
         ))}
+        {weather && (
+          <div className="px-2 py-2">
+            <WeatherDisplay temperature={weather.temperature} icon={weather.icon} />
+          </div>
+        )}
       </div>
 
       {/* Main content area with product cards */}
@@ -119,7 +168,9 @@ function Kiosk() {
         <div className="flex-1 overflow-auto p-8 pt-12">
           <div className="max-w-6xl mx-auto">
             <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
-              {menu.map(item => (
+              {menu
+                .filter((item) => activeCategory === 'All Items' || item.category === activeCategory)
+                .map(item => (
                 <Card
                   key={item.item_id}
                   className="cursor-pointer transition-all duration-150 hover:shadow-xl hover:scale-105 active:scale-95 active:shadow-md h-40"
@@ -252,7 +303,7 @@ function Kiosk() {
                           <div>Tax: (${tax.toFixed(2)})</div>
                         </div>
                       </div>
-                      <Button size="lg" className="w-full h-16 text-xl">
+                      <Button size="lg" className="w-full h-16 text-xl" onClick={handleCheckout}>
                         Pay Now
                       </Button>
                     </div>

@@ -1,20 +1,12 @@
-/**
- * Menu routes:
- * - GET / => list menu items
- * - POST / => create a menu item (relies on DB identity/serial)
- * - POST /:id/ingredients => link inventory items (ingredients) to a menu item
- * - PUT /:itemId => update price
- * - DELETE /:itemId => remove item and its links
- */
 import express, { Request, Response } from 'express';
 import db from './db';
 
 const router = express.Router();
 
-// GET /api/menu
+// Get all menu items
 router.get('/', async (_req: Request, res: Response) => {
   try {
-    const sql = "SELECT item_id, item_name, cost FROM menuitems ORDER BY item_id ASC";
+    const sql = "SELECT item_id, item_name, cost, category FROM menuitems ORDER BY item_id ASC";
     const result = await db.query(sql);
     res.json(result.rows);
   } catch (error) {
@@ -23,7 +15,7 @@ router.get('/', async (_req: Request, res: Response) => {
   }
 });
 
-// POST /api/menu
+// Create new menu item
 router.post('/', async (req: Request, res: Response) => {
   const { item_name, cost } = req.body;
   if (!item_name || cost == null) {
@@ -31,7 +23,6 @@ router.post('/', async (req: Request, res: Response) => {
   }
 
   try {
-    // Rely on DB identity/serial to generate item_id automatically
     const insertSql =
       "INSERT INTO menuitems (item_name, cost) VALUES ($1, $2) RETURNING item_id, item_name, cost";
     const result = await db.query(insertSql, [item_name, cost]);
@@ -42,7 +33,7 @@ router.post('/', async (req: Request, res: Response) => {
   }
 });
 
-// POST /api/menu/:id/ingredients
+// Link ingredients to a menu item
 router.post('/:id/ingredients', async (req: Request, res: Response) => {
   const drinkId = Number(req.params.id);
   const { ingredients } = req.body as { ingredients: { id: number; quantity: number }[] };
@@ -54,7 +45,6 @@ router.post('/:id/ingredients', async (req: Request, res: Response) => {
     return res.status(400).json({ message: 'Ingredients array must be non-empty.' });
   }
 
-  // Extract arrays for batched insert
   const invIds = ingredients.map((i) => i.id);
   const quantities = ingredients.map((i) => i.quantity);
 
@@ -63,11 +53,6 @@ router.post('/:id/ingredients', async (req: Request, res: Response) => {
     client = await db.connect();
     await client.query('BEGIN');
 
-    /**
-     * Batch insert:
-     * INSERT INTO drinkjointable (id, ...) previously used MAX(id)+1.
-     * After converting 'id' to identity/serial, we omit it and let DB assign.
-     */
     const sql = `
       INSERT INTO drinkjointable (drink_id, inventory_id, quantity)
       SELECT $1, t.inventory_id, t.quantity
@@ -86,7 +71,7 @@ router.post('/:id/ingredients', async (req: Request, res: Response) => {
   }
 });
 
-// PUT /api/menu/:itemId
+// Update menu item price
 router.put('/:itemId', async (req: Request, res: Response) => {
   const { itemId } = req.params;
   const { cost } = req.body;
@@ -106,7 +91,7 @@ router.put('/:itemId', async (req: Request, res: Response) => {
   }
 });
 
-// DELETE /api/menu/:itemId
+// Delete menu item and ingredient associations
 router.delete('/:itemId', async (req: Request, res: Response) => {
   const { itemId } = req.params;
   let client;

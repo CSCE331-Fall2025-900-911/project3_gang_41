@@ -82,6 +82,16 @@ export function LoginForm({
               <Field>
                 <Button type="submit" className="w-full">Login</Button>
               </Field>
+              <Field>
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="w-full"
+                  onClick={() => navigate('/kiosk')}
+                >
+                  Continue without logging in
+                </Button>
+              </Field>
               <FieldSeparator className="*:data-[slot=field-separator-content]:bg-card">
                 Or continue with
               </FieldSeparator>
