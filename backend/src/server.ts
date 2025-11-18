@@ -80,9 +80,17 @@ app.use('/api/order-history', orderHistoryRoutes);
 // National Weather endpoint for TAMU
 app.get('/api/weather/current', async (req: Request, res: Response) => {
   try {
+    // Disable caching to ensure fresh weather data
+    res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
+    res.setHeader('Pragma', 'no-cache');
+    res.setHeader('Expires', '0');
+
     const response = await fetch(
       'https://api.weather.gov/gridpoints/HGX/26,133/forecast',
-      { headers: { 'User-Agent': 'Restaurant POS System Project' } }
+      {
+        headers: { 'User-Agent': 'Restaurant POS System Project' },
+        cache: 'no-store'
+      }
     );
     const data = await response.json();
 
