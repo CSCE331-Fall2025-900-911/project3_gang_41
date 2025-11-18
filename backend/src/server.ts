@@ -77,6 +77,35 @@ app.use('/api/inventory', inventoryRoutes);
 app.use('/api/menu', menuRoutes);
 app.use('/api/order-history', orderHistoryRoutes);
 
+// National Weather endpoint for TAMU
+app.get('/api/weather/current', async (req: Request, res: Response) => {
+  try {
+    const response = await fetch(
+      'https://api.weather.gov/gridpoints/HGX/26,133/forecast',
+      { headers: { 'User-Agent': 'Restaurant POS System Project' } }
+    );
+    const data = await response.json();
+
+    const current = data.properties.periods[0];
+    const forecast = current.shortForecast.toLowerCase();
+
+    let icon = 'sun'; // default sunny if no other match
+    if (forecast.includes('thunder') || forecast.includes('storm')) icon = 'cloud-lightning';
+    else if (forecast.includes('rain') || forecast.includes('shower')) icon = 'cloud-rain';
+    else if (forecast.includes('wind')) icon = 'wind';
+    else if (forecast.includes('cloudy') && !forecast.includes('partly')) icon = 'cloud';
+    else if (forecast.includes('partly')) icon = 'cloud-sun';
+
+    res.json({
+      temperature: current.temperature,
+      icon: icon
+    });
+  } catch (error) {
+    console.error('Weather fetch error:', error);
+    res.status(500).json({ error: 'Failed to fetch weather' });
+  }
+});
+
 // Verify Google OAuth token and create session
 app.post("/auth/google/verify", async (req, res) => {
   try {

@@ -1,25 +1,22 @@
 import { useState, useEffect } from "react";
 import { API_URL } from "@/lib/api";
 import { useNavigate } from "react-router-dom";
+
 import { Button } from "@/components/ui/button";
-import {
-  Card,
-  CardContent,
-  CardFooter,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
+import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
+import { WeatherDisplay } from "@/components/WeatherDisplay";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
-import { Minus, Plus, ShoppingCart, Trash2, LogOut } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
+import { Minus, Plus, ShoppingCart, Trash2, LogOut, Settings } from "lucide-react";
 import { toast } from "sonner";
 
 interface MenuItem {
   item_id: number;
   item_name: string;
   cost: number;
+  category: string;
 }
 
 interface CartItem {
@@ -32,9 +29,9 @@ interface CartItem {
 const categories = [
   "All Items",
   "Milk Tea",
+  "Matcha",
   "Fruit Tea",
-  "Coffee",
-  "Smoothies",
+  "Slush",
   "Seasonal",
 ];
 
@@ -44,6 +41,7 @@ function Cashier() {
   const [menu, setMenu] = useState<MenuItem[]>([]);
   const [cart, setCart] = useState<CartItem[]>([]);
   const [activeCategory, setActiveCategory] = useState("All Items");
+  const [weather, setWeather] = useState<{ temperature: number; icon: string } | null>(null);
 
   const handleLogout = async () => {
     await logout();
@@ -67,6 +65,11 @@ function Cashier() {
       .catch(() => {
         setMenu([]);
       });
+
+    fetch(`${API_URL}/api/weather/current`)
+      .then(res => res.json())
+      .then(data => setWeather(data))
+      .catch(() => setWeather(null));
   }, []);
 
   const addToCart = (item: MenuItem) => {
@@ -143,6 +146,7 @@ function Cashier() {
           <div className="flex h-16 items-center px-6 justify-between">
             <h1 className="text-2xl font-bold">Cashier</h1>
             <div className="flex items-center gap-3">
+              {weather && <WeatherDisplay temperature={weather.temperature} icon={weather.icon} />}
               {user && (
                 <div className="flex items-center gap-3">
                   <Avatar className="h-9 w-9">
@@ -157,6 +161,15 @@ function Cashier() {
                   </div>
                 </div>
               )}
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => navigate('/manager')}
+                className="gap-2"
+              >
+                <Settings className="h-4 w-4" />
+                Manager
+              </Button>
               <Button
                 variant="outline"
                 size="sm"
@@ -192,7 +205,9 @@ function Cashier() {
         {/* Menu Grid */}
         <div className="flex-1 overflow-auto p-6">
           <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
-            {menu.map((item) => (
+            {menu
+              .filter((item) => activeCategory === "All Items" || item.category === activeCategory)
+              .map((item) => (
               <Card
                 key={item.item_id}
                 className="cursor-pointer transition-all hover:shadow-lg hover:scale-105"

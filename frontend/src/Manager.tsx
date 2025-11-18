@@ -1,5 +1,6 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
+import { API_URL } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -9,8 +10,9 @@ import {
   CardFooter,
 } from "@/components/ui/card";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
-import { Package, Users, History, LogOut, LayoutDashboard, SquareMenu } from "lucide-react"; //icons
+import { Package, Users, History, LogOut, ShoppingCart, LayoutDashboard, SquareMenu } from "lucide-react"; //icons
 import { useAuth } from "@/contexts/AuthContext";
+import { WeatherDisplay } from "@/components/WeatherDisplay";
 import MenuPage from "./MenuPage";
 import EmployeesPage from "./EmployeesPage";
 import InventoryPage from "./InventoryPage";
@@ -120,6 +122,14 @@ function Manager() {
   const navigate = useNavigate();
   const { logout, user } = useAuth();
   const [activeCategory, setActiveCategory] = useState("Dashboard");
+  const [weather, setWeather] = useState<{ temperature: number; icon: string } | null>(null);
+
+  useEffect(() => {
+    fetch(`${API_URL}/api/weather/current`)
+      .then(res => res.json())
+      .then(data => setWeather(data))
+      .catch(() => setWeather(null));
+  }, []);
 
   const handleLogout = async () => {
     await logout();
@@ -188,6 +198,19 @@ function Manager() {
               </div>
             </div>
           )}
+          {weather && (
+            <div className="px-2 py-2">
+              <WeatherDisplay temperature={weather.temperature} icon={weather.icon} />
+            </div>
+          )}
+          <Button
+            variant="outline"
+            className="w-full justify-start gap-2"
+            onClick={() => navigate('/cashier')}
+          >
+            <ShoppingCart className="h-4 w-4" />
+            Cashier
+          </Button>
           <Button
             variant="outline"
             className="w-full justify-start gap-2"
