@@ -10,7 +10,7 @@ import {
   CardFooter,
 } from "@/components/ui/card";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
-import { Package, Users, History, LogOut, ShoppingCart } from "lucide-react"; //icons
+import { Package, Users, History, LogOut, ShoppingCart, LayoutDashboard, SquareMenu } from "lucide-react"; //icons
 import { useAuth } from "@/contexts/AuthContext";
 import { WeatherDisplay } from "@/components/WeatherDisplay";
 import MenuPage from "./MenuPage";
