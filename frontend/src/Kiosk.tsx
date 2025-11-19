@@ -131,6 +131,10 @@ function Kiosk() {
         uniqueId: `${customizationDialog.item.item_id}-${Date.now()}-${Math.random()}`,
       };
       setCart([...cart, newCartItem]);
+
+      // Trigger button pulse animation
+      setButtonPulse(true);
+      setTimeout(() => setButtonPulse(false), 500);
     }
 
     setCustomizationDialog({ open: false, item: null, editingCartItem: null });
