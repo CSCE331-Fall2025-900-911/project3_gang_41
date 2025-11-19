@@ -11,9 +11,11 @@ import {
   DrawerTitle,
   DrawerTrigger,
 } from '@/components/ui/drawer';
-import { Minus, Plus, ShoppingCart, Trash2 } from 'lucide-react';
+import { Minus, Plus, ShoppingCart, Trash2, Edit } from 'lucide-react';
 import { toast } from 'sonner';
 import { WeatherDisplay } from '@/components/WeatherDisplay';
+import { DrinkCustomizationDialog } from "@/components/DrinkCustomizationDialog";
+
 
 interface MenuItem {
   item_id: number;
@@ -22,11 +24,19 @@ interface MenuItem {
   category: string;
 }
 
+interface DrinkCustomization {
+  sweetness: 100 | 50 | 25;
+  ice: 'regular' | 'light' | 'none';
+  size: 'small' | 'medium' | 'large';
+}
+
 interface CartItem {
   item_id: number;
   item_name: string;
   cost: number;
   quantity: number;
+  customization?: DrinkCustomization;
+  uniqueId: string;
 }
 
 const categories = [
@@ -45,6 +55,15 @@ function Kiosk() {
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [buttonPulse, setButtonPulse] = useState(false);
   const [weather, setWeather] = useState<{ temperature: number; icon: string } | null>(null);
+  const [customizationDialog, setCustomizationDialog] = useState<{
+      open: boolean;
+      item: MenuItem | null;
+      editingCartItem: CartItem | null;
+    }>({
+      open: false,
+      item: null,
+      editingCartItem: null,
+    });
 
   useEffect(() => {
     fetch(`${API_URL}/api/menu`)
@@ -70,34 +89,66 @@ function Kiosk() {
       .catch(() => setWeather(null));
   }, []);
 
-  const addToCart = (item: MenuItem) => {
-    const existing = cart.find(c => c.item_id === item.item_id);
-    if (existing) {
-      setCart(cart.map(c =>
-        c.item_id === item.item_id
-          ? { ...c, quantity: c.quantity + 1 }
-          : c
-      ));
+  const openCustomizationDialog = (item: MenuItem) => {
+    setCustomizationDialog({
+      open: true,
+      item,
+      editingCartItem: null,
+    });
+  };
+
+  const openEditDialog = (cartItem: CartItem) => {
+    const menuItem = menu.find((m) => m.item_id === cartItem.item_id);
+    if (menuItem) {
+      setCustomizationDialog({
+        open: true,
+        item: menuItem,
+        editingCartItem: cartItem,
+      });
+    }
+  };
+
+  const handleCustomizationConfirm = (customization: DrinkCustomization) => {
+    if (!customizationDialog.item) return;
+
+    if (customizationDialog.editingCartItem) {
+      // Editing existing cart item
+      setCart(
+        cart.map((c) =>
+          c.uniqueId === customizationDialog.editingCartItem!.uniqueId
+            ? { ...c, customization }
+            : c
+        )
+      );
     } else {
-      setCart([...cart, { ...item, quantity: 1 }]);
+      // Adding new item to cart
+      const newCartItem: CartItem = {
+        item_id: customizationDialog.item.item_id,
+        item_name: customizationDialog.item.item_name,
+        cost: customizationDialog.item.cost,
+        quantity: 1,
+        customization,
+        uniqueId: `${customizationDialog.item.item_id}-${Date.now()}-${Math.random()}`,
+      };
+      setCart([...cart, newCartItem]);
+
+      // Trigger button pulse animation
+      setButtonPulse(true);
+      setTimeout(() => setButtonPulse(false), 500);
     }
 
-    // Trigger pulse animation
-    setButtonPulse(true);
-    setTimeout(() => setButtonPulse(false), 500);
+    setCustomizationDialog({ open: false, item: null, editingCartItem: null });
   };
 
-  const removeFromCart = (itemId: number) => {
-    setCart(cart.filter(c => c.item_id !== itemId));
+  const removeFromCart = (uniqueId: string) => {
+    setCart(cart.filter((c) => c.uniqueId !== uniqueId));
   };
 
-  const updateQuantity = (itemId: number, quantity: number) => {
+  const updateQuantity = (uniqueId: string, quantity: number) => {
     if (quantity <= 0) {
-      removeFromCart(itemId);
+      removeFromCart(uniqueId);
     } else {
-      setCart(cart.map(c =>
-        c.item_id === itemId ? { ...c, quantity } : c
-      ));
+      setCart(cart.map((c) => (c.uniqueId === uniqueId ? { ...c, quantity } : c)));
     }
   };
 
@@ -174,7 +225,7 @@ function Kiosk() {
                 <Card
                   key={item.item_id}
                   className="cursor-pointer transition-all duration-150 hover:shadow-xl hover:scale-105 active:scale-95 active:shadow-md h-40"
-                  onClick={() => addToCart(item)}
+                  onClick={() => openCustomizationDialog(item)}
                 >
                   <CardHeader className="p-4 pb-2">
                     <CardTitle className="text-base text-center line-clamp-2">
@@ -240,22 +291,53 @@ function Kiosk() {
                   ) : (
                     <div className="space-y-3">
                       {cart.map(item => (
-                        <div key={item.item_id} className="border rounded-lg p-3">
+                        <div key={item.uniqueId} className="border rounded-lg p-3">
                           <div className="flex items-start justify-between mb-2">
-                            <div>
+                            <div className="flex-1">
                               <h4 className="font-medium text-sm">{item.item_name}</h4>
                               <p className="text-xs text-muted-foreground">
                                 ${item.cost.toFixed(2)} each
                               </p>
+                              {item.customization && (
+                                <div className="flex flex-wrap gap-1 mt-2">
+                                  {/* Size - always show, display as single letter uppercase */}
+                                  <Badge variant="secondary" className="text-xs uppercase">
+                                    {item.customization.size.charAt(0)}
+                                  </Badge>
+                                  {/* Sweetness - only show if not default (100) */}
+                                  {item.customization.sweetness !== 100 && (
+                                    <Badge variant="secondary" className="text-xs">
+                                      {item.customization.sweetness}% sweet
+                                    </Badge>
+                                  )}
+                                  {/* Ice - only show if not default (regular) */}
+                                  {item.customization.ice !== 'regular' && (
+                                    <Badge variant="secondary" className="text-xs capitalize">
+                                      {item.customization.ice} ice
+                                    </Badge>
+                                  )}
+                                </div>
+                              )}
                             </div>
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              className="h-6 w-6 text-destructive"
-                              onClick={() => removeFromCart(item.item_id)}
-                            >
-                              <Trash2 className="h-3 w-3" />
-                            </Button>
+
+                            <div className="flex gap-1">
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-6 w-6"
+                                onClick={() => openEditDialog(item)}
+                              >
+                                <Edit className="h-3 w-3" />
+                              </Button>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-6 w-6 text-destructive"
+                                onClick={() => removeFromCart(item.uniqueId)}
+                              >
+                                <Trash2 className="h-3 w-3" />
+                              </Button>
+                            </div>
                           </div>
 
                           <div className="flex items-center justify-between">
@@ -264,7 +346,7 @@ function Kiosk() {
                                 variant="outline"
                                 size="icon"
                                 className="h-7 w-7"
-                                onClick={() => updateQuantity(item.item_id, item.quantity - 1)}
+                                onClick={() => updateQuantity(item.uniqueId, item.quantity - 1)}
                               >
                                 <Minus className="h-3 w-3" />
                               </Button>
@@ -275,7 +357,7 @@ function Kiosk() {
                                 variant="outline"
                                 size="icon"
                                 className="h-7 w-7"
-                                onClick={() => updateQuantity(item.item_id, item.quantity + 1)}
+                                onClick={() => updateQuantity(item.uniqueId, item.quantity + 1)}
                               >
                                 <Plus className="h-3 w-3" />
                               </Button>
@@ -314,6 +396,19 @@ function Kiosk() {
           </Drawer>
         </div>
       </div>
+
+      {/* Customization Dialog */}
+      <DrinkCustomizationDialog
+        open={customizationDialog.open}
+        onOpenChange={(open) => {
+          if (!open) {
+            setCustomizationDialog({ open: false, item: null, editingCartItem: null });
+          }
+        }}
+        itemName={customizationDialog.item?.item_name || ""}
+        defaultCustomization={customizationDialog.editingCartItem?.customization}
+        onConfirm={handleCustomizationConfirm}
+      />
     </div>
   );
 }
