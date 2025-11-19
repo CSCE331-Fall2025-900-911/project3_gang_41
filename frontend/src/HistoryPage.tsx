@@ -107,7 +107,7 @@ const normalizeOrder = (o: ApiOrder): Order => {
 };
 
 function HistoryPage() {
-  const { user} = useAuth();
+  const { user } = useAuth();
 
   const [orders, setOrders] = useState<Order[]>([]);
   const [page, setPage] = useState(1);

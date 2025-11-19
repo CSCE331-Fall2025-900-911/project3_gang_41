@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { API_URL } from "@/lib/api";
 import { toast } from "sonner";
 import {
@@ -52,8 +52,8 @@ const API_BASE_URL = `${API_URL}/api`;
 interface MenuItem {
   item_id: number;
   item_name: string;
-  cost: string;     // numeric -> string from API
-  category: string; // now in DB
+  cost: string;
+  category: string;
 }
 
 interface InventoryItem {
@@ -67,7 +67,7 @@ interface InventoryItem {
 const currency = (n: number) =>
   n.toLocaleString("en-US", { style: "currency", currency: "USD" });
 
-function MenuPage() {
+export default function MenuPage() {
   const [menuItems, setMenuItems] = useState<MenuItem[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -80,8 +80,7 @@ function MenuPage() {
   const [newItemName, setNewItemName] = useState("");
   const [newItemCost, setNewItemCost] = useState("");
   const [newItemCategory, setNewItemCategory] = useState("");
-  const [openIngredientsAfterCreate, setOpenIngredientsAfterCreate] =
-    useState(true);
+  const [openIngredientsAfterCreate, setOpenIngredientsAfterCreate] = useState(true);
 
   // Edit item dialog
   const [editOpen, setEditOpen] = useState(false);
@@ -116,13 +115,17 @@ function MenuPage() {
   }, []);
 
   const filtered = useMemo(() => {
-    if (!query.trim()) return menuItems;
-    const q = query.toLowerCase();
-    return menuItems.filter(
-      (m) =>
-        m.item_name.toLowerCase().includes(q) ||
-        (m.category || "").toLowerCase().includes(q)
-    );
+    let res = menuItems;
+    if (query.trim()) {
+      const q = query.toLowerCase();
+      res = menuItems.filter(
+        (m) =>
+          m.item_name.toLowerCase().includes(q) ||
+          (m.category || "").toLowerCase().includes(q)
+      );
+    }
+    // Explicitly sort by ID to ensure new items appear in correct numerical order
+    return [...res].sort((a, b) => a.item_id - b.item_id);
   }, [menuItems, query]);
 
   const categoryOptions = useMemo(
@@ -184,7 +187,6 @@ function MenuPage() {
         body: JSON.stringify({
           item_name: updateName,
           cost: updatePrice,
-          // include category here too if you want to edit it later
         }),
       });
       if (!res.ok) throw new Error("Failed to update item");
@@ -388,7 +390,6 @@ function MenuPage() {
             </div>
             <div className="grid gap-2">
               <Label htmlFor="newCategory">Category</Label>
-              {/* Using native datalist for suggestions based on existing categories */}
               <Input
                 id="newCategory"
                 list="categoryOptions"
@@ -426,7 +427,7 @@ function MenuPage() {
         </DialogContent>
       </Dialog>
 
-      {/* Edit Item Dialog (name + price) */}
+      {/* Edit Item Dialog */}
       <Dialog open={editOpen} onOpenChange={setEditOpen}>
         <DialogContent>
           <DialogHeader>
@@ -485,7 +486,7 @@ function MenuPage() {
         </AlertDialogContent>
       </AlertDialog>
 
-      {/* Ingredients Dialog */}
+      {/* UPDATED Ingredients Dialog */}
       {selectedItem && (
         <IngredientsDialog
           open={ingredientsOpen}
@@ -501,7 +502,7 @@ function MenuPage() {
   );
 }
 
-/* ---------- Ingredients Dialog (unchanged behavior) ---------- */
+/* ---------- Updated Ingredients Dialog Component ---------- */
 
 type IngredientsDialogProps = {
   open: boolean;
@@ -515,7 +516,7 @@ function IngredientsDialog({ open, onOpenChange, item, onSaved }: IngredientsDia
   const [selected, setSelected] = useState<Record<number, number>>({});
   const [loading, setLoading] = useState(false);
 
-  // Add new inventory
+  // Add new inventory state
   const [newIngName, setNewIngName] = useState("");
   const [newIngStock, setNewIngStock] = useState<number | "">("");
   const [newIngCost, setNewIngCost] = useState("0.00");
@@ -538,14 +539,12 @@ function IngredientsDialog({ open, onOpenChange, item, onSaved }: IngredientsDia
       const list: { id: number; name?: string; quantity: number }[] =
         Array.isArray(payload) ? payload : payload.ingredients || [];
 
-      // Map to { [inventory_id]: quantity }
       const preselected: Record<number, number> = {};
       for (const ing of list) {
-        preselected[ing.id] = Number(ing.quantity) || 1;
+        preselected[ing.id] = Number(ing.quantity) || 0;
       }
       setSelected(preselected);
     } catch (e: any) {
-      // Not fatal—dialog still works
       console.warn(e?.message || e);
     }
   };
@@ -555,7 +554,6 @@ function IngredientsDialog({ open, onOpenChange, item, onSaved }: IngredientsDia
       loadInventory();
       loadExisting();
     } else {
-      // reset when closing to avoid leak across items
       setSelected({});
     }
   }, [open, item.item_id]);
@@ -563,17 +561,28 @@ function IngredientsDialog({ open, onOpenChange, item, onSaved }: IngredientsDia
   const toggleIngredient = (id: number, checked: boolean) => {
     setSelected((prev) => {
       const copy = { ...prev };
-      if (checked) copy[id] = copy[id] ?? 1;
-      else delete copy[id];
+      if (checked) {
+        copy[id] = 0; // Initialize at 0
+      } else {
+        delete copy[id];
+      }
       return copy;
     });
   };
 
-  const changeQty = (id: number, qty: number) => {
-    setSelected((prev) => ({ ...prev, [id]: Math.max(1, qty) }));
+  const changeQty = (id: number, value: string) => {
+    const qty = value === "" ? 0 : parseInt(value, 10);
+    setSelected((prev) => ({ ...prev, [id]: Math.max(0, qty) }));
   };
 
   const saveIngredients = async () => {
+    const hasZeroQuantity = Object.values(selected).some((qty) => qty <= 0);
+
+    if (hasZeroQuantity) {
+      toast.error("Please set a quantity for all selected ingredients.");
+      return;
+    }
+
     setLoading(true);
     try {
       const ingredientsToSave = Object.entries(selected).map(([id, quantity]) => ({
@@ -623,111 +632,141 @@ function IngredientsDialog({ open, onOpenChange, item, onSaved }: IngredientsDia
         <DialogHeader>
           <DialogTitle>Ingredients for {item.item_name}</DialogTitle>
           <DialogDescription>
-            Select ingredients and set the quantity used per drink.
+            Select ingredients from the list below. You must specify the quantity used per drink.
           </DialogDescription>
         </DialogHeader>
 
-        <div className="grid md:grid-cols-2 gap-6">
-          {/* Ingredient picker */}
+        <div className="grid md:grid-cols-2 gap-8">
+          {/* Left Column: Ingredient picker */}
           <div>
-            <div className="text-sm font-medium mb-2">Inventory</div>
-            <div className="max-h-72 overflow-auto rounded border">
+            <div className="text-sm font-medium mb-2">Select Inventory Items</div>
+            <div className="max-h-[400px] overflow-auto rounded-md border p-1">
               {inventory.map((inv) => {
-                const checked = selected[inv.item_id] !== undefined;
+                const isChecked = selected[inv.item_id] !== undefined;
+                const currentQty = isChecked ? selected[inv.item_id] : 0;
+                const isInvalid = isChecked && currentQty <= 0;
+
                 return (
                   <div
                     key={inv.item_id}
-                    className="flex items-center justify-between px-3 py-2 border-b last:border-0"
+                    className={`flex items-start gap-3 px-3 py-3 border-b last:border-0 hover:bg-muted/20 transition-colors ${
+                      isChecked ? "bg-muted/30" : ""
+                    }`}
                   >
-                    <div className="flex items-center gap-2">
-                      <input
-                        id={`inv-${inv.item_id}`}
-                        type="checkbox"
-                        className="h-4 w-4"
-                        checked={checked}
-                        onChange={(e) => toggleIngredient(inv.item_id, e.target.checked)}
-                      />
-                      <Label htmlFor={`inv-${inv.item_id}`} className="cursor-pointer">
+                    <input
+                      id={`inv-${inv.item_id}`}
+                      type="checkbox"
+                      className="h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary mt-1 shrink-0"
+                      checked={isChecked}
+                      onChange={(e) => toggleIngredient(inv.item_id, e.target.checked)}
+                    />
+                    <div className="flex-1 flex items-center justify-between gap-2 min-w-0">
+                      <Label
+                        htmlFor={`inv-${inv.item_id}`}
+                        className="cursor-pointer font-normal leading-snug break-words pt-0.5"
+                      >
                         {inv.item_name}
                       </Label>
+                      {/* NEW LAYOUT: Qty + Input + Unit Label Outside */}
+                      <div className="flex items-center gap-2 shrink-0">
+                        <span className="text-xs text-muted-foreground text-right">
+                          Qty:
+                        </span>
+                        <div className="flex items-center gap-1.5">
+                          <Input
+                            type="number"
+                            min={0}
+                            className={`w-16 h-8 px-2 text-center ${isInvalid ? "border-red-500 ring-red-500" : ""}`}
+                            value={isChecked && currentQty > 0 ? currentQty : ""}
+                            disabled={!isChecked}
+                            placeholder=""
+                            onChange={(e) =>
+                              changeQty(inv.item_id, e.target.value)
+                            }
+                          />
+                          <span 
+                            className="text-xs text-muted-foreground w-12 truncate" 
+                            title={inv.unit} // Tooltip for very long units
+                          >
+                            {inv.unit}
+                          </span>
+                        </div>
+                      </div>
                     </div>
-                    <Input
-                      type="number"
-                      min={1}
-                      className="w-20"
-                      value={checked ? selected[inv.item_id] : 1}
-                      disabled={!checked}
-                      onChange={(e) =>
-                        changeQty(inv.item_id, parseInt(e.target.value || "1", 10))
-                      }
-                    />
                   </div>
                 );
               })}
               {inventory.length === 0 && (
-                <div className="p-4 text-sm text-muted-foreground">
-                  No inventory items yet.
+                <div className="p-8 text-center text-sm text-muted-foreground">
+                  No inventory items found. Add some on the right.
                 </div>
               )}
             </div>
           </div>
 
-          {/* Add new inventory item */}
-          <form onSubmit={addInventoryItem} className="space-y-3">
-            <div className="text-sm font-medium">Add inventory item</div>
-            <div className="grid gap-2">
-              <Label htmlFor="ingName">Name</Label>
-              <Input
-                id="ingName"
-                value={newIngName}
-                onChange={(e) => setNewIngName(e.target.value)}
-                placeholder="e.g. Tapioca pearls"
-                required
-              />
+          {/* Right Column: Add new inventory item */}
+          <div className="border-l pl-8 flex flex-col">
+            <div className="mb-6">
+                <h3 className="font-semibold text-sm">Missing an ingredient?</h3>
+                <p className="text-sm text-muted-foreground">
+                    Add a new database entry here so you can select it on the left.
+                </p>
             </div>
-            <div className="grid gap-2">
-              <Label htmlFor="ingStock">Starting stock</Label>
-              <Input
-                id="ingStock"
-                type="number"
-                min={0}
-                value={newIngStock}
-                onChange={(e) =>
-                  setNewIngStock(e.target.value === "" ? "" : parseInt(e.target.value, 10))
-                }
-                placeholder="e.g. 100"
-              />
-            </div>
-            <div className="grid gap-2">
-              <Label htmlFor="ingCost">Cost</Label>
-              <Input
-                id="ingCost"
-                value={newIngCost}
-                onChange={(e) => setNewIngCost(e.target.value)}
-                placeholder="e.g. 4.99"
-                required
-              />
-            </div>
-            <Button type="submit" variant="outline" className="gap-2">
-              Add to inventory
-            </Button>
-          </form>
+            
+            <form onSubmit={addInventoryItem} className="space-y-4 bg-muted/20 p-4 rounded-lg border">
+              <div className="grid gap-2">
+                <Label htmlFor="ingName">Ingredient Name</Label>
+                <Input
+                  id="ingName"
+                  value={newIngName}
+                  onChange={(e) => setNewIngName(e.target.value)}
+                  placeholder="e.g. Tapioca pearls"
+                  required
+                />
+              </div>
+              <div className="grid gap-2">
+                <Label htmlFor="ingStock">Initial Stock Level</Label>
+                <Input
+                  id="ingStock"
+                  type="number"
+                  min={0}
+                  value={newIngStock}
+                  onChange={(e) =>
+                    setNewIngStock(e.target.value === "" ? "" : parseInt(e.target.value, 10))
+                  }
+                  placeholder="e.g. 100"
+                />
+              </div>
+              <div className="grid gap-2">
+                <Label htmlFor="ingCost">Unit Cost ($)</Label>
+                <Input
+                  id="ingCost"
+                  value={newIngCost}
+                  onChange={(e) => setNewIngCost(e.target.value)}
+                  placeholder="e.g. 4.99"
+                  required
+                />
+              </div>
+              <Button type="submit" variant="secondary" className="w-full gap-2 mt-2">
+                <Plus className="h-4 w-4" />
+                Add to Database
+              </Button>
+            </form>
+          </div>
         </div>
 
-        <Separator className="my-2" />
+        <Separator className="my-4" />
 
         <DialogFooter className="gap-2">
           <Button variant="outline" onClick={() => onOpenChange(false)}>
-            Close
+            Cancel
           </Button>
-          <Button className="gap-2" onClick={saveIngredients} disabled={loading}>
+          <Button className="gap-2 min-w-[100px]" onClick={saveIngredients} disabled={loading}>
             {loading && <Loader2 className="h-4 w-4 animate-spin" />}
-            Save
+            Save Recipe
           </Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>
   );
 }
-
-export default MenuPage;
