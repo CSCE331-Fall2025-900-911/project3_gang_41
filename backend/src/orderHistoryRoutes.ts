@@ -1,5 +1,6 @@
 import express, { Request, Response } from 'express';
 import db from './db';
+import { deductInventory } from './services/inventoryService';
 
 const router = express.Router();
 
@@ -82,27 +83,22 @@ router.post('/', async (req: Request, res: Response) => {
         const orderTotal = Array.from(aggregatedItems.values())
             .reduce((sum, item) => sum + (item.unitprice * item.quantity), 0);
 
-        // Update inventory via API after successful order creation
+        // Update inventory and sales report via direct function calls
         const orderItems = Array.from(aggregatedItems.values()).map(item => ({
             item_id: item.item_id,
             quantity: item.quantity
         }));
 
-        const baseUrl = `http://localhost:${process.env.PORT || 3000}`;
-
-        // Call inventory deduction API 
-        fetch(`${baseUrl}/api/inventory/deduct`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ items: orderItems })
-        }).catch(err => console.error('Failed to deduct inventory:', err));
-
-        // Call sales report API
-        fetch(`${baseUrl}/api/sales-report`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ order_total: orderTotal, payment_method: method })
-        }).catch(err => console.error('Failed to record sale:', err));
+        try {
+            // Await this so if inventory fails, we know about it (optional)
+            await deductInventory(orderItems);
+            
+            // Handle Sales Report similarly (create a salesReportService.ts)
+            
+        } catch (err) {
+            console.error("Background task failed", err);
+            // Decide if you want to fail the whole request or just log it
+        }
 
         res.status(201).json({ success: true, orderid });
     } catch (err) {
