@@ -9,6 +9,7 @@ import pool from "./db";
 import menuRoutes from "./menuRoutes";
 import inventoryRoutes from "./inventoryRoutes";
 import orderHistoryRoutes from "./orderHistoryRoutes";
+import salesReportRoutes from "./salesReportRoutes";
 
 const client = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
 const app = express();
@@ -76,6 +77,7 @@ app.get("/health", async (req: Request, res: Response) => {
 app.use('/api/inventory', inventoryRoutes);
 app.use('/api/menu', menuRoutes);
 app.use('/api/order-history', orderHistoryRoutes);
+app.use('/api/sales-report', salesReportRoutes);
 
 // National Weather endpoint for TAMU
 app.get('/api/weather/current', async (req: Request, res: Response) => {

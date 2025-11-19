@@ -9,8 +9,9 @@ import { Separator } from "@/components/ui/separator";
 import { WeatherDisplay } from "@/components/WeatherDisplay";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { useAuth } from "@/contexts/AuthContext";
-import { Minus, Plus, ShoppingCart, Trash2, LogOut, Settings } from "lucide-react";
+import { Minus, Plus, ShoppingCart, Trash2, LogOut, Settings, Edit } from "lucide-react";
 import { toast } from "sonner";
+import { DrinkCustomizationDialog } from "@/components/DrinkCustomizationDialog";
 
 interface MenuItem {
   item_id: number;
@@ -19,11 +20,19 @@ interface MenuItem {
   category: string;
 }
 
+interface DrinkCustomization {
+  sweetness: 100 | 50 | 25;
+  ice: 'regular' | 'light' | 'none';
+  size: 'small' | 'medium' | 'large';
+}
+
 interface CartItem {
   item_id: number;
   item_name: string;
   cost: number;
   quantity: number;
+  customization?: DrinkCustomization;
+  uniqueId: string; // handle multiple instances of same item w/ different customizations
 }
 
 const categories = [
@@ -42,6 +51,15 @@ function Cashier() {
   const [cart, setCart] = useState<CartItem[]>([]);
   const [activeCategory, setActiveCategory] = useState("All Items");
   const [weather, setWeather] = useState<{ temperature: number; icon: string } | null>(null);
+  const [customizationDialog, setCustomizationDialog] = useState<{
+    open: boolean;
+    item: MenuItem | null;
+    editingCartItem: CartItem | null;
+  }>({
+    open: false,
+    item: null,
+    editingCartItem: null,
+  });
 
   const handleLogout = async () => {
     await logout();
@@ -72,28 +90,62 @@ function Cashier() {
       .catch(() => setWeather(null));
   }, []);
 
-  const addToCart = (item: MenuItem) => {
-    const existing = cart.find((c) => c.item_id === item.item_id);
-    if (existing) {
-      setCart(
-        cart.map((c) =>
-          c.item_id === item.item_id ? { ...c, quantity: c.quantity + 1 } : c
-        )
-      );
-    } else {
-      setCart([...cart, { ...item, quantity: 1 }]);
+  const openCustomizationDialog = (item: MenuItem) => {
+    setCustomizationDialog({
+      open: true,
+      item,
+      editingCartItem: null,
+    });
+  };
+
+  const openEditDialog = (cartItem: CartItem) => {
+    const menuItem = menu.find((m) => m.item_id === cartItem.item_id);
+    if (menuItem) {
+      setCustomizationDialog({
+        open: true,
+        item: menuItem,
+        editingCartItem: cartItem,
+      });
     }
   };
 
-  const removeFromCart = (itemId: number) => {
-    setCart(cart.filter((c) => c.item_id !== itemId));
+  const handleCustomizationConfirm = (customization: DrinkCustomization) => {
+    if (!customizationDialog.item) return;
+
+    if (customizationDialog.editingCartItem) {
+      // Editing existing cart item
+      setCart(
+        cart.map((c) =>
+          c.uniqueId === customizationDialog.editingCartItem!.uniqueId
+            ? { ...c, customization }
+            : c
+        )
+      );
+    } else {
+      // Adding new item to cart
+      const newCartItem: CartItem = {
+        item_id: customizationDialog.item.item_id,
+        item_name: customizationDialog.item.item_name,
+        cost: customizationDialog.item.cost,
+        quantity: 1,
+        customization,
+        uniqueId: `${customizationDialog.item.item_id}-${Date.now()}-${Math.random()}`,
+      };
+      setCart([...cart, newCartItem]);
+    }
+
+    setCustomizationDialog({ open: false, item: null, editingCartItem: null });
   };
 
-  const updateQuantity = (itemId: number, quantity: number) => {
+  const removeFromCart = (uniqueId: string) => {
+    setCart(cart.filter((c) => c.uniqueId !== uniqueId));
+  };
+
+  const updateQuantity = (uniqueId: string, quantity: number) => {
     if (quantity <= 0) {
-      removeFromCart(itemId);
+      removeFromCart(uniqueId);
     } else {
-      setCart(cart.map((c) => (c.item_id === itemId ? { ...c, quantity } : c)));
+      setCart(cart.map((c) => (c.uniqueId === uniqueId ? { ...c, quantity } : c)));
     }
   };
 
@@ -211,7 +263,7 @@ function Cashier() {
               <Card
                 key={item.item_id}
                 className="cursor-pointer transition-all hover:shadow-lg hover:scale-105"
-                onClick={() => addToCart(item)}
+                onClick={() => openCustomizationDialog(item)}
               >
                 <CardHeader className="p-4">
                   <CardTitle className="text-lg line-clamp-2">
@@ -255,7 +307,7 @@ function Cashier() {
             </div>
           ) : (
             cart.map((item) => (
-              <Card key={item.item_id}>
+              <Card key={item.uniqueId}>
                 <CardContent className="p-4">
                   <div className="flex flex-col gap-3">
                     <div className="flex justify-between items-start">
@@ -266,15 +318,45 @@ function Cashier() {
                         <p className="text-sm text-muted-foreground mt-1">
                           ${item.cost.toFixed(2)} each
                         </p>
+                        {item.customization && (
+                          <div className="flex flex-wrap gap-1 mt-2">
+                            {/* Size - always show, display as single letter uppercase */}
+                            <Badge variant="secondary" className="text-xs uppercase">
+                              {item.customization.size.charAt(0)}
+                            </Badge>
+                            {/* Sweetness - only show if not default (100) */}
+                            {item.customization.sweetness !== 100 && (
+                              <Badge variant="secondary" className="text-xs">
+                                {item.customization.sweetness}% Sweet
+                              </Badge>
+                            )}
+                            {/* Ice - only show if not default (regular) */}
+                            {item.customization.ice !== 'regular' && (
+                              <Badge variant="secondary" className="text-xs capitalize">
+                                {item.customization.ice} ice
+                              </Badge>
+                            )}
+                          </div>
+                        )}
                       </div>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="h-8 w-8 text-destructive"
-                        onClick={() => removeFromCart(item.item_id)}
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
+                      <div className="flex gap-1">
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8"
+                          onClick={() => openEditDialog(item)}
+                        >
+                          <Edit className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8 text-destructive"
+                          onClick={() => removeFromCart(item.uniqueId)}
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </div>
                     </div>
 
                     <Separator />
@@ -286,7 +368,7 @@ function Cashier() {
                           size="icon"
                           className="h-8 w-8"
                           onClick={() =>
-                            updateQuantity(item.item_id, item.quantity - 1)
+                            updateQuantity(item.uniqueId, item.quantity - 1)
                           }
                         >
                           <Minus className="h-4 w-4" />
@@ -299,7 +381,7 @@ function Cashier() {
                           size="icon"
                           className="h-8 w-8"
                           onClick={() =>
-                            updateQuantity(item.item_id, item.quantity + 1)
+                            updateQuantity(item.uniqueId, item.quantity + 1)
                           }
                         >
                           <Plus className="h-4 w-4" />
@@ -345,6 +427,19 @@ function Cashier() {
           </div>
         )}
       </div>
+
+      {/* Customization Dialog */}
+      <DrinkCustomizationDialog
+        open={customizationDialog.open}
+        onOpenChange={(open) => {
+          if (!open) {
+            setCustomizationDialog({ open: false, item: null, editingCartItem: null });
+          }
+        }}
+        itemName={customizationDialog.item?.item_name || ""}
+        defaultCustomization={customizationDialog.editingCartItem?.customization}
+        onConfirm={handleCustomizationConfirm}
+      />
     </div>
   );
 }
