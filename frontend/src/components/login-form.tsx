@@ -106,6 +106,7 @@ export function LoginForm({
                     theme="outline"
                     size="large"
                     logo_alignment="left"
+                    width="320"
                   />
                 </div>
                 {error && (

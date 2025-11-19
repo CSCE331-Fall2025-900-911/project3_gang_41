@@ -9,6 +9,7 @@ import pool from "./db";
 import menuRoutes from "./menuRoutes";
 import inventoryRoutes from "./inventoryRoutes";
 import orderHistoryRoutes from "./orderHistoryRoutes";
+import salesReportRoutes from "./salesReportRoutes";
 
 const client = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
 const app = express();
@@ -76,13 +77,22 @@ app.get("/health", async (req: Request, res: Response) => {
 app.use('/api/inventory', inventoryRoutes);
 app.use('/api/menu', menuRoutes);
 app.use('/api/order-history', orderHistoryRoutes);
+app.use('/api/sales-report', salesReportRoutes);
 
 // National Weather endpoint for TAMU
 app.get('/api/weather/current', async (req: Request, res: Response) => {
   try {
+    // Disable caching to ensure fresh weather data
+    res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
+    res.setHeader('Pragma', 'no-cache');
+    res.setHeader('Expires', '0');
+
     const response = await fetch(
       'https://api.weather.gov/gridpoints/HGX/26,133/forecast',
-      { headers: { 'User-Agent': 'Restaurant POS System Project' } }
+      {
+        headers: { 'User-Agent': 'Restaurant POS System Project' },
+        cache: 'no-store'
+      }
     );
     const data = await response.json();
 
