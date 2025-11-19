@@ -4,6 +4,7 @@ dotenv.config();
 import express, { Request, Response } from "express";
 import cors from "cors";
 import session from "express-session";
+import pgSession from "connect-pg-simple";
 import { OAuth2Client } from "google-auth-library";
 import pool from "./db";
 import menuRoutes from "./menuRoutes";
@@ -47,16 +48,22 @@ app.use(
 
 app.use(express.json());
 
+const PgSessionStore = pgSession(session);
+
 app.use(
   session({
+    store: new PgSessionStore({
+      pool: pool, // Use your existing DB pool from ./db.ts
+      tableName: 'session', // You must create this table in Postgres
+      createTableIfMissing: true // This will create the table for you automatically
+    }),
     secret: process.env.SESSION_SECRET || "your-secret-key",
     resave: false,
     saveUninitialized: false,
     cookie: {
       secure: process.env.NODE_ENV === "production",
       httpOnly: true,
-      sameSite: process.env.NODE_ENV === "production" ? "none" : "lax",
-      maxAge: 24 * 60 * 60 * 1000, // 24 hours
+      maxAge: 24 * 60 * 60 * 1000, // 24 hours 🐄
     },
   })
 );
