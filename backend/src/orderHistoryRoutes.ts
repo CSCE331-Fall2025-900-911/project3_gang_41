@@ -1,9 +1,116 @@
 import express, { Request, Response } from 'express';
-import db from './db'; 
+import db from './db';
+import { deductInventory } from './services/inventoryService';
 
 const router = express.Router();
 
-// GET /api/order-history
+// Create new order with multiple items
+router.post('/', async (req: Request, res: Response) => {
+    const { items, customerid, employeeId, paymentmethod } = req.body as {
+        items: { item_id: number; item_name: string; quantity: number; cost: number }[];
+        customerid?: number;
+        employeeId?: number;
+        paymentmethod?: string;
+    };
+
+    if (!Array.isArray(items) || items.length === 0) {
+        return res.status(400).json({ message: 'No items provided' });
+    }
+
+    const client = await db.connect();
+    try {
+        await client.query('BEGIN');
+
+        // Generate new order ID using MAX + 1
+        const { rows } = await client.query(
+            "SELECT COALESCE(MAX(orderid), 0) + 1 AS new_order_id FROM order_history"
+        );
+        const orderid = Number(rows[0].new_order_id);
+
+        const method = paymentmethod ?? 'card';
+        const employee = employeeId ?? 0;
+        const cust = customerid ?? 0;
+
+        // Aggregate items by item_id (like Java implementation)
+        const aggregatedItems = new Map<number, {
+            item_id: number;
+            item_name: string;
+            quantity: number;
+            unitprice: number;
+        }>();
+
+        for (const item of items) {
+            const existing = aggregatedItems.get(item.item_id);
+            if (existing) {
+                existing.quantity += item.quantity;
+            } else {
+                aggregatedItems.set(item.item_id, {
+                    item_id: item.item_id,
+                    item_name: item.item_name,
+                    quantity: item.quantity,
+                    unitprice: item.cost,
+                });
+            }
+        }
+
+        const insertSql = `
+            INSERT INTO order_history
+                (orderid, customerid, orderdate, employeeatcheckout, paymentmethod,
+                 menuitemid, itemname, quantity, unitprice, totalprice)
+            VALUES
+                ($1, $2, NOW(), $3, $4, $5, $6, $7, $8, $9)
+        `;
+
+        // Insert each aggregated item
+        for (const item of aggregatedItems.values()) {
+            const totalprice = item.unitprice * item.quantity;
+            await client.query(insertSql, [
+                orderid,
+                cust,
+                employee,
+                method,
+                item.item_id,
+                item.item_name,
+                item.quantity,
+                item.unitprice,
+                totalprice,
+            ]);
+        }
+
+        await client.query('COMMIT');
+
+        // Calculate order total
+        const orderTotal = Array.from(aggregatedItems.values())
+            .reduce((sum, item) => sum + (item.unitprice * item.quantity), 0);
+
+        // Update inventory and sales report via direct function calls
+        const orderItems = Array.from(aggregatedItems.values()).map(item => ({
+            item_id: item.item_id,
+            quantity: item.quantity
+        }));
+
+        try {
+            // Await this so if inventory fails, we know about it (optional)
+            await deductInventory(orderItems);
+            
+            // Handle Sales Report similarly (create a salesReportService.ts)
+            
+        } catch (err) {
+            console.error("Background task failed", err);
+            // Decide if you want to fail the whole request or just log it
+        }
+
+        res.status(201).json({ success: true, orderid });
+    } catch (err) {
+        await client.query('ROLLBACK');
+        console.error('Failed to create order:', err);
+        res.status(500).json({ message: 'Failed to create order', error: String(err) });
+    } finally {
+        client.release();
+    }
+});
+
+// Get paginated order history with items aggregated by order
 router.get('/', async (req: Request, res: Response) => {
     try {
         // --- 1. Get query params ---

@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { API_URL } from "@/lib/api";
+import type { MenuItem } from "@project3/shared";
 import { useNavigate } from "react-router-dom";
 
 import { Button } from "@/components/ui/button";
@@ -12,13 +13,6 @@ import { useAuth } from "@/contexts/AuthContext";
 import { Minus, Plus, ShoppingCart, Trash2, LogOut, Settings, Edit } from "lucide-react";
 import { toast } from "sonner";
 import { DrinkCustomizationDialog } from "@/components/DrinkCustomizationDialog";
-
-interface MenuItem {
-  item_id: number;
-  item_name: string;
-  cost: number;
-  category: string;
-}
 
 interface DrinkCustomization {
   sweetness: 100 | 50 | 25;
