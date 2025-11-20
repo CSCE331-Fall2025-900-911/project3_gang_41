@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, ReactNode, Dispatch, SetStateAction } from "react";
 import { useNavigate } from "react-router-dom";
 import { API_URL } from "@/lib/api";
 import { Button } from "@/components/ui/button";
@@ -10,7 +10,7 @@ import {
   CardFooter,
 } from "@/components/ui/card";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
-import { Package, Users, History, LogOut, ShoppingCart } from "lucide-react"; //icons
+import { Package, Users, History, LogOut, ShoppingCart, LayoutDashboard, SquareMenu } from "lucide-react"; //icons
 import { useAuth } from "@/contexts/AuthContext";
 import { WeatherDisplay } from "@/components/WeatherDisplay";
 import MenuPage from "./MenuPage";
@@ -18,13 +18,12 @@ import EmployeesPage from "./EmployeesPage";
 import InventoryPage from "./InventoryPage";
 import HistoryPage from "./HistoryPage";
 
-const categories = [
-  "Dashboard",
-  "Menu Items",
-  "Inventory",
-  "Employees",
-  "Order History",
-];
+type Category = 'Dashboard' | 'Inventory' | 'Employees' | 'History' | 'Menu Items';
+const categories: Category[] = ['Dashboard', 'Inventory', 'Employees', 'History', 'Menu Items'];
+
+interface ContentProps {
+  setActiveCategory: Dispatch<SetStateAction<Category>>;
+}
 
 const InventoryContent = () => <InventoryPage />;
 
@@ -34,9 +33,8 @@ const HistoryContent = () => <HistoryPage />;
 
 const MenuContent = () => <MenuPage />;
 
-const DashboardContent = () => (
-  <div className="flex h-screen bg-background">
-    <div className="flex-1 p-8 overflow-y-auto">
+const DashboardContent: React.FC<ContentProps> = ({ setActiveCategory }) => (
+  <>
       <h1 className="text-3xl font-bold mb-6">Dashboard</h1>
 
       <section className="mb-8">
@@ -52,11 +50,11 @@ const DashboardContent = () => (
               <Package className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">67 items</div>
+              <div className="text-2xl font-bold">69 items</div>
               <p className="text-xs text-muted-foreground">placeholder info</p>
             </CardContent>
             <CardFooter>
-              <Button variant="link" className="p-0">
+              <Button variant="link" className="p-0" onClick={() => setActiveCategory('Inventory')}>
                 View Details
               </Button>
             </CardFooter>
@@ -73,7 +71,7 @@ const DashboardContent = () => (
               <p className="text-xs text-muted-foreground">placeholder info</p>
             </CardContent>
             <CardFooter>
-              <Button variant="link" className="p-0">
+              <Button variant="link" className="p-0" onClick={() => setActiveCategory('Employees')}>
                 Manage Staff
               </Button>
             </CardFooter>
@@ -92,7 +90,7 @@ const DashboardContent = () => (
               <p className="text-xs text-muted-foreground">placeholder info</p>
             </CardContent>
             <CardFooter>
-              <Button variant="link" className="p-0">
+              <Button variant="link" className="p-0" onClick={() => setActiveCategory('History')}>
                 Review History
               </Button>
             </CardFooter>
@@ -114,14 +112,13 @@ const DashboardContent = () => (
           </Card>
         </div>
       </section>
-    </div>
-  </div>
+  </>
 );
 
 function Manager() {
   const navigate = useNavigate();
+  const [activeCategory, setActiveCategory] = useState<Category>("Dashboard");
   const { logout, user } = useAuth();
-  const [activeCategory, setActiveCategory] = useState("Dashboard");
   const [weather, setWeather] = useState<{ temperature: number; icon: string } | null>(null);
 
   useEffect(() => {
@@ -136,30 +133,33 @@ function Manager() {
     navigate("/login");
   };
 
-  const renderContent = () => {
-    switch (activeCategory) {
+  const renderContent = (
+    currentCategory: Category, 
+    setActive: React.Dispatch<React.SetStateAction<Category>>
+  ): ReactNode => {
+    switch (currentCategory) {
       case "Dashboard":
-        return <DashboardContent />;
+        return <DashboardContent setActiveCategory={setActive} />;
       case "Inventory":
         return <InventoryContent />;
       case "Employees":
         return <EmployeesContent />;
-      case "Order History":
+      case "History":
         return <HistoryContent />;
       case "Menu Items":
         return <MenuContent />;
       default:
-        return <DashboardContent />;
+        return <DashboardContent setActiveCategory={setActive} />;
     }
   };
 
-  // const categoryIcons = {
-  //     'Dashboard': <LayoutDashboard className="h-4 w-4 mr-2" />,
-  //     'Menu Items': <SquareMenu className="h-4 w-4 mr-2" />,
-  //     'Inventory': <Package className="h-4 w-4 mr-2" />,
-  //     'Employees': <Users className="h-4 w-4 mr-2" />,
-  //     'Order History': <History className="h-4 w-4 mr-2" />,
-  // };
+  const categoryIcons = {
+      'Dashboard': <LayoutDashboard className="h-4 w-4 mr-2" />,
+      'Menu Items': <SquareMenu className="h-4 w-4 mr-2" />,
+      'Inventory': <Package className="h-4 w-4 mr-2" />,
+      'Employees': <Users className="h-4 w-4 mr-2" />,
+      'History': <History className="h-4 w-4 mr-2" />,
+  };
 
   return (
     <div className="flex h-screen bg-background">
@@ -174,6 +174,7 @@ function Manager() {
             className="w-full justify-start text-left"
             onClick={() => setActiveCategory(category)}
           >
+            {categoryIcons[category as keyof typeof categoryIcons]}
             {category}
           </Button>
         ))}
@@ -221,7 +222,7 @@ function Manager() {
         </div>
       </div>
 
-      <div className="flex-1 p-8 overflow-y-auto">{renderContent()}</div>
+      <div className="flex-1 p-8 overflow-y-auto">{renderContent(activeCategory, setActiveCategory)}</div>
     </div>
   );
 }
