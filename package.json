@@ -20,6 +20,8 @@
     "typescript": "^5.9.3"
   },
   "dependencies": {
+    "@radix-ui/react-popover": "^1.1.15",
+    "cmdk": "^1.1.1",
     "connect-pg-simple": "^10.0.0"
   }
 }
