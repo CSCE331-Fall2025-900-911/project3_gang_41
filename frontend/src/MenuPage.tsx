@@ -47,6 +47,8 @@ import {
   Coffee,
 } from "lucide-react";
 
+// --- Removed unused imports (Command, Popover, Check, ChevronsUpDown) ---
+
 const API_BASE_URL = `${API_URL}/api`;
 
 interface MenuItem {
@@ -81,6 +83,9 @@ export default function MenuPage() {
   const [newItemCost, setNewItemCost] = useState("");
   const [newItemCategory, setNewItemCategory] = useState("");
   const [openIngredientsAfterCreate, setOpenIngredientsAfterCreate] = useState(true);
+  
+  // Category Suggestions State (Custom Autocomplete)
+  const [showCategorySuggestions, setShowCategorySuggestions] = useState(false);
 
   // Edit item dialog
   const [editOpen, setEditOpen] = useState(false);
@@ -124,14 +129,21 @@ export default function MenuPage() {
           (m.category || "").toLowerCase().includes(q)
       );
     }
-    // Explicitly sort by ID to ensure new items appear in correct numerical order
     return [...res].sort((a, b) => a.item_id - b.item_id);
   }, [menuItems, query]);
 
   const categoryOptions = useMemo(
-    () => Array.from(new Set(menuItems.map((m) => m.category))).sort(),
+    () => Array.from(new Set(menuItems.map((m) => m.category).filter(Boolean))).sort(),
     [menuItems]
   );
+
+  // Filter category options based on what user types
+  const filteredCategoryOptions = useMemo(() => {
+    if (!newItemCategory) return categoryOptions;
+    return categoryOptions.filter(c => 
+      c.toLowerCase().includes(newItemCategory.toLowerCase())
+    );
+  }, [categoryOptions, newItemCategory]);
 
   // Add
   const handleAddItem = async (e: React.FormEvent) => {
@@ -201,7 +213,7 @@ export default function MenuPage() {
     }
   };
 
-  // Delete
+  // Delete Item
   const confirmDelete = (item: MenuItem) => {
     setSelectedItem(item);
     setDeleteOpen(true);
@@ -271,7 +283,7 @@ export default function MenuPage() {
           </div>
         </div>
 
-        {/* Content - This is the scrollable area */}
+        {/* Content */}
         <div className="flex-1 overflow-auto p-6">
           <Card>
             <CardHeader className="p-4">
@@ -361,7 +373,7 @@ export default function MenuPage() {
 
       {/* Add Item Dialog */}
       <Dialog open={addOpen} onOpenChange={setAddOpen}>
-        <DialogContent>
+        <DialogContent className="overflow-visible">
           <DialogHeader>
             <DialogTitle>Add new item</DialogTitle>
             <DialogDescription>
@@ -388,22 +400,47 @@ export default function MenuPage() {
                 required
               />
             </div>
-            <div className="grid gap-2">
+            
+            {/* Custom Autocomplete for Category */}
+            <div className="grid gap-2 relative">
               <Label htmlFor="newCategory">Category</Label>
               <Input
                 id="newCategory"
-                list="categoryOptions"
                 value={newItemCategory}
-                onChange={(e) => setNewItemCategory(e.target.value)}
-                placeholder="e.g. Milk Tea, Matcha, Fruit Tea, Slush"
+                onChange={(e) => {
+                  setNewItemCategory(e.target.value);
+                  setShowCategorySuggestions(true);
+                }}
+                onFocus={() => setShowCategorySuggestions(true)}
+                onBlur={() => {
+                  // Delay closing to allow click event to fire
+                  setTimeout(() => setShowCategorySuggestions(false), 200);
+                }}
+                placeholder="Select or type category..."
                 required
+                autoComplete="off"
               />
-              <datalist id="categoryOptions">
-                {categoryOptions.map((c) => (
-                  <option key={c} value={c} />
-                ))}
-              </datalist>
+              
+              {/* Suggestions List */}
+              {showCategorySuggestions && filteredCategoryOptions.length > 0 && (
+                <div className="absolute top-[70px] left-0 right-0 z-10 max-h-48 overflow-y-auto rounded-md border bg-popover text-popover-foreground shadow-md animate-in fade-in-0 zoom-in-95">
+                  {filteredCategoryOptions.map((category) => (
+                    <div
+                      key={category}
+                      className="cursor-pointer px-4 py-2 text-sm hover:bg-accent hover:text-accent-foreground"
+                      onMouseDown={(e) => e.preventDefault()} 
+                      onClick={() => {
+                        setNewItemCategory(category);
+                        setShowCategorySuggestions(false);
+                      }}
+                    >
+                      {category}
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
+
             <div className="flex items-center gap-2">
               <input
                 id="afterCreate"
@@ -486,7 +523,7 @@ export default function MenuPage() {
         </AlertDialogContent>
       </AlertDialog>
 
-      {/* Ingredients Dialog (Using the internal component defined below) */}
+      {/* Ingredients Dialog */}
       {selectedItem && (
         <IngredientsDialog
           open={ingredientsOpen}
@@ -502,7 +539,10 @@ export default function MenuPage() {
   );
 }
 
-/* ---------- Internal Ingredients Dialog Component ---------- */
+/* =========================================================
+   INTERNAL COMPONENT: INGREDIENTS DIALOG
+   =========================================================
+*/
 
 type IngredientsDialogProps = {
   open: boolean;
@@ -521,6 +561,9 @@ function IngredientsDialog({ open, onOpenChange, item, onSaved }: IngredientsDia
   const [newIngStock, setNewIngStock] = useState<number | "">("");
   const [newIngCost, setNewIngCost] = useState("0.00");
   const [newIngUnit, setNewIngUnit] = useState(""); 
+  
+  // Unit Suggestions State (Custom Autocomplete)
+  const [showUnitSuggestions, setShowUnitSuggestions] = useState(false);
 
   const loadInventory = async () => {
     try {
@@ -532,11 +575,19 @@ function IngredientsDialog({ open, onOpenChange, item, onSaved }: IngredientsDia
     }
   };
 
-  // Compute unique units for the recommendation list
+  // Compute unique units for the list
   const uniqueUnits = useMemo(() => {
     const units = inventory.map((i) => i.unit).filter(Boolean);
     return Array.from(new Set(units)).sort();
   }, [inventory]);
+
+  // Filter unit options based on input
+  const filteredUnitOptions = useMemo(() => {
+    if (!newIngUnit) return uniqueUnits;
+    return uniqueUnits.filter(u => 
+      u.toLowerCase().includes(newIngUnit.toLowerCase())
+    );
+  }, [uniqueUnits, newIngUnit]);
 
   const loadExisting = async () => {
     try {
@@ -636,9 +687,8 @@ function IngredientsDialog({ open, onOpenChange, item, onSaved }: IngredientsDia
   };
 
   return (
-    // Increased max-width to 5xl for more space
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-5xl">
+      <DialogContent className="max-w-5xl overflow-visible">
         <DialogHeader>
           <DialogTitle>Ingredients for {item.item_name}</DialogTitle>
           <DialogDescription>
@@ -659,7 +709,6 @@ function IngredientsDialog({ open, onOpenChange, item, onSaved }: IngredientsDia
                 return (
                   <div
                     key={inv.item_id}
-                    // items-start ensures multi-line text aligns with checkbox
                     className={`flex items-start gap-3 px-3 py-3 border-b last:border-0 hover:bg-muted/20 transition-colors ${
                       isChecked ? "bg-muted/30" : ""
                     }`}
@@ -667,7 +716,6 @@ function IngredientsDialog({ open, onOpenChange, item, onSaved }: IngredientsDia
                     <input
                       id={`inv-${inv.item_id}`}
                       type="checkbox"
-                      // mt-1 aligns checkbox with the first line of text
                       className="h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary mt-1 shrink-0"
                       checked={isChecked}
                       onChange={(e) => toggleIngredient(inv.item_id, e.target.checked)}
@@ -675,7 +723,6 @@ function IngredientsDialog({ open, onOpenChange, item, onSaved }: IngredientsDia
                     <div className="flex-1 flex items-start justify-between gap-4 min-w-0">
                       <Label
                         htmlFor={`inv-${inv.item_id}`}
-                        // pt-0.5 aligns text baseline with checkbox
                         className="cursor-pointer font-normal leading-snug break-words pt-0.5 flex-1"
                       >
                         {inv.item_name}
@@ -698,7 +745,7 @@ function IngredientsDialog({ open, onOpenChange, item, onSaved }: IngredientsDia
                               changeQty(inv.item_id, e.target.value)
                             }
                           />
-                          {/* Fixed width container for unit ensures alignment */}
+                          {/* Unit Label */}
                           <span 
                             className="text-xs text-muted-foreground w-28 truncate text-left pt-1.5" 
                             title={inv.unit} 
@@ -763,21 +810,38 @@ function IngredientsDialog({ open, onOpenChange, item, onSaved }: IngredientsDia
                 />
               </div>
               
-              {/* Unit Input with Datalist */}
-              <div className="grid gap-2">
+              {/* Unit Custom Autocomplete */}
+              <div className="grid gap-2 relative">
                 <Label htmlFor="ingUnit">Unit</Label>
                 <Input
                   id="ingUnit"
-                  list="unitOptions"
                   value={newIngUnit}
-                  onChange={(e) => setNewIngUnit(e.target.value)}
+                  onChange={(e) => {
+                    setNewIngUnit(e.target.value);
+                    setShowUnitSuggestions(true);
+                  }}
+                  onFocus={() => setShowUnitSuggestions(true)}
+                  onBlur={() => setTimeout(() => setShowUnitSuggestions(false), 200)}
                   placeholder="e.g. grams, oz, count"
+                  autoComplete="off"
                 />
-                <datalist id="unitOptions">
-                    {uniqueUnits.map(u => (
-                        <option key={u} value={u} />
+                {showUnitSuggestions && filteredUnitOptions.length > 0 && (
+                  <div className="absolute top-[70px] left-0 right-0 z-10 max-h-48 overflow-y-auto rounded-md border bg-popover text-popover-foreground shadow-md animate-in fade-in-0 zoom-in-95">
+                    {filteredUnitOptions.map((u) => (
+                      <div
+                        key={u}
+                        className="cursor-pointer px-4 py-2 text-sm hover:bg-accent hover:text-accent-foreground"
+                        onMouseDown={(e) => e.preventDefault()}
+                        onClick={() => {
+                          setNewIngUnit(u);
+                          setShowUnitSuggestions(false);
+                        }}
+                      >
+                        {u}
+                      </div>
                     ))}
-                </datalist>
+                  </div>
+                )}
               </div>
 
               <Button type="submit" variant="secondary" className="w-full gap-2 mt-2">
