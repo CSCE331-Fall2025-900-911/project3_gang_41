@@ -13,9 +13,13 @@
     "typecheck": "npm run -ws build --dry-run"
   },
   "devDependencies": {
+    "@types/connect-pg-simple": "^7.0.3",
     "@types/express": "^4.17.21",
     "@types/node": "^24.10.0",
     "concurrently": "^8.2.2",
     "typescript": "^5.9.3"
+  },
+  "dependencies": {
+    "connect-pg-simple": "^10.0.0"
   }
 }

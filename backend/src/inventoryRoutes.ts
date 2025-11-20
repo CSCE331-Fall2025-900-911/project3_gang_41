@@ -1,55 +1,17 @@
 import express, { Request, Response } from 'express';
 import db from './db';
+import { deductInventory } from './services/inventoryService';
 
 const router = express.Router();
 
 // API endpoint: Deduct inventory based on order items and their recipes
 router.post('/deduct', async (req: Request, res: Response) => {
-  const { items } = req.body as {
-    items: { item_id: number; quantity: number }[];
-  };
-
-  if (!Array.isArray(items) || items.length === 0) {
-    return res.status(400).json({ message: 'No items provided' });
-  }
-
   try {
-    const deductions: { inventory_id: number; amount: number }[] = [];
-
-    // For each menu item in the order
-    for (const item of items) {
-      const drinkId = item.item_id;
-      const orderQuantity = item.quantity;
-
-      // Get ingredients needed for this menu item
-      const recipeResult = await db.query(
-        'SELECT inventory_id, quantity FROM drinkjointable WHERE drink_id = $1',
-        [drinkId]
-      );
-
-      // For each ingredient in the recipe
-      for (const recipe of recipeResult.rows) {
-        const inventoryId = recipe.inventory_id;
-        const recipeQuantity = recipe.quantity;
-
-        // Calculate total needed (recipe amount × order quantity)
-        const totalNeeded = recipeQuantity * orderQuantity;
-
-        // Subtract from inventory
-        await db.query(
-          'UPDATE inventory SET supply = supply - $1 WHERE item_id = $2',
-          [totalNeeded, inventoryId]
-        );
-
-        deductions.push({ inventory_id: inventoryId, amount: totalNeeded });
-        console.log(`Inventory ID ${inventoryId}: -${totalNeeded}`);
-      }
-    }
-
+    const deductions = await deductInventory(req.body.items);
     res.json({ success: true, deductions });
   } catch (error) {
     console.error('Error deducting inventory:', error);
-    res.status(500).json({ message: 'Failed to deduct inventory', error: String(error) });
+    res.status(500).json({ message: 'Failed to deduct inventory' });
   }
 });
 
