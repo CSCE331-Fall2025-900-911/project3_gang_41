@@ -231,10 +231,10 @@ export default function MenuPage() {
   };
 
   return (
-    <div className="flex h-screen bg-background">
+    <div className="flex h-full bg-background">
       <div className="flex-1 flex flex-col overflow-hidden">
         {/* Header */}
-        <div className="border-b">
+        <div className="border-b bg-white">
           <div className="flex h-16 items-center px-6 justify-between">
             <div className="flex items-center gap-2">
               <Coffee className="h-5 w-5" />
@@ -271,7 +271,7 @@ export default function MenuPage() {
           </div>
         </div>
 
-        {/* Content */}
+        {/* Content - This is the scrollable area */}
         <div className="flex-1 overflow-auto p-6">
           <Card>
             <CardHeader className="p-4">
@@ -486,7 +486,7 @@ export default function MenuPage() {
         </AlertDialogContent>
       </AlertDialog>
 
-      {/* UPDATED Ingredients Dialog */}
+      {/* Ingredients Dialog (Using the internal component defined below) */}
       {selectedItem && (
         <IngredientsDialog
           open={ingredientsOpen}
@@ -502,7 +502,7 @@ export default function MenuPage() {
   );
 }
 
-/* ---------- Updated Ingredients Dialog Component ---------- */
+/* ---------- Internal Ingredients Dialog Component ---------- */
 
 type IngredientsDialogProps = {
   open: boolean;
@@ -520,6 +520,7 @@ function IngredientsDialog({ open, onOpenChange, item, onSaved }: IngredientsDia
   const [newIngName, setNewIngName] = useState("");
   const [newIngStock, setNewIngStock] = useState<number | "">("");
   const [newIngCost, setNewIngCost] = useState("0.00");
+  const [newIngUnit, setNewIngUnit] = useState(""); 
 
   const loadInventory = async () => {
     try {
@@ -530,6 +531,12 @@ function IngredientsDialog({ open, onOpenChange, item, onSaved }: IngredientsDia
       toast.error("Failed to load inventory");
     }
   };
+
+  // Compute unique units for the recommendation list
+  const uniqueUnits = useMemo(() => {
+    const units = inventory.map((i) => i.unit).filter(Boolean);
+    return Array.from(new Set(units)).sort();
+  }, [inventory]);
 
   const loadExisting = async () => {
     try {
@@ -562,7 +569,7 @@ function IngredientsDialog({ open, onOpenChange, item, onSaved }: IngredientsDia
     setSelected((prev) => {
       const copy = { ...prev };
       if (checked) {
-        copy[id] = 0; // Initialize at 0
+        copy[id] = 0;
       } else {
         delete copy[id];
       }
@@ -613,6 +620,7 @@ function IngredientsDialog({ open, onOpenChange, item, onSaved }: IngredientsDia
           item_name: newIngName,
           quantity: newIngStock || 0,
           cost: newIngCost,
+          unit: newIngUnit, 
         }),
       });
       if (!res.ok) throw new Error("Failed to add inventory item");
@@ -620,6 +628,7 @@ function IngredientsDialog({ open, onOpenChange, item, onSaved }: IngredientsDia
       setNewIngName("");
       setNewIngStock("");
       setNewIngCost("0.00");
+      setNewIngUnit(""); 
       await loadInventory();
     } catch (e: any) {
       toast.error(e?.message ?? "Error adding inventory item");
@@ -627,8 +636,9 @@ function IngredientsDialog({ open, onOpenChange, item, onSaved }: IngredientsDia
   };
 
   return (
+    // Increased max-width to 5xl for more space
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-3xl">
+      <DialogContent className="max-w-5xl">
         <DialogHeader>
           <DialogTitle>Ingredients for {item.item_name}</DialogTitle>
           <DialogDescription>
@@ -640,7 +650,7 @@ function IngredientsDialog({ open, onOpenChange, item, onSaved }: IngredientsDia
           {/* Left Column: Ingredient picker */}
           <div>
             <div className="text-sm font-medium mb-2">Select Inventory Items</div>
-            <div className="max-h-[400px] overflow-auto rounded-md border p-1">
+            <div className="max-h-[500px] overflow-auto rounded-md border p-1">
               {inventory.map((inv) => {
                 const isChecked = selected[inv.item_id] !== undefined;
                 const currentQty = isChecked ? selected[inv.item_id] : 0;
@@ -649,6 +659,7 @@ function IngredientsDialog({ open, onOpenChange, item, onSaved }: IngredientsDia
                 return (
                   <div
                     key={inv.item_id}
+                    // items-start ensures multi-line text aligns with checkbox
                     className={`flex items-start gap-3 px-3 py-3 border-b last:border-0 hover:bg-muted/20 transition-colors ${
                       isChecked ? "bg-muted/30" : ""
                     }`}
@@ -656,27 +667,30 @@ function IngredientsDialog({ open, onOpenChange, item, onSaved }: IngredientsDia
                     <input
                       id={`inv-${inv.item_id}`}
                       type="checkbox"
+                      // mt-1 aligns checkbox with the first line of text
                       className="h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary mt-1 shrink-0"
                       checked={isChecked}
                       onChange={(e) => toggleIngredient(inv.item_id, e.target.checked)}
                     />
-                    <div className="flex-1 flex items-center justify-between gap-2 min-w-0">
+                    <div className="flex-1 flex items-start justify-between gap-4 min-w-0">
                       <Label
                         htmlFor={`inv-${inv.item_id}`}
-                        className="cursor-pointer font-normal leading-snug break-words pt-0.5"
+                        // pt-0.5 aligns text baseline with checkbox
+                        className="cursor-pointer font-normal leading-snug break-words pt-0.5 flex-1"
                       >
                         {inv.item_name}
                       </Label>
-                      {/* NEW LAYOUT: Qty + Input + Unit Label Outside */}
+                      
+                      {/* Quantity Input Group */}
                       <div className="flex items-center gap-2 shrink-0">
-                        <span className="text-xs text-muted-foreground text-right">
+                        <span className="text-xs text-muted-foreground text-right pt-1.5">
                           Qty:
                         </span>
-                        <div className="flex items-center gap-1.5">
+                        <div className="flex items-center gap-2">
                           <Input
                             type="number"
                             min={0}
-                            className={`w-16 h-8 px-2 text-center ${isInvalid ? "border-red-500 ring-red-500" : ""}`}
+                            className={`w-20 h-9 px-2 text-center ${isInvalid ? "border-red-500 ring-red-500" : ""}`}
                             value={isChecked && currentQty > 0 ? currentQty : ""}
                             disabled={!isChecked}
                             placeholder=""
@@ -684,9 +698,10 @@ function IngredientsDialog({ open, onOpenChange, item, onSaved }: IngredientsDia
                               changeQty(inv.item_id, e.target.value)
                             }
                           />
+                          {/* Fixed width container for unit ensures alignment */}
                           <span 
-                            className="text-xs text-muted-foreground w-12 truncate" 
-                            title={inv.unit} // Tooltip for very long units
+                            className="text-xs text-muted-foreground w-28 truncate text-left pt-1.5" 
+                            title={inv.unit} 
                           >
                             {inv.unit}
                           </span>
@@ -747,6 +762,24 @@ function IngredientsDialog({ open, onOpenChange, item, onSaved }: IngredientsDia
                   required
                 />
               </div>
+              
+              {/* Unit Input with Datalist */}
+              <div className="grid gap-2">
+                <Label htmlFor="ingUnit">Unit</Label>
+                <Input
+                  id="ingUnit"
+                  list="unitOptions"
+                  value={newIngUnit}
+                  onChange={(e) => setNewIngUnit(e.target.value)}
+                  placeholder="e.g. grams, oz, count"
+                />
+                <datalist id="unitOptions">
+                    {uniqueUnits.map(u => (
+                        <option key={u} value={u} />
+                    ))}
+                </datalist>
+              </div>
+
               <Button type="submit" variant="secondary" className="w-full gap-2 mt-2">
                 <Plus className="h-4 w-4" />
                 Add to Database
