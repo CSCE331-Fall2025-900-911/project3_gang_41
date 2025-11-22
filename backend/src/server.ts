@@ -91,7 +91,8 @@ app.use('/api/menu', menuRoutes);
 app.use('/api/order-history', orderHistoryRoutes);
 app.use('/api/sales-report', salesReportRoutes);
 app.use('/api/employees', employeeRoutes)
-app.use('/api/employees/:id', employeeRoutes)
+// Only mount employeeRoutes at the base path; the router handles `/:id` internally.
+app.use('/api/employees', employeeRoutes)
 
 // Weather Proxy
 app.get('/api/weather/current', async (req: Request, res: Response) => {
