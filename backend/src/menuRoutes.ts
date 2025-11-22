@@ -3,6 +3,15 @@ import db from './db';
 
 const router = express.Router();
 
+// Helper for standard responses
+const sendSuccess = (res: Response, data: any, message?: string) => {
+  res.json({ success: true, data, message });
+};
+
+const sendError = (res: Response, message: string, status = 500) => {
+  res.status(status).json({ success: false, message });
+};
+
 // Get all menu items
 router.get('/', async (_req: Request, res: Response) => {
   try {
@@ -12,10 +21,11 @@ router.get('/', async (_req: Request, res: Response) => {
       ORDER BY item_id ASC
     `;
     const result = await db.query(sql);
-    res.json(result.rows);
+    // WRAPPED RESPONSE
+    sendSuccess(res, result.rows);
   } catch (error) {
     console.error('Error fetching menu items:', error);
-    res.status(500).json({ message: 'Failed to load menu data.' });
+    sendError(res, 'Failed to load menu data.');
   }
 });
 
@@ -28,10 +38,10 @@ router.get('/categories/distinct', async (_req: Request, res: Response) => {
       WHERE category IS NOT NULL AND category <> ''
       ORDER BY category ASC
     `);
-    res.json(result.rows.map((r: any) => r.category));
+    sendSuccess(res, result.rows.map((r: any) => r.category));
   } catch (error) {
     console.error('Error fetching categories:', error);
-    res.status(500).json({ message: 'Failed to load categories.' });
+    sendError(res, 'Failed to load categories.');
   }
 });
 
@@ -62,10 +72,11 @@ router.post('/', async (req: Request, res: Response) => {
       RETURNING item_id, item_name, cost, category
     `;
     const result = await db.query(insertSql, [name, price, cat]);
-    res.status(201).json(result.rows[0]);
+    // WRAPPED RESPONSE
+    sendSuccess(res, result.rows[0], 'Item created successfully');
   } catch (error) {
     console.error('Error adding new item:', error);
-    res.status(500).json({ message: 'Failed to add item.' });
+    sendError(res, 'Failed to add item.');
   }
 });
 
@@ -88,7 +99,7 @@ router.get('/:id/ingredients', async (req: Request, res: Response) => {
       ORDER BY i.item_name ASC
     `;
     const result = await db.query(sql, [drinkId]);
-    res.json({ ingredients: result.rows }); // [{ id, name, quantity }]
+    res.json({ ingredients: result.rows }); // keep ingredients route as-is for now
   } catch (error) {
     console.error('Error fetching item ingredients:', error);
     res.status(500).json({ message: 'Failed to load ingredients.' });
@@ -199,12 +210,13 @@ router.put('/:itemId', async (req: Request, res: Response) => {
 
     const result = await db.query(sql, values);
     if (result.rowCount === 0) {
-      return res.status(404).json({ message: 'Menu item not found.' });
+      return sendError(res, 'Menu item not found.', 404);
     }
-    res.json(result.rows[0]);
+    // WRAPPED RESPONSE
+    sendSuccess(res, result.rows[0], 'Item updated');
   } catch (error) {
     console.error(`Error updating item ${itemId}:`, error);
-    res.status(500).json({ message: 'Failed to update item.' });
+    sendError(res, 'Failed to update item.');
   }
 });
 
@@ -225,11 +237,12 @@ router.delete('/:itemId', async (req: Request, res: Response) => {
     }
 
     await client.query('COMMIT');
-    res.json({ message: 'Item and associated links deleted.' });
+    // WRAPPED RESPONSE
+    sendSuccess(res, null, 'Item deleted');
   } catch (error) {
     if (client) await client.query('ROLLBACK');
     console.error(`Error deleting item ${itemId}:`, error);
-    res.status(500).json({ message: 'Failed to delete item.' });
+    sendError(res, 'Failed to delete item.');
   } finally {
     if (client) client.release();
   }
