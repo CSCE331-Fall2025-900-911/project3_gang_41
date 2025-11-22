@@ -61,9 +61,16 @@ app.use(
     resave: false,
     saveUninitialized: false,
     cookie: {
+      // 1. If running locally (HTTP), secure must be false. If in production (HTTPS), secure must be true.
       secure: process.env.NODE_ENV === "production",
+
+      // 2. 'lax' is usually required for localhost development across ports.
+      //    'none' is required for cross-domain (production with different domains)
+      //    BUT 'none' requires secure: true.
+      sameSite: process.env.NODE_ENV === "production" ? "none" : "lax",
+
       httpOnly: true,
-      maxAge: 24 * 60 * 60 * 1000, // 24 hours 🐄
+      maxAge: 24 * 60 * 60 * 1000, // 24 hours
     },
   })
 );
