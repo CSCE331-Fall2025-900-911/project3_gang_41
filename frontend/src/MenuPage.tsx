@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { API_URL, fetchApi } from "@/lib/api";
+import { fetchApi } from "@/lib/api";
 // Types from shared package
 import type { MenuItem, InventoryItem } from "@project3/shared";
 import { toast } from "sonner";
@@ -53,8 +53,6 @@ import {
   Zap,
 } from "lucide-react";
 
-
-const API_BASE_URL = `${API_URL}/api`;
 
 // --- Types are imported from `@project3/shared` ---
 
@@ -823,8 +821,8 @@ function IngredientsDialog({ open, onOpenChange, item, onSaved, isExperimental, 
 
   const loadInventory = async () => {
     try {
-      const res = await fetch(`${API_BASE_URL}/inventory`);
-      const data: InventoryItem[] = await res.json();
+      // Changed to fetchApi
+      const data = await fetchApi<InventoryItem[]>('/api/inventory');
       setInventory(data);
     } catch {
       toast.error("Failed to load inventory");
@@ -848,11 +846,11 @@ function IngredientsDialog({ open, onOpenChange, item, onSaved, isExperimental, 
 
   const loadExisting = async () => {
     try {
-      const res = await fetch(`${API_BASE_URL}/menu/${item.item_id}/ingredients`);
-      if (!res.ok) throw new Error("Failed to load existing ingredients");
-      const payload = await res.json();
-      const list: { id: number; name?: string; quantity: number }[] =
-        Array.isArray(payload) ? payload : payload.ingredients || [];
+      // Changed to fetchApi
+      // Note: fetchApi unwraps the response, so 'payload' is the actual data object
+      const payload = await fetchApi<any>(`/api/menu/${item.item_id}/ingredients`);
+      // The backend returns { ingredients: [...] } inside the data wrapper
+      const list = payload.ingredients || [];
 
       const preselected: Record<number, number> = {};
       for (const ing of list) {
@@ -910,12 +908,12 @@ function IngredientsDialog({ open, onOpenChange, item, onSaved, isExperimental, 
         id: Number(id),
         quantity,
       }));
-      const res = await fetch(`${API_BASE_URL}/menu/${item.item_id}/ingredients`, {
+      // Changed to fetchApi
+      await fetchApi(`/api/menu/${item.item_id}/ingredients`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ ingredients: ingredientsToSave }),
       });
-      if (!res.ok) throw new Error("Failed to save ingredients");
       onSaved();
     } catch (e: any) {
       toast.error(e?.message ?? "Error saving ingredients");
@@ -929,7 +927,8 @@ function IngredientsDialog({ open, onOpenChange, item, onSaved, isExperimental, 
     e.preventDefault();
     handleClick();
     try {
-      const res = await fetch(`${API_BASE_URL}/inventory`, {
+      // Changed to fetchApi
+      await fetchApi('/api/inventory', {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -939,7 +938,6 @@ function IngredientsDialog({ open, onOpenChange, item, onSaved, isExperimental, 
           unit: newIngUnit, 
         }),
       });
-      if (!res.ok) throw new Error("Failed to add inventory item");
       toast.success("Inventory item added");
       if (isExperimental) { 
           if(onConfetti) onConfetti(); 

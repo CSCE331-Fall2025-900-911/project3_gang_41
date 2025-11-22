@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { API_URL } from '@/lib/api';
+import { fetchApi } from '@/lib/api';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -64,27 +64,20 @@ function Kiosk() {
     const processingRef = useRef(false);
 
   useEffect(() => {
-    fetch(`${API_URL}/api/menu`)
-      .then(res => res.json())
-      .then((response) => {
-        // Handle wrapped response
-        const data = response.success ? response.data : [];
-        
-        if (Array.isArray(data)) {
-          const menuWithNumbers = data.map(item => ({
-            ...item,
-            cost: parseFloat(item.cost)
-          }));
-          setMenu(menuWithNumbers);
-        }
+    // 1. Menu Fetch
+    fetchApi<MenuItem[]>('/api/menu')
+      .then((data) => {
+        const menuWithNumbers = data.map((item) => ({
+          ...item,
+          cost: parseFloat(String(item.cost)),
+        }));
+        setMenu(menuWithNumbers);
       })
-      .catch(() => {
-        setMenu([]);
-      });
+      .catch(() => setMenu([]));
 
-    fetch(`${API_URL}/api/weather/current`)
-      .then(res => res.json())
-      .then(data => setWeather(data))
+    // 2. Weather Fetch
+    fetchApi<{ temperature: number; icon: string }>('/api/weather/current')
+      .then((data) => setWeather(data))
       .catch(() => setWeather(null));
   }, []);
 
@@ -173,15 +166,14 @@ function Kiosk() {
           }))
         };
 
-        const response = await fetch(`${API_URL}/api/order-history`, {
+        // 3. Order Fetch
+        await fetchApi('/api/order-history', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
           },
           body: JSON.stringify(orderData),
         });
-
-        if (!response.ok) throw new Error('Failed to create order');
 
         setCart([]);
         setDrawerOpen(false);

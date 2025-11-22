@@ -1,6 +1,6 @@
 import { useState, useEffect, ReactNode, Dispatch, SetStateAction } from "react";
 import { useNavigate } from "react-router-dom";
-import { API_URL } from "@/lib/api";
+import { fetchApi } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -122,9 +122,8 @@ function Manager() {
   const [weather, setWeather] = useState<{ temperature: number; icon: string } | null>(null);
 
   useEffect(() => {
-    fetch(`${API_URL}/api/weather/current`)
-      .then(res => res.json())
-      .then(data => setWeather(data))
+    fetchApi<{ temperature: number; icon: string }>(`/api/weather/current`)
+      .then((data) => setWeather(data))
       .catch(() => setWeather(null));
   }, []);
 

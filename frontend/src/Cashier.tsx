@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from "react";
-import { API_URL, fetchApi } from "@/lib/api";
+import { fetchApi } from "@/lib/api";
 import type { MenuItem } from "@project3/shared";
 import { TAX_RATE } from "@project3/shared";
 import { useNavigate } from "react-router-dom";
@@ -65,23 +65,16 @@ function Cashier() {
   };
 
   useEffect(() => {
-    fetch(`${API_URL}/api/menu`)
-      .then(res => res.json())
-      .then((response) => {
-        // Handle wrapped response
-        const data = response.success ? response.data : [];
-        
-        if (Array.isArray(data)) {
-          const menuWithNumbers = data.map((item: any) => ({
-            ...item,
-            cost: parseFloat(item.cost),
-          }));
-          setMenu(menuWithNumbers);
-        }
+    // 1. Menu Fetch - use fetchApi which unwraps { success, data }
+    fetchApi<MenuItem[]>('/api/menu')
+      .then((data) => {
+        const menuWithNumbers = data.map((item) => ({
+          ...item,
+          cost: parseFloat(String(item.cost)), // Ensure number
+        }));
+        setMenu(menuWithNumbers);
       })
-      .catch(() => {
-        setMenu([]);
-      });
+      .catch(() => setMenu([]));
 
     // FIX: Use fetchApi<Type> to automatically unwrap API responses
     fetchApi<{ temperature: number; icon: string }>(`/api/weather/current`)
@@ -168,15 +161,14 @@ function Cashier() {
           }))
         };
 
-        const response = await fetch(`${API_URL}/api/order-history`, {
+        // 3. Order History Fetch - use fetchApi to unwrap response
+        await fetchApi('/api/order-history', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
           },
           body: JSON.stringify(orderData),
         });
-
-        if (!response.ok) throw new Error('Failed to create order');
 
         setCart([]);
         return { success: true };
