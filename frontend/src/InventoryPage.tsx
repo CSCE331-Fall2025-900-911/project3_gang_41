@@ -337,7 +337,9 @@ function InventoryPage() {
 
   return (
     <TooltipProvider delayDuration={300}>
-      <div className="container mx-auto space-y-8 p-6">
+      {/* Page owns its scrolling now */}
+      <div className="h-full w-full overflow-y-auto bg-background">
+        <div className="container mx-auto space-y-8 p-6">
         {/* Enhanced Header Section */}
         <div className="space-y-6">
           <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
@@ -739,6 +741,7 @@ function InventoryPage() {
             </DialogFooter>
           </DialogContent>
         </Dialog>
+        </div>
       </div>
     </TooltipProvider>
   );
