@@ -12,6 +12,7 @@ import { Badge } from "@/components/ui/badge";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
 import { ChevronDown, ChevronUp, Loader2, ReceiptText, Search, X } from "lucide-react";
+import { TAX_RATE } from "@project3/shared";
 
 // ... (Types and Constants remain exactly the same) ...
 type ApiOrderItem = {
@@ -55,7 +56,6 @@ type Order = {
 };
 
 const PAGE_SIZE = 20;
-const TAX_RATE = 0.0825;
 
 const currency = (n: number) =>
   n.toLocaleString("en-US", { style: "currency", currency: "USD" });

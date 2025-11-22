@@ -17,6 +17,7 @@ import { WeatherDisplay } from '@/components/WeatherDisplay';
 import { DrinkCustomizationDialog } from "@/components/DrinkCustomizationDialog";
 
 import type { MenuItem } from "@project3/shared";
+import { TAX_RATE } from "@project3/shared";
 
 interface DrinkCustomization {
   sweetness: 100 | 50 | 25;
@@ -148,7 +149,7 @@ function Kiosk() {
   };
 
   const total = cart.reduce((sum, item) => sum + (item.cost * item.quantity), 0);
-  const tax = total * 0.0825;
+  const tax = total * TAX_RATE;
   const finalTotal = total + tax;
 
   const handleCheckout = () => {

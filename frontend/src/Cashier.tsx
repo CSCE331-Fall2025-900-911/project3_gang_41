@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { API_URL } from "@/lib/api";
 import type { MenuItem } from "@project3/shared";
+import { TAX_RATE } from "@project3/shared";
 import { useNavigate } from "react-router-dom";
 
 import { Button } from "@/components/ui/button";
@@ -404,15 +405,13 @@ function Cashier() {
                 <span className="font-medium">${total.toFixed(2)}</span>
               </div>
               <div className="flex justify-between text-sm">
-                <span className="text-muted-foreground">Tax (8.25%)</span>
-                <span className="font-medium">
-                  ${(total * 0.0825).toFixed(2)}
-                </span>
+                <span className="text-muted-foreground">Tax ({(TAX_RATE * 100).toFixed(2)}%)</span>
+                <span className="font-medium">{(total * TAX_RATE).toFixed(2)}</span>
               </div>
               <Separator />
               <div className="flex justify-between text-lg font-bold">
                 <span>Total</span>
-                <span>${(total * 1.0825).toFixed(2)}</span>
+                <span>${(total * (1 + TAX_RATE)).toFixed(2)}</span>
               </div>
             </div>
 
