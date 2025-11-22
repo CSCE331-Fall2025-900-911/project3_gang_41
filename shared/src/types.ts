@@ -10,7 +10,7 @@ export interface InventoryItem {
   item_name: string;
   supply: number;
   unit: string | null;
-  cost: number;
+  cost: number | string;
 }
 
 export interface OrderItem {
