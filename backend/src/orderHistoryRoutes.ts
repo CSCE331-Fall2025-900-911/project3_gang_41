@@ -54,12 +54,15 @@ router.post('/', async (req: Request, res: Response) => {
             }
         }
 
+        // 1. Capture the timestamp once so all rows share the same order date
+        const orderDate = new Date();
+
         const insertSql = `
             INSERT INTO order_history
                 (orderid, customerid, orderdate, employeeatcheckout, paymentmethod,
                  menuitemid, itemname, quantity, unitprice, totalprice)
             VALUES
-                ($1, $2, NOW(), $3, $4, $5, $6, $7, $8, $9)
+                ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
         `;
 
         // Insert each aggregated item
@@ -68,13 +71,14 @@ router.post('/', async (req: Request, res: Response) => {
             await client.query(insertSql, [
                 orderid,
                 cust,
-                employee,
-                method,
-                item.item_id,
-                item.item_name,
-                item.quantity,
-                item.unitprice,
-                totalprice,
+                orderDate, // use the captured timestamp (maps to $3)
+                employee,  // $4
+                method,    // $5
+                item.item_id, // $6
+                item.item_name, // $7
+                item.quantity, // $8
+                item.unitprice, // $9
+                totalprice,    // $10
             ]);
         }
 
@@ -120,10 +124,10 @@ router.get('/', async (req: Request, res: Response) => {
         let dataSql = `
             SELECT 
                 orderid, 
-                customerid, 
-                orderdate, 
-                employeeatcheckout, 
-                paymentmethod,
+                MAX(customerid) as customerid,              -- Take the max (or min) to handle duplicates
+                MIN(orderdate) as orderdate,                -- Take the earliest timestamp
+                MAX(employeeatcheckout) as employeeatcheckout, 
+                MAX(paymentmethod) as paymentmethod,
                 SUM(CAST(totalprice AS numeric)) AS total_order_price,
                 json_agg(
                     json_build_object(
@@ -147,7 +151,7 @@ router.get('/', async (req: Request, res: Response) => {
         // --- 3. Add Group By & Order By ---
         dataSql += `
             GROUP BY 
-                orderid, customerid, orderdate, employeeatcheckout, paymentmethod
+                orderid -- Only group by ID!
             ORDER BY 
                 orderid DESC
         `;

@@ -133,7 +133,27 @@ export default function HistoryPage() {
 
       const normalized = (data.orders ?? []).map(normalizeOrder);
 
-      setOrders((prev) => (targetPage === 1 ? normalized : [...prev, ...normalized]));
+      // Deduplicate items to prevent duplicate key errors when appending pages
+      setOrders((prev) => {
+        // 1. Determine the base list we are adding to
+        const baseList = targetPage === 1 ? [] : prev;
+        
+        // 2. Create a Set of IDs currently in the list
+        const existingIds = new Set(baseList.map(o => o.id));
+        
+        // 3. Filter the NEW items (deduplicate against existing AND itself)
+        const uniqueIncoming: Order[] = [];
+        
+        for (const item of normalized) {
+          // Only add if we haven't seen this ID in existing state OR in this current batch
+          if (!existingIds.has(item.id)) {
+            uniqueIncoming.push(item);
+            existingIds.add(item.id); // Mark as seen so we don't add it twice from the same batch
+          }
+        }
+
+        return [...baseList, ...uniqueIncoming];
+      });
       setTotalPages(data.totalPages || 1);
       
       setIsSearching(!!searchTerm.trim());
