@@ -16,13 +16,7 @@ import { toast } from 'sonner';
 import { WeatherDisplay } from '@/components/WeatherDisplay';
 import { DrinkCustomizationDialog } from "@/components/DrinkCustomizationDialog";
 
-
-interface MenuItem {
-  item_id: number;
-  item_name: string;
-  cost: number;
-  category: string;
-}
+import type { MenuItem } from "@project3/shared";
 
 interface DrinkCustomization {
   sweetness: 100 | 50 | 25;

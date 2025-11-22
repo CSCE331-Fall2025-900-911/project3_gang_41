@@ -48,16 +48,13 @@ import {
 
 const API_BASE_URL = `${API_URL}/api`;
 
+import type { InventoryItem } from "@project3/shared";
+
 const BUILTIN_UNITS = ['units', 'fl oz', 'bags', 'g', 'servings', 'L', 'mL', 'oz'] as const;
 const CURRENCY = 'USD';
 
-type InventoryRow = {
-  item_id: number;
-  item_name: string;
-  supply: number;
-  unit: string | null;
-  cost: string;
-};
+// Use shared InventoryItem; cost may be number or string from backend
+type InventoryRow = InventoryItem;
 
 type Severity = 'ok' | 'warn' | 'crit';
 type Thresholds = { warn: number; crit: number };
@@ -195,7 +192,7 @@ function InventoryPage() {
         return dir * collator.compare((a[sort.key] ?? '') as string, (b[sort.key] ?? '') as string);
       }
       if (sort.key === 'supply') return dir * (a.supply - b.supply);
-      if (sort.key === 'cost') return dir * ((parseFloat(a.cost || '0') || 0) - (parseFloat(b.cost || '0') || 0));
+      if (sort.key === 'cost') return dir * ((parseFloat(String(a.cost || '0')) || 0) - (parseFloat(String(b.cost || '0')) || 0));
       return 0;
     });
   }, [filtered, sort]);
@@ -229,7 +226,7 @@ function InventoryPage() {
       item_name: row.item_name ?? '',
       supply: String(row.supply ?? ''),
       unit: row.unit ?? '',
-      cost: row.cost ? parseFloat(row.cost).toFixed(2) : '',
+      cost: row.cost ? parseFloat(String(row.cost)).toFixed(2) : '',
     };
     setForm(next);
     setFormInitial(next);
@@ -1005,8 +1002,8 @@ function TableRow({
             onChange={(e) => onFormChange({ ...form, cost: e.target.value })}
             className="h-9 text-right"
           />
-        ) : (
-          <span className="font-medium tabular-nums">{formatCurrency(parseFloat(row.cost))}</span>
+          ) : (
+          <span className="font-medium tabular-nums">{formatCurrency(parseFloat(String(row.cost || '0')))}</span>
         )}
       </td>
 

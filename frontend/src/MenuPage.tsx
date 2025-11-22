@@ -1,5 +1,7 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { API_URL, fetchApi } from "@/lib/api";
+// Types from shared package
+import type { MenuItem, InventoryItem } from "@project3/shared";
 import { toast } from "sonner";
 import {
   Card,
@@ -54,21 +56,7 @@ import {
 
 const API_BASE_URL = `${API_URL}/api`;
 
-// --- Types ---
-interface MenuItem {
-  item_id: number;
-  item_name: string;
-  cost: string;
-  category: string;
-}
-
-interface InventoryItem {
-  item_id: number;
-  item_name: string;
-  supply: number;
-  unit: string;
-  cost: string;
-}
+// --- Types are imported from `@project3/shared` ---
 
 const currency = (n: number) =>
   n.toLocaleString("en-US", { style: "currency", currency: "USD" });
@@ -370,7 +358,7 @@ export default function MenuPage() {
     if (isExperimental) playSound('pop');
     setSelectedItem(item);
     setUpdateName(item.item_name);
-    setUpdatePrice(parseFloat(item.cost || "0").toFixed(2));
+    setUpdatePrice(parseFloat(String(item.cost ?? "0")).toFixed(2));
     setUpdateCategory(item.category || ""); // Pre-fill category
     setEditOpen(true);
   };
@@ -527,7 +515,7 @@ export default function MenuPage() {
                             ) : item.category}
                           </TableCell>
                           <TableCell className={isExperimental ? "font-bold text-green-600 text-lg" : ""}>
-                            {currency(parseFloat(item.cost || "0"))}
+                            {currency(parseFloat(String(item.cost ?? "0")))}
                           </TableCell>
                           <TableCell className="text-right">
                             <div className="flex justify-end gap-2">
@@ -846,7 +834,7 @@ function IngredientsDialog({ open, onOpenChange, item, onSaved, isExperimental, 
 
   // Compute unique units for the list
   const uniqueUnits = useMemo(() => {
-    const units = inventory.map((i) => i.unit).filter(Boolean);
+    const units = inventory.map((i) => i.unit).filter((u): u is string => !!u);
     return Array.from(new Set(units)).sort();
   }, [inventory]);
 
@@ -1041,7 +1029,7 @@ function IngredientsDialog({ open, onOpenChange, item, onSaved, isExperimental, 
                           {/* Unit Label */}
                           <span 
                             className="text-xs text-muted-foreground w-28 truncate text-left pt-1.5" 
-                            title={inv.unit} 
+                            title={inv.unit ?? undefined}
                           >
                             {inv.unit}
                           </span>
@@ -1133,7 +1121,7 @@ function IngredientsDialog({ open, onOpenChange, item, onSaved, isExperimental, 
                         className="cursor-pointer px-4 py-2 text-sm hover:bg-accent hover:text-accent-foreground"
                         onMouseDown={(e) => e.preventDefault()}
                         onClick={() => {
-                          setNewIngUnit(u);
+                          setNewIngUnit(u as string);
                           setShowUnitSuggestions(false);
                           handleClick();
                         }}
