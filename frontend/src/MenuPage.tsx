@@ -60,18 +60,24 @@ const currency = (n: number) =>
   n.toLocaleString("en-US", { style: "currency", currency: "USD" });
 
 // --- Sound Effects Engine (Web Audio API) ---
+// Create a single AudioContext for the module so it is reused across calls.
+const AudioContextConstructor = typeof window !== 'undefined' ? (window.AudioContext || (window as any).webkitAudioContext) : undefined;
+const audioCtx: AudioContext | null = AudioContextConstructor ? new AudioContextConstructor() : null;
+
 const playSound = (type: 'success' | 'pop' | 'delete' | 'toggle' | 'error' | 'type' | 'click') => {
-  const AudioContext = window.AudioContext || (window as any).webkitAudioContext;
-  if (!AudioContext) return;
-  
-  const ctx = new AudioContext();
-  const osc = ctx.createOscillator();
-  const gain = ctx.createGain();
+  if (!audioCtx) return;
+  // Resume if suspended due to browser autoplay policies.
+  if (audioCtx.state === 'suspended') {
+    void audioCtx.resume().catch(() => {});
+  }
+
+  const osc = audioCtx.createOscillator();
+  const gain = audioCtx.createGain();
 
   osc.connect(gain);
-  gain.connect(ctx.destination);
+  gain.connect(audioCtx.destination);
 
-  const now = ctx.currentTime;
+  const now = audioCtx.currentTime;
 
   if (type === 'success') {
     // Satisfying "Ding!"
