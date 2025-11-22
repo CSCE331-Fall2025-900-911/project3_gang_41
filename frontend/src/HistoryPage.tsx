@@ -103,8 +103,8 @@ const normalizeOrder = (o: ApiOrder): Order => {
 };
 
 export default function HistoryPage() {
-  // Removed { user } from useAuth() since it is no longer used in UI
-  const { } = useAuth();
+  // We don't need anything from auth, but call the hook to ensure auth context exists
+  useAuth();
 
   const [orders, setOrders] = useState<Order[]>([]);
   const [page, setPage] = useState(1);

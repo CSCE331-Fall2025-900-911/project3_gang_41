@@ -60,8 +60,11 @@ const currency = (n: number) =>
   n.toLocaleString("en-US", { style: "currency", currency: "USD" });
 
 // --- Sound Effects Engine (Web Audio API) ---
-// Create a single AudioContext for the module so it is reused across calls.
-const AudioContextConstructor = typeof window !== 'undefined' ? (window.AudioContext || (window as any).webkitAudioContext) : undefined;
+// Safety check: window is undefined during build time
+const AudioContextConstructor = typeof window !== 'undefined' 
+  ? (window.AudioContext || (window as any).webkitAudioContext) 
+  : null;
+
 const audioCtx: AudioContext | null = AudioContextConstructor ? new AudioContextConstructor() : null;
 
 const playSound = (type: 'success' | 'pop' | 'delete' | 'toggle' | 'error' | 'type' | 'click') => {
