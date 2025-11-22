@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { API_URL } from "@/lib/api";
+import { fetchApi } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -31,7 +31,8 @@ type ApiOrder = {
   items: ApiOrderItem[];
 };
 
-type ApiResponse = {
+// Rename wrapper type to avoid confusion with the shared ApiResponse
+type OrderHistoryData = {
   orders: ApiOrder[];
   totalPages: number;
   currentPage: number;
@@ -122,14 +123,13 @@ export default function HistoryPage() {
       setLoading(true);
       setError(null);
 
-      let url = `${API_URL}/api/order-history?page=${targetPage}&limit=${PAGE_SIZE}`;
+
+      let endpoint = `/api/order-history?page=${targetPage}&limit=${PAGE_SIZE}`;
       if (searchTerm.trim()) {
-        url += `&id=${encodeURIComponent(searchTerm.trim())}`;
+        endpoint += `&id=${encodeURIComponent(searchTerm.trim())}`;
       }
 
-      const res = await fetch(url);
-      if (!res.ok) throw new Error("Failed to load orders");
-      const data: ApiResponse = await res.json();
+      const data = await fetchApi<OrderHistoryData>(endpoint);
 
       const normalized = (data.orders ?? []).map(normalizeOrder);
 

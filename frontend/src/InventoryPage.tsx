@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState, useCallback, useRef } from 'react';
-import { API_URL } from '@/lib/api';
+import { fetchApi } from '@/lib/api';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
@@ -46,7 +46,6 @@ import {
   TooltipTrigger,
 } from '@/components/ui/tooltip';
 
-const API_BASE_URL = `${API_URL}/api`;
 
 import type { InventoryItem } from "@project3/shared";
 
@@ -160,10 +159,9 @@ function InventoryPage() {
     setError(null);
     const ctrl = new AbortController();
     try {
-      const res = await fetch(`${API_BASE_URL}/inventory`, { signal: ctrl.signal });
-      if (!res.ok) throw new Error('Failed to load inventory.');
-      const data: InventoryRow[] = await res.json();
-      setItems(data);
+      // fetchApi unwraps the { data: ... } wrapper automatically
+      const data = await fetchApi<InventoryRow[]>('/api/inventory', { signal: ctrl.signal });
+      setItems(data ?? []);
     } catch (err: any) {
       if (err?.name !== 'AbortError') setError(err instanceof Error ? err.message : 'Unknown error');
     } finally {
@@ -264,7 +262,7 @@ function InventoryPage() {
 
     await toast.promise(
       (async () => {
-        const res = await fetch(`${API_BASE_URL}/inventory/${editingId}`, {
+        const updated: InventoryRow = await fetchApi<InventoryRow>(`/api/inventory/${editingId}`, {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
@@ -274,8 +272,6 @@ function InventoryPage() {
             cost: price,
           }),
         });
-        if (!res.ok) throw new Error('Update failed');
-        const updated: InventoryRow = await res.json();
         setItems((prev) => prev.map((i) => (i.item_id === editingId ? updated : i)));
         setFlashRowId(updated.item_id);
         setTimeout(() => setFlashRowId((id) => (id === updated.item_id ? null : id)), 1200);
@@ -288,8 +284,7 @@ function InventoryPage() {
   const deleteRow = async (row: InventoryRow) => {
     await toast.promise(
       (async () => {
-        const res = await fetch(`${API_BASE_URL}/inventory/${row.item_id}`, { method: 'DELETE' });
-        if (!res.ok) throw new Error('Delete failed');
+        await fetchApi(`/api/inventory/${row.item_id}`, { method: 'DELETE' });
         setItems((prev) => prev.filter((i) => i.item_id !== row.item_id));
       })(),
       { loading: 'Deleting...', success: 'Item deleted', error: 'Failed to delete item' }
@@ -306,7 +301,7 @@ function InventoryPage() {
 
     await toast.promise(
       (async () => {
-        const res = await fetch(`${API_BASE_URL}/inventory`, {
+        const created: InventoryRow = await fetchApi<InventoryRow>('/api/inventory', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
@@ -316,8 +311,6 @@ function InventoryPage() {
             cost: price,
           }),
         });
-        if (!res.ok) throw new Error('Create failed');
-        const created: InventoryRow = await res.json();
         setItems((prev) => {
           const next = [...prev, created];
           return next.sort((a, b) => a.item_name.localeCompare(b.item_name));

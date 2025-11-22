@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import {API_URL} from "./lib/api";
+import { fetchApi } from '@/lib/api';
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -164,18 +164,13 @@ export default function EmployeesPage() {
           setError(null);
         }
 
-        let url = `${API_URL}/api/employees?page=${targetPage}&limit=${PAGE_SIZE}`;
+        let endpoint = `/api/employees?page=${targetPage}&limit=${PAGE_SIZE}`;
 
         if (search.trim()) {
-          url += `&search=${encodeURIComponent(search.trim())}`;
+          endpoint += `&search=${encodeURIComponent(search.trim())}`;
         }
 
-        const res = await fetch(url);
-        if (!res.ok) {
-          throw new Error(`Failed to load employees: ${res.statusText}`);
-        }
-        
-        const data: EmployeeApiResponse = await res.json(); 
+        const data = await fetchApi<EmployeeApiResponse>(endpoint);
 
         const normalized = (data ?? []).map(normalizeEmployee);
 
@@ -183,7 +178,7 @@ export default function EmployeesPage() {
           targetPage === 1 ? normalized : [...prev, ...normalized]
         );
         
-        setHasMoreData(data.length === PAGE_SIZE);
+        setHasMoreData((data ?? []).length === PAGE_SIZE);
         
         setIsSearching(!!search.trim());
         
