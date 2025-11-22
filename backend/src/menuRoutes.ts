@@ -221,7 +221,7 @@ router.put('/:itemId', async (req: Request, res: Response) => {
 });
 
 // Delete menu item and ingredient associations
-router.delete('/:itemId', async (req: Request, res: Response) => {
+router.delete('/:itemId', async (req: Request, res: Response) => {  
   const { itemId } = req.params;
   let client;
   try {
