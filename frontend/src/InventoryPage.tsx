@@ -543,7 +543,7 @@ function InventoryPage() {
                   </div>
 
                   {/* Pagination */}
-                  {pageCount > 1 && (
+                  {sorted.length > 0 && (
                     <div className="flex flex-col gap-3 border-t p-4 sm:flex-row sm:items-center sm:justify-between">
                       <p className="text-sm text-muted-foreground">
                         Showing{' '}
