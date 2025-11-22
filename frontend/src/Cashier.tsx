@@ -63,15 +63,16 @@ function Cashier() {
   useEffect(() => {
     fetch(`${API_URL}/api/menu`)
       .then(res => res.json())
-      .then(data => {
+      .then((response) => {
+        // Handle wrapped response
+        const data = response.success ? response.data : [];
+        
         if (Array.isArray(data)) {
-          const menuWithNumbers = data.map((item) => ({
+          const menuWithNumbers = data.map((item: any) => ({
             ...item,
             cost: parseFloat(item.cost),
           }));
           setMenu(menuWithNumbers);
-        } else {
-          setMenu([]);
         }
       })
       .catch(() => {

@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { API_URL } from "@/lib/api";
+import { API_URL, fetchApi } from "@/lib/api";
 import { toast } from "sonner";
 import {
   Card,
@@ -217,9 +217,8 @@ export default function MenuPage() {
     setIsLoading(true);
     setError(null);
     try {
-      const res = await fetch(`${API_BASE_URL}/menu`);
-      if (!res.ok) throw new Error("Failed to fetch menu items");
-      const data: MenuItem[] = await res.json();
+      // Use typed fetch helper which unwraps ApiResponse
+      const data = await fetchApi<MenuItem[]>('/api/menu');
       setMenuItems(data);
       if (isExperimental && !isLoading) { 
          fireConfetti(); 
@@ -283,7 +282,7 @@ export default function MenuPage() {
       return;
     }
     try {
-      const res = await fetch(`${API_BASE_URL}/menu`, {
+      const created = await fetchApi<MenuItem>('/api/menu', {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -292,8 +291,6 @@ export default function MenuPage() {
           category: newItemCategory,
         }),
       });
-      if (!res.ok) throw new Error("Failed to add new item");
-      const created: MenuItem = await res.json();
 
       toast.success(`Added ${created.item_name}`);
       if (isExperimental) {
@@ -325,7 +322,7 @@ export default function MenuPage() {
 
     if (!selectedItem) return;
     try {
-      const res = await fetch(`${API_BASE_URL}/menu/${selectedItem.item_id}`, {
+      await fetchApi<MenuItem>(`/api/menu/${selectedItem.item_id}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -334,7 +331,6 @@ export default function MenuPage() {
           category: updateCategory, // NEW: Send updated category
         }),
       });
-      if (!res.ok) throw new Error("Failed to update item");
       toast.success("Item updated");
       if (isExperimental) {
           fireConfetti();
@@ -357,11 +353,7 @@ export default function MenuPage() {
     if (isExperimental) playSound('click');
     if (!selectedItem) return;
     try {
-      const res = await fetch(
-        `${API_BASE_URL}/menu/${selectedItem.item_id}`,
-        { method: "DELETE" }
-      );
-      if (!res.ok) throw new Error("Failed to delete item");
+      await fetchApi<null>(`/api/menu/${selectedItem.item_id}`, { method: "DELETE" });
       toast.success(`Deleted ${selectedItem.item_name}`);
       if (isExperimental) playSound('delete');
       setDeleteOpen(false);

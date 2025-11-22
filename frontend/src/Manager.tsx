@@ -34,7 +34,7 @@ const HistoryContent = () => <HistoryPage />;
 const MenuContent = () => <MenuPage />;
 
 const DashboardContent: React.FC<ContentProps> = ({ setActiveCategory }) => (
-  <>
+  <div className="flex-1 overflow-y-auto p-8"> {/* ADDED: dashboard handles its own scrolling */}
       <h1 className="text-3xl font-bold mb-6">Dashboard</h1>
 
       <section className="mb-8">
@@ -112,7 +112,7 @@ const DashboardContent: React.FC<ContentProps> = ({ setActiveCategory }) => (
           </Card>
         </div>
       </section>
-  </>
+  </div>
 );
 
 function Manager() {
@@ -162,8 +162,8 @@ function Manager() {
   };
 
   return (
-    <div className="flex h-screen bg-background">
-      <div className="w-64 bg-gray-100 dark:bg-gray-900 border-r p-4 flex flex-col gap-2">
+    <div className="flex w-screen h-screen overflow-hidden bg-background">
+      <div className="w-64 bg-gray-100 dark:bg-gray-900 border-r p-4 flex flex-col gap-2 shrink-0">
         <h2 className="text-lg font-semibold mb-2 text-foreground">
           Management
         </h2>
@@ -222,7 +222,10 @@ function Manager() {
         </div>
       </div>
 
-      <div className="flex-1 p-8 overflow-y-auto">{renderContent(activeCategory, setActiveCategory)}</div>
+      {/* Main content area: no padding, no scroll — pages handle their own scrolling */}
+      <div className="flex-1 flex flex-col overflow-hidden relative">
+        {renderContent(activeCategory, setActiveCategory)}
+      </div>
     </div>
   );
 }
