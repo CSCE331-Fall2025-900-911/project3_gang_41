@@ -1,5 +1,5 @@
-import { useState, useEffect } from "react";
-import { API_URL } from "@/lib/api";
+import { useState, useEffect, useRef } from "react";
+import { API_URL, fetchApi } from "@/lib/api";
 import type { MenuItem } from "@project3/shared";
 import { TAX_RATE } from "@project3/shared";
 import { useNavigate } from "react-router-dom";
@@ -11,7 +11,7 @@ import { Separator } from "@/components/ui/separator";
 import { WeatherDisplay } from "@/components/WeatherDisplay";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { useAuth } from "@/contexts/AuthContext";
-import { Minus, Plus, ShoppingCart, Trash2, LogOut, Settings, Edit } from "lucide-react";
+import { Minus, Plus, ShoppingCart, Trash2, LogOut, Settings, Edit, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { DrinkCustomizationDialog } from "@/components/DrinkCustomizationDialog";
 
@@ -55,6 +55,9 @@ function Cashier() {
     item: null,
     editingCartItem: null,
   });
+  const [isSubmitting, setIsSubmitting] = useState(false); // NEW: prevent double submissions
+  // Synchronous lock to prevent double-processing before React re-renders
+  const processingRef = useRef(false);
 
   const handleLogout = async () => {
     await logout();
@@ -80,9 +83,9 @@ function Cashier() {
         setMenu([]);
       });
 
-    fetch(`${API_URL}/api/weather/current`)
-      .then(res => res.json())
-      .then(data => setWeather(data))
+    // FIX: Use fetchApi<Type> to automatically unwrap API responses
+    fetchApi<{ temperature: number; icon: string }>(`/api/weather/current`)
+      .then((data) => setWeather(data))
       .catch(() => setWeather(null));
   }, []);
 
@@ -147,10 +150,15 @@ function Cashier() {
 
   const total = cart.reduce((sum, item) => sum + item.cost * item.quantity, 0);
 
-  const handleCheckout = () => {
-    toast.promise(
-      async () => {
-        // Prepare order data
+  const handleCheckout = async () => {
+    // Use a ref for an immediate, synchronous lock to stop rapid double-clicks
+    if (processingRef.current) return;
+    processingRef.current = true;
+    setIsSubmitting(true);
+
+    try {
+      // Define the async checkout action and execute it immediately to obtain the Promise
+      const checkoutPromise = (async () => {
         const orderData = {
           items: cart.map(item => ({
             item_id: item.item_id,
@@ -160,7 +168,6 @@ function Cashier() {
           }))
         };
 
-        // Call the API
         const response = await fetch(`${API_URL}/api/order-history`, {
           method: 'POST',
           headers: {
@@ -169,20 +176,28 @@ function Cashier() {
           body: JSON.stringify(orderData),
         });
 
-        if (!response.ok) {
-          throw new Error('Failed to create order');
-        }
+        if (!response.ok) throw new Error('Failed to create order');
 
-        // Clear cart on success
         setCart([]);
         return { success: true };
-      },
-      {
+      })();
+
+      // Attach toast to the actual promise (do not await toast.promise itself)
+      toast.promise(checkoutPromise, {
         loading: "Adding order...",
         success: "Order created",
         error: "Error creating order",
-      }
-    );
+      });
+
+      // Await the underlying promise so the lock stays engaged until completion
+      await checkoutPromise;
+    } catch (error) {
+      console.error(error);
+    } finally {
+      // Reset both the synchronous lock and visual submitting state
+      processingRef.current = false;
+      setIsSubmitting(false); // Re-enable button
+    }
   };
 
   return (
@@ -415,8 +430,8 @@ function Cashier() {
               </div>
             </div>
 
-            <Button size="lg" className="w-full text-lg h-12" onClick={handleCheckout}>
-              Checkout
+            <Button size="lg" className="w-full text-lg h-12" onClick={handleCheckout} disabled={isSubmitting}>
+              {isSubmitting ? <Loader2 className="animate-spin" /> : "Checkout"}
             </Button>
           </div>
         )}

@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { API_URL } from '@/lib/api';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -11,7 +11,7 @@ import {
   DrawerTitle,
   DrawerTrigger,
 } from '@/components/ui/drawer';
-import { Minus, Plus, ShoppingCart, Trash2, Edit } from 'lucide-react';
+import { Minus, Plus, ShoppingCart, Trash2, Edit, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { WeatherDisplay } from '@/components/WeatherDisplay';
 import { DrinkCustomizationDialog } from "@/components/DrinkCustomizationDialog";
@@ -59,6 +59,9 @@ function Kiosk() {
       item: null,
       editingCartItem: null,
     });
+    const [isSubmitting, setIsSubmitting] = useState(false); // NEW: prevent double submissions
+    // Synchronous lock to prevent double-processing before React re-renders
+    const processingRef = useRef(false);
 
   useEffect(() => {
     fetch(`${API_URL}/api/menu`)
@@ -152,9 +155,15 @@ function Kiosk() {
   const tax = total * TAX_RATE;
   const finalTotal = total + tax;
 
-  const handleCheckout = () => {
-    toast.promise(
-      async () => {
+  const handleCheckout = async () => {
+    // Use a ref for an immediate, synchronous lock to stop rapid double-clicks
+    if (processingRef.current) return;
+    processingRef.current = true;
+    setIsSubmitting(true);
+
+    try {
+      // Create and immediately execute the async checkout promise
+      const checkoutPromise = (async () => {
         const orderData = {
           items: cart.map(item => ({
             item_id: item.item_id,
@@ -172,20 +181,29 @@ function Kiosk() {
           body: JSON.stringify(orderData),
         });
 
-        if (!response.ok) {
-          throw new Error('Failed to create order');
-        }
+        if (!response.ok) throw new Error('Failed to create order');
 
         setCart([]);
         setDrawerOpen(false);
         return { success: true };
-      },
-      {
+      })();
+
+      // Attach toast to the actual promise (don't await toast.promise itself)
+      toast.promise(checkoutPromise, {
         loading: "Processing payment...",
         success: "Order complete!",
         error: "Payment failed",
-      }
-    );
+      });
+
+      // Await the underlying promise to hold the lock until completion
+      await checkoutPromise;
+    } catch (err) {
+      console.error(err);
+    } finally {
+      // Reset both the synchronous lock and visual submitting state
+      processingRef.current = false;
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -381,8 +399,8 @@ function Kiosk() {
                           <div>Tax: (${tax.toFixed(2)})</div>
                         </div>
                       </div>
-                      <Button size="lg" className="w-full h-16 text-xl" onClick={handleCheckout}>
-                        Pay Now
+                      <Button size="lg" className="w-full h-16 text-xl" onClick={handleCheckout} disabled={isSubmitting}>
+                        {isSubmitting ? <Loader2 className="animate-spin" /> : "Pay Now"}
                       </Button>
                     </div>
                   </div>
