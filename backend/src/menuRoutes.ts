@@ -1,16 +1,8 @@
 import express, { Request, Response } from 'express';
 import db from './db';
+import { sendSuccess, sendError } from './utils/response';
 
 const router = express.Router();
-
-// Helper for standard responses
-const sendSuccess = (res: Response, data: any, message?: string) => {
-  res.json({ success: true, data, message });
-};
-
-const sendError = (res: Response, message: string, status = 500) => {
-  res.status(status).json({ success: false, message });
-};
 
 // Get all menu items
 router.get('/', async (_req: Request, res: Response) => {
@@ -54,7 +46,7 @@ router.post('/', async (req: Request, res: Response) => {
   };
 
   if (!item_name || cost == null) {
-    return res.status(400).json({ message: 'Missing item name or cost.' });
+    return sendError(res, 'Missing item name or cost.', 400);
   }
 
   const name = item_name.trim();
@@ -62,7 +54,7 @@ router.post('/', async (req: Request, res: Response) => {
   const price = typeof cost === 'string' ? parseFloat(cost) : cost;
 
   if (!Number.isFinite(price)) {
-    return res.status(400).json({ message: 'Cost must be a valid number.' });
+    return sendError(res, 'Cost must be a valid number.', 400);
   }
 
   try {
@@ -72,7 +64,6 @@ router.post('/', async (req: Request, res: Response) => {
       RETURNING item_id, item_name, cost, category
     `;
     const result = await db.query(insertSql, [name, price, cat]);
-    // WRAPPED RESPONSE
     sendSuccess(res, result.rows[0], 'Item created successfully');
   } catch (error) {
     console.error('Error adding new item:', error);
@@ -84,7 +75,7 @@ router.post('/', async (req: Request, res: Response) => {
 router.get('/:id/ingredients', async (req: Request, res: Response) => {
   const drinkId = Number(req.params.id);
   if (!Number.isInteger(drinkId)) {
-    return res.status(400).json({ message: 'Invalid menu item id.' });
+    return sendError(res, 'Invalid menu item id.', 400);
   }
 
   try {
@@ -99,10 +90,10 @@ router.get('/:id/ingredients', async (req: Request, res: Response) => {
       ORDER BY i.item_name ASC
     `;
     const result = await db.query(sql, [drinkId]);
-    res.json({ ingredients: result.rows }); // keep ingredients route as-is for now
+    sendSuccess(res, { ingredients: result.rows });
   } catch (error) {
     console.error('Error fetching item ingredients:', error);
-    res.status(500).json({ message: 'Failed to load ingredients.' });
+    sendError(res, 'Failed to load ingredients.');
   }
 });
 
@@ -112,10 +103,10 @@ router.post('/:id/ingredients', async (req: Request, res: Response) => {
   const { ingredients } = req.body as { ingredients: { id: number; quantity: number }[] };
 
   if (!Number.isInteger(drinkId)) {
-    return res.status(400).json({ message: 'Invalid menu item id.' });
+    return sendError(res, 'Invalid menu item id.', 400);
   }
   if (!Array.isArray(ingredients)) {
-    return res.status(400).json({ message: 'Ingredients must be an array.' });
+    return sendError(res, 'Ingredients must be an array.', 400);
   }
 
   // Aggregate duplicates and validate
@@ -149,11 +140,12 @@ router.post('/:id/ingredients', async (req: Request, res: Response) => {
     }
 
     await client.query('COMMIT');
-    res.status(201).json({ message: 'Ingredients saved.' });
+    res.status(201);
+    sendSuccess(res, { message: 'Ingredients saved.' });
   } catch (error) {
     if (client) await client.query('ROLLBACK');
     console.error('Error saving ingredients:', error);
-    res.status(500).json({ message: 'Failed to save ingredients.' });
+    sendError(res, 'Failed to save ingredients.');
   } finally {
     if (client) client.release();
   }
@@ -174,7 +166,7 @@ router.put('/:itemId', async (req: Request, res: Response) => {
 
   if (typeof item_name === 'string') {
     const name = item_name.trim();
-    if (!name) return res.status(400).json({ message: 'item_name cannot be empty.' });
+    if (!name) return sendError(res, 'item_name cannot be empty.', 400);
     sets.push(`item_name = $${idx++}`);
     values.push(name);
   }
@@ -182,7 +174,7 @@ router.put('/:itemId', async (req: Request, res: Response) => {
   if (cost != null) {
     const price = typeof cost === 'string' ? parseFloat(cost) : cost;
     if (!Number.isFinite(price)) {
-      return res.status(400).json({ message: 'Cost must be a valid number.' });
+      return sendError(res, 'Cost must be a valid number.', 400);
     }
     sets.push(`cost = $${idx++}`);
     values.push(price);
@@ -190,13 +182,13 @@ router.put('/:itemId', async (req: Request, res: Response) => {
 
   if (typeof category === 'string') {
     const cat = category.trim();
-    if (!cat) return res.status(400).json({ message: 'category cannot be empty.' });
+    if (!cat) return sendError(res, 'category cannot be empty.', 400);
     sets.push(`category = $${idx++}`);
     values.push(cat);
   }
 
   if (sets.length === 0) {
-    return res.status(400).json({ message: 'Provide at least one field to update.' });
+    return sendError(res, 'Provide at least one field to update.', 400);
   }
 
   try {
@@ -212,7 +204,6 @@ router.put('/:itemId', async (req: Request, res: Response) => {
     if (result.rowCount === 0) {
       return sendError(res, 'Menu item not found.', 404);
     }
-    // WRAPPED RESPONSE
     sendSuccess(res, result.rows[0], 'Item updated');
   } catch (error) {
     console.error(`Error updating item ${itemId}:`, error);
@@ -233,11 +224,10 @@ router.delete('/:itemId', async (req: Request, res: Response) => {
 
     if (result.rowCount === 0) {
       await client.query('ROLLBACK');
-      return res.status(404).json({ message: 'Menu item not found.' });
+      return sendError(res, 'Menu item not found.', 404);
     }
 
     await client.query('COMMIT');
-    // WRAPPED RESPONSE
     sendSuccess(res, null, 'Item deleted');
   } catch (error) {
     if (client) await client.query('ROLLBACK');

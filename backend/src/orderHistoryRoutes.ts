@@ -1,6 +1,7 @@
 import express, { Request, Response } from 'express';
 import db from './db';
 import { deductInventory } from './services/inventoryService';
+import { sendSuccess, sendError } from './utils/response';
 
 const router = express.Router();
 
@@ -14,7 +15,7 @@ router.post('/', async (req: Request, res: Response) => {
     };
 
     if (!Array.isArray(items) || items.length === 0) {
-        return res.status(400).json({ message: 'No items provided' });
+        return sendError(res, 'No items provided', 400);
     }
 
     const client = await db.connect();
@@ -90,21 +91,17 @@ router.post('/', async (req: Request, res: Response) => {
         }));
 
         try {
-            // Await this so if inventory fails, we know about it (optional)
             await deductInventory(orderItems);
-            
-            // Handle Sales Report similarly (create a salesReportService.ts)
-            
         } catch (err) {
             console.error("Background task failed", err);
-            // Decide if you want to fail the whole request or just log it
         }
 
-        res.status(201).json({ success: true, orderid });
+        res.status(201);
+        sendSuccess(res, { orderid }, 'Order created');
     } catch (err) {
         await client.query('ROLLBACK');
         console.error('Failed to create order:', err);
-        res.status(500).json({ message: 'Failed to create order', error: String(err) });
+        sendError(res, 'Failed to create order');
     } finally {
         client.release();
     }
@@ -174,7 +171,7 @@ router.get('/', async (req: Request, res: Response) => {
         
         const dataResult = await db.query(dataSql, params);
         
-        res.json({
+        sendSuccess(res, {
             orders: dataResult.rows,
             totalPages: totalPages,
             currentPage: page
@@ -182,7 +179,7 @@ router.get('/', async (req: Request, res: Response) => {
 
     } catch (error) {
         console.error('Error fetching order history:', error);
-        res.status(500).json({ message: 'Failed to load order history.' });
+        sendError(res, 'Failed to load order history.');
     }
 });
 

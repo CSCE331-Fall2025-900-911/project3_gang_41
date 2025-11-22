@@ -1,5 +1,6 @@
 import express, { Request, Response } from 'express';
 import db from './db';
+import { sendSuccess, sendError } from './utils/response';
 
 const router = express.Router();
 
@@ -11,7 +12,7 @@ router.post('/', async (req: Request, res: Response) => {
   };
 
   if (order_total === undefined || !payment_method) {
-    return res.status(400).json({ message: 'Missing order_total or payment_method' });
+    return sendError(res, 'Missing order_total or payment_method', 400);
   }
 
   try {
@@ -19,10 +20,10 @@ router.post('/', async (req: Request, res: Response) => {
     await db.query(sql, [order_total, payment_method]);
 
     console.log(`Sales Report: $${order_total} via ${payment_method}`);
-    res.json({ success: true, order_total, payment_method });
+    sendSuccess(res, { order_total, payment_method }, 'Sale recorded');
   } catch (error) {
     console.error('Error recording sale:', error);
-    res.status(500).json({ message: 'Failed to record sale', error: String(error) });
+    sendError(res, 'Failed to record sale');
   }
 });
 
@@ -31,10 +32,10 @@ router.get('/', async (req: Request, res: Response) => {
   try {
     const sql = 'SELECT * FROM current_sales_report ORDER BY id DESC';
     const result = await db.query(sql);
-    res.json(result.rows);
+    sendSuccess(res, result.rows);
   } catch (error) {
     console.error('Error fetching sales report:', error);
-    res.status(500).json({ message: 'Failed to fetch sales report' });
+    sendError(res, 'Failed to fetch sales report');
   }
 });
 

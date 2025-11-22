@@ -1,6 +1,7 @@
 import express, { Request, Response } from 'express';
 import db from './db';
 import { deductInventory } from './services/inventoryService';
+import { sendSuccess, sendError } from './utils/response';
 
 const router = express.Router();
 
@@ -8,10 +9,10 @@ const router = express.Router();
 router.post('/deduct', async (req: Request, res: Response) => {
   try {
     const deductions = await deductInventory(req.body.items);
-    res.json({ success: true, deductions });
+    sendSuccess(res, deductions, 'Inventory deducted');
   } catch (error) {
     console.error('Error deducting inventory:', error);
-    res.status(500).json({ message: 'Failed to deduct inventory' });
+    sendError(res, 'Failed to deduct inventory');
   }
 });
 
@@ -20,10 +21,10 @@ router.get('/', async (_req: Request, res: Response) => {
   try {
     const sql = "SELECT * FROM inventory ORDER BY item_name ASC";
     const result = await db.query(sql);
-    res.json(result.rows);
+    sendSuccess(res, result.rows);
   } catch (err: any) {
     console.error("Error fetching inventory:", err.message);
-    res.status(500).json({ message: "Failed to load inventory." });
+    sendError(res, "Failed to load inventory.");
   }
 });
 
@@ -32,7 +33,7 @@ router.post('/', async (req: Request, res: Response) => {
   const { item_name, quantity, cost, unit } = req.body;
 
   if (!item_name || quantity === undefined || cost === undefined) {
-    return res.status(400).json({ message: 'Missing item_name, quantity, or cost.' });
+    return sendError(res, 'Missing item_name, quantity, or cost.', 400);
   }
 
   try {
@@ -42,10 +43,11 @@ router.post('/', async (req: Request, res: Response) => {
       RETURNING *
     `;
     const result = await db.query(sql, [item_name, quantity, unit ?? null, cost]);
-    res.status(201).json(result.rows[0]);
+    res.status(201);
+    sendSuccess(res, result.rows[0], 'Inventory item created');
   } catch (error) {
     console.error('Error adding new inventory item:', error);
-    res.status(500).json({ message: 'Failed to add inventory item.' });
+    sendError(res, 'Failed to add inventory item.');
   }
 });
 
@@ -53,7 +55,7 @@ router.post('/', async (req: Request, res: Response) => {
 router.put('/:id', async (req: Request, res: Response) => {
   const id = Number(req.params.id);
   if (!Number.isInteger(id)) {
-    return res.status(400).json({ message: 'Invalid item id.' });
+    return sendError(res, 'Invalid item id.', 400);
   }
 
   const { item_name, quantity, unit, cost } = req.body as {
@@ -85,7 +87,7 @@ router.put('/:id', async (req: Request, res: Response) => {
   }
 
   if (setClauses.length === 0) {
-    return res.status(400).json({ message: 'No valid fields to update.' });
+    return sendError(res, 'No valid fields to update.', 400);
   }
 
   try {
@@ -99,13 +101,13 @@ router.put('/:id', async (req: Request, res: Response) => {
     const result = await db.query(sql, values);
 
     if (result.rowCount === 0) {
-      return res.status(404).json({ message: 'Inventory item not found.' });
+      return sendError(res, 'Inventory item not found.', 404);
     }
 
-    res.json(result.rows[0]);
+    sendSuccess(res, result.rows[0]);
   } catch (error) {
     console.error(`Error updating inventory item ${id}:`, error);
-    res.status(500).json({ message: 'Failed to update inventory item.' });
+    sendError(res, 'Failed to update inventory item.');
   }
 });
 
@@ -113,7 +115,7 @@ router.put('/:id', async (req: Request, res: Response) => {
 router.delete('/:id', async (req: Request, res: Response) => {
   const id = Number(req.params.id);
   if (!Number.isInteger(id)) {
-    return res.status(400).json({ message: 'Invalid item id.' });
+    return sendError(res, 'Invalid item id.', 400);
   }
 
   let client;
@@ -128,15 +130,15 @@ router.delete('/:id', async (req: Request, res: Response) => {
 
     if (result.rowCount === 0) {
       await client.query('ROLLBACK');
-      return res.status(404).json({ message: 'Inventory item not found.' });
+      return sendError(res, 'Inventory item not found.', 404);
     }
 
     await client.query('COMMIT');
-    res.json({ message: 'Inventory item deleted.' });
+    sendSuccess(res, { message: 'Inventory item deleted.' });
   } catch (error) {
     if (client) await client.query('ROLLBACK');
     console.error(`Error deleting inventory item ${id}:`, error);
-    res.status(500).json({ message: 'Failed to delete inventory item.' });
+    sendError(res, 'Failed to delete inventory item.');
   } finally {
     if (client) client.release();
   }
