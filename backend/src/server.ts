@@ -25,7 +25,7 @@ app.use(helmet()); // Protects against common vulnerabilities
 // Rate limiting: max 100 requests per 15 minutes per IP
 const limiter = rateLimit({
   windowMs: 15 * 60 * 1000, 
-  max: 300, // Increased slightly for POS usage
+  max: 2000, // Increased slightly for POS usage
   standardHeaders: true,
   legacyHeaders: false,
 });
