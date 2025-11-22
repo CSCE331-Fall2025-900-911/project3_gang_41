@@ -17,6 +17,7 @@ import {
   ArrowUp,
   ArrowDown,
   ChevronLeft,
+  ChevronDown,
   ChevronRight,
   Settings,
   AlertTriangle,
@@ -555,21 +556,27 @@ function InventoryPage() {
 
                       <div className="flex items-center gap-4">
                         <div className="flex items-center gap-2">
-                          <label htmlFor="pageSize" className="text-sm text-muted-foreground">
-                            Items per page:
+                          <label htmlFor="pageSize" className="text-sm font-medium text-muted-foreground">
+                            Rows:
                           </label>
-                          <select
-                            id="pageSize"
-                            className="rounded-md border bg-background px-3 py-1.5 text-sm transition-colors hover:bg-accent"
-                            value={pageSize}
-                            onChange={(e) => setPageSize(Number(e.target.value))}
-                          >
-                            {PAGE_SIZE_OPTIONS.map((n) => (
-                              <option key={n} value={n}>
-                                {n}
-                              </option>
-                            ))}
-                          </select>
+                          
+                          {/* ENHANCED DROPDOWN */}
+                          <div className="relative">
+                            <select
+                              id="pageSize"
+                              className="h-8 w-[70px] appearance-none rounded-md border border-input bg-background pl-3 pr-8 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 hover:bg-accent hover:text-accent-foreground cursor-pointer transition-colors"
+                              value={pageSize}
+                              onChange={(e) => setPageSize(Number(e.target.value))}
+                            >
+                              {PAGE_SIZE_OPTIONS.map((n) => (
+                                <option key={n} value={n}>
+                                  {n}
+                                </option>
+                              ))}
+                            </select>
+                            {/* Custom Chevron Icon positioned absolutely */}
+                            <ChevronDown className="pointer-events-none absolute right-2 top-1/2 h-4 w-4 -translate-y-1/2 opacity-50" />
+                          </div>
                         </div>
 
                         <div className="flex items-center gap-1">
