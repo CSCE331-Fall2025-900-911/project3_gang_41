@@ -13,6 +13,7 @@ import inventoryRoutes from "./inventoryRoutes";
 import orderHistoryRoutes from "./orderHistoryRoutes";
 import salesReportRoutes from "./salesReportRoutes";
 import employeeRoutes from "./employeeRoutes";
+import reportsRoutes from "./reportsRoutes";
 import { sendSuccess, sendError } from './utils/response';
 
 const client = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
@@ -93,6 +94,7 @@ app.use('/api/sales-report', salesReportRoutes);
 app.use('/api/employees', employeeRoutes)
 // Only mount employeeRoutes at the base path; the router handles `/:id` internally.
 app.use('/api/employees', employeeRoutes)
+app.use('/api/reports', reportsRoutes);
 
 // Weather Proxy
 app.get('/api/weather/current', async (req: Request, res: Response) => {
