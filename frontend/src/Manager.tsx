@@ -1,119 +1,21 @@
-import { useState, useEffect, ReactNode, Dispatch, SetStateAction } from "react";
+import { useState, useEffect, ReactNode } from "react";
 import { useNavigate } from "react-router-dom";
 import { fetchApi } from "@/lib/api";
 import { Button } from "@/components/ui/button";
-import {
-  Card,
-  CardHeader,
-  CardTitle,
-  CardContent,
-  CardFooter,
-} from "@/components/ui/card";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
-import { Package, Users, History, LogOut, ShoppingCart, LayoutDashboard, SquareMenu } from "lucide-react"; //icons
+import { Package, Users, History, LogOut, ShoppingCart, LayoutDashboard, SquareMenu } from "lucide-react"; 
 import { useAuth } from "@/contexts/AuthContext";
 import { WeatherDisplay } from "@/components/WeatherDisplay";
+
+// --- IMPORT YOUR PAGES ---
 import MenuPage from "./MenuPage";
 import EmployeesPage from "./EmployeesPage";
 import InventoryPage from "./InventoryPage";
 import HistoryPage from "./HistoryPage";
+import DashboardPage from "./DashboardPage"; // <--- NEW IMPORT
 
 type Category = 'Dashboard' | 'Inventory' | 'Employees' | 'History' | 'Menu Items';
 const categories: Category[] = ['Dashboard', 'Inventory', 'Employees', 'History', 'Menu Items'];
-
-interface ContentProps {
-  setActiveCategory: Dispatch<SetStateAction<Category>>;
-}
-
-const InventoryContent = () => <InventoryPage />;
-
-const EmployeesContent = () => <EmployeesPage />;
-
-const HistoryContent = () => <HistoryPage />;
-
-const MenuContent = () => <MenuPage />;
-
-const DashboardContent: React.FC<ContentProps> = ({ setActiveCategory }) => (
-  <div className="flex-1 overflow-y-auto p-8"> {/* ADDED: dashboard handles its own scrolling */}
-      <h1 className="text-3xl font-bold mb-6">Dashboard</h1>
-
-      <section className="mb-8">
-        <h2 className="text-xl font-semibold mb-4">Quick Stats</h2>
-
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-          {/*inventory */}
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">
-                Total Inventory
-              </CardTitle>
-              <Package className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">69 items</div>
-              <p className="text-xs text-muted-foreground">placeholder info</p>
-            </CardContent>
-            <CardFooter>
-              <Button variant="link" className="p-0" onClick={() => setActiveCategory('Inventory')}>
-                View Details
-              </Button>
-            </CardFooter>
-          </Card>
-
-          {/*employees info */}
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Employees</CardTitle>
-              <Users className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">45</div>
-              <p className="text-xs text-muted-foreground">placeholder info</p>
-            </CardContent>
-            <CardFooter>
-              <Button variant="link" className="p-0" onClick={() => setActiveCategory('Employees')}>
-                Manage Staff
-              </Button>
-            </CardFooter>
-          </Card>
-
-          {/* order hist card */}
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">
-                Recent Activity
-              </CardTitle>
-              <History className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">15 logs</div>
-              <p className="text-xs text-muted-foreground">placeholder info</p>
-            </CardContent>
-            <CardFooter>
-              <Button variant="link" className="p-0" onClick={() => setActiveCategory('History')}>
-                Review History
-              </Button>
-            </CardFooter>
-          </Card>
-        </div>
-      </section>
-
-      {/*put charts here*/}
-      <section className="mb-8">
-        <div>
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Charts here</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">big performative table</div>
-              <p className="text-xs text-muted-foreground"></p>
-            </CardContent>
-          </Card>
-        </div>
-      </section>
-  </div>
-);
 
 function Manager() {
   const navigate = useNavigate();
@@ -132,23 +34,23 @@ function Manager() {
     navigate("/login");
   };
 
+  // --- RENDER CONTENT SWITCHER ---
   const renderContent = (
-    currentCategory: Category, 
-    setActive: React.Dispatch<React.SetStateAction<Category>>
+    currentCategory: Category
   ): ReactNode => {
     switch (currentCategory) {
       case "Dashboard":
-        return <DashboardContent setActiveCategory={setActive} />;
+        return <DashboardPage />; // <--- Use the new page here
       case "Inventory":
-        return <InventoryContent />;
+        return <InventoryPage />;
       case "Employees":
-        return <EmployeesContent />;
+        return <EmployeesPage />;
       case "History":
-        return <HistoryContent />;
+        return <HistoryPage />;
       case "Menu Items":
-        return <MenuContent />;
+        return <MenuPage />;
       default:
-        return <DashboardContent setActiveCategory={setActive} />;
+        return <DashboardPage />;
     }
   };
 
@@ -162,6 +64,7 @@ function Manager() {
 
   return (
     <div className="flex w-screen h-screen overflow-hidden bg-background">
+      {/* Sidebar */}
       <div className="w-64 bg-gray-100 dark:bg-gray-900 border-r p-4 flex flex-col gap-2 shrink-0">
         <h2 className="text-lg font-semibold mb-2 text-foreground">
           Management
@@ -178,10 +81,8 @@ function Manager() {
           </Button>
         ))}
 
-        {/* Spacer to push logout button to bottom */}
         <div className="flex-1" />
 
-        {/* User info and logout button */}
         <div className="border-t pt-4 mt-2 space-y-3">
           {user && (
             <div className="flex items-center gap-3 px-2">
@@ -221,9 +122,9 @@ function Manager() {
         </div>
       </div>
 
-      {/* Main content area: no padding, no scroll — pages handle their own scrolling */}
+      {/* Main content area */}
       <div className="flex-1 flex flex-col overflow-hidden relative">
-        {renderContent(activeCategory, setActiveCategory)}
+        {renderContent(activeCategory)}
       </div>
     </div>
   );
