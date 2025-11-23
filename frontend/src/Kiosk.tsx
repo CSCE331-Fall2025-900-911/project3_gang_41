@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect } from 'react';
 import { fetchApi } from '@/lib/api';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -12,9 +12,9 @@ import {
   DrawerTrigger,
 } from '@/components/ui/drawer';
 import { Minus, Plus, ShoppingCart, Trash2, Edit, Loader2 } from 'lucide-react';
-import { toast } from 'sonner';
 import { WeatherDisplay } from '@/components/WeatherDisplay';
 import { DrinkCustomizationDialog } from "@/components/DrinkCustomizationDialog";
+import { useCart } from "@/hooks/useCart";
 
 import type { MenuItem, CartItem, DrinkCustomization } from "@project3/shared";
 import { TAX_RATE } from "@project3/shared";
@@ -31,7 +31,7 @@ const categories = [
 
 function Kiosk() {
   const [menu, setMenu] = useState<MenuItem[]>([]);
-  const [cart, setCart] = useState<CartItem[]>([]);
+  const { cart, addToCart, removeFromCart, updateQuantity, updateCartItem, checkout, isSubmitting } = useCart();
   const [activeCategory, setActiveCategory] = useState('All Items');
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [buttonPulse, setButtonPulse] = useState(false);
@@ -45,9 +45,6 @@ function Kiosk() {
       item: null,
       editingCartItem: null,
     });
-    const [isSubmitting, setIsSubmitting] = useState(false); // NEW: prevent double submissions
-    // Synchronous lock to prevent double-processing before React re-renders
-    const processingRef = useRef(false);
 
   useEffect(() => {
     // 1. Menu Fetch
@@ -91,13 +88,7 @@ function Kiosk() {
 
     if (customizationDialog.editingCartItem) {
       // Editing existing cart item
-      setCart(
-        cart.map((c) =>
-          c.uniqueId === customizationDialog.editingCartItem!.uniqueId
-            ? { ...c, customization }
-            : c
-        )
-      );
+      updateCartItem(customizationDialog.editingCartItem.uniqueId, { customization });
     } else {
       // Adding new item to cart
       const newCartItem: CartItem = {
@@ -108,7 +99,7 @@ function Kiosk() {
         customization,
         uniqueId: `${customizationDialog.item.item_id}-${Date.now()}-${Math.random()}`,
       };
-      setCart([...cart, newCartItem]);
+      addToCart(newCartItem);
 
       // Trigger button pulse animation
       setButtonPulse(true);
@@ -118,70 +109,14 @@ function Kiosk() {
     setCustomizationDialog({ open: false, item: null, editingCartItem: null });
   };
 
-  const removeFromCart = (uniqueId: string) => {
-    setCart(cart.filter((c) => c.uniqueId !== uniqueId));
-  };
-
-  const updateQuantity = (uniqueId: string, quantity: number) => {
-    if (quantity <= 0) {
-      removeFromCart(uniqueId);
-    } else {
-      setCart(cart.map((c) => (c.uniqueId === uniqueId ? { ...c, quantity } : c)));
-    }
-  };
-
-  const total = cart.reduce((sum, item) => sum + (item.cost * item.quantity), 0);
+  const total = cart.reduce((sum, item: CartItem) => sum + (item.cost * item.quantity), 0);
   const tax = total * TAX_RATE;
   const finalTotal = total + tax;
 
-  const handleCheckout = async () => {
-    // Use a ref for an immediate, synchronous lock to stop rapid double-clicks
-    if (processingRef.current) return;
-    processingRef.current = true;
-    setIsSubmitting(true);
-
-    try {
-      // Create and immediately execute the async checkout promise
-      const checkoutPromise = (async () => {
-        const orderData = {
-          items: cart.map(item => ({
-            item_id: item.item_id,
-            item_name: item.item_name,
-            quantity: item.quantity,
-            cost: item.cost
-          }))
-        };
-
-        // 3. Order Fetch
-        await fetchApi('/api/order-history', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify(orderData),
-        });
-
-        setCart([]);
-        setDrawerOpen(false);
-        return { success: true };
-      })();
-
-      // Attach toast to the actual promise (don't await toast.promise itself)
-      toast.promise(checkoutPromise, {
-        loading: "Processing payment...",
-        success: "Order complete!",
-        error: "Payment failed",
-      });
-
-      // Await the underlying promise to hold the lock until completion
-      await checkoutPromise;
-    } catch (err) {
-      console.error(err);
-    } finally {
-      // Reset both the synchronous lock and visual submitting state
-      processingRef.current = false;
-      setIsSubmitting(false);
-    }
+  const handleCheckout = () => {
+    checkout(() => {
+      setDrawerOpen(false);
+    });
   };
 
   return (
@@ -257,7 +192,7 @@ function Kiosk() {
                 Checkout
                 {cart.length > 0 && (
                   <Badge variant="secondary" className="ml-2">
-                    {cart.reduce((sum, item) => sum + item.quantity, 0)}
+                    {cart.reduce((sum: number, item: CartItem) => sum + item.quantity, 0)}
                   </Badge>
                 )}
               </Button>
@@ -282,7 +217,7 @@ function Kiosk() {
                     </div>
                   ) : (
                     <div className="space-y-3">
-                      {cart.map(item => (
+                      {cart.map((item: CartItem) => (
                         <div key={item.uniqueId} className="border rounded-lg p-3">
                           <div className="flex items-start justify-between mb-2">
                             <div className="flex-1">

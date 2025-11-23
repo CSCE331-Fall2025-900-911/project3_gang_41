@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect } from "react";
 import { fetchApi } from "@/lib/api";
 import type { MenuItem, CartItem, DrinkCustomization } from "@project3/shared";
 import { TAX_RATE } from "@project3/shared";
@@ -12,8 +12,8 @@ import { WeatherDisplay } from "@/components/WeatherDisplay";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { useAuth } from "@/contexts/AuthContext";
 import { Minus, Plus, ShoppingCart, Trash2, LogOut, Settings, Edit, Loader2 } from "lucide-react";
-import { toast } from "sonner";
 import { DrinkCustomizationDialog } from "@/components/DrinkCustomizationDialog";
+import { useCart } from "@/hooks/useCart";
 
 
 const categories = [
@@ -29,7 +29,7 @@ function Cashier() {
   const navigate = useNavigate();
   const { logout, user } = useAuth();
   const [menu, setMenu] = useState<MenuItem[]>([]);
-  const [cart, setCart] = useState<CartItem[]>([]);
+  const { cart, addToCart, removeFromCart, updateQuantity, updateCartItem, checkout, isSubmitting } = useCart();
   const [activeCategory, setActiveCategory] = useState("All Items");
   const [weather, setWeather] = useState<{ temperature: number; icon: string } | null>(null);
   const [customizationDialog, setCustomizationDialog] = useState<{
@@ -41,9 +41,6 @@ function Cashier() {
     item: null,
     editingCartItem: null,
   });
-  const [isSubmitting, setIsSubmitting] = useState(false); // NEW: prevent double submissions
-  // Synchronous lock to prevent double-processing before React re-renders
-  const processingRef = useRef(false);
 
   const handleLogout = async () => {
     await logout();
@@ -92,13 +89,7 @@ function Cashier() {
 
     if (customizationDialog.editingCartItem) {
       // Editing existing cart item
-      setCart(
-        cart.map((c) =>
-          c.uniqueId === customizationDialog.editingCartItem!.uniqueId
-            ? { ...c, customization }
-            : c
-        )
-      );
+      updateCartItem(customizationDialog.editingCartItem.uniqueId, { customization });
     } else {
       // Adding new item to cart
       const newCartItem: CartItem = {
@@ -109,73 +100,16 @@ function Cashier() {
         customization,
         uniqueId: `${customizationDialog.item.item_id}-${Date.now()}-${Math.random()}`,
       };
-      setCart([...cart, newCartItem]);
+      addToCart(newCartItem);
     }
 
     setCustomizationDialog({ open: false, item: null, editingCartItem: null });
   };
 
-  const removeFromCart = (uniqueId: string) => {
-    setCart(cart.filter((c) => c.uniqueId !== uniqueId));
-  };
-
-  const updateQuantity = (uniqueId: string, quantity: number) => {
-    if (quantity <= 0) {
-      removeFromCart(uniqueId);
-    } else {
-      setCart(cart.map((c) => (c.uniqueId === uniqueId ? { ...c, quantity } : c)));
-    }
-  };
-
   const total = cart.reduce((sum, item) => sum + item.cost * item.quantity, 0);
 
-  const handleCheckout = async () => {
-    // Use a ref for an immediate, synchronous lock to stop rapid double-clicks
-    if (processingRef.current) return;
-    processingRef.current = true;
-    setIsSubmitting(true);
-
-    try {
-      // Define the async checkout action and execute it immediately to obtain the Promise
-      const checkoutPromise = (async () => {
-        const orderData = {
-          items: cart.map(item => ({
-            item_id: item.item_id,
-            item_name: item.item_name,
-            quantity: item.quantity,
-            cost: item.cost
-          }))
-        };
-
-        // 3. Order History Fetch - use fetchApi to unwrap response
-        await fetchApi('/api/order-history', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify(orderData),
-        });
-
-        setCart([]);
-        return { success: true };
-      })();
-
-      // Attach toast to the actual promise (do not await toast.promise itself)
-      toast.promise(checkoutPromise, {
-        loading: "Adding order...",
-        success: "Order created",
-        error: "Error creating order",
-      });
-
-      // Await the underlying promise so the lock stays engaged until completion
-      await checkoutPromise;
-    } catch (error) {
-      console.error(error);
-    } finally {
-      // Reset both the synchronous lock and visual submitting state
-      processingRef.current = false;
-      setIsSubmitting(false); // Re-enable button
-    }
+  const handleCheckout = () => {
+    checkout();
   };
 
   return (
@@ -280,7 +214,7 @@ function Cashier() {
             <h2 className="text-xl font-semibold">Current Order</h2>
             {cart.length > 0 && (
               <Badge variant="secondary" className="ml-auto">
-                {cart.reduce((sum, item) => sum + item.quantity, 0)} items
+                {cart.reduce((sum: number, item: CartItem) => sum + item.quantity, 0)} items
               </Badge>
             )}
           </div>

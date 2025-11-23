@@ -1,0 +1,94 @@
+import { useState, useRef } from 'react';
+import { toast } from 'sonner';
+import { fetchApi } from '@/lib/api';
+import type { CartItem } from '@project3/shared';
+
+export function useCart() {
+  const [cart, setCart] = useState<CartItem[]>([]);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  // Synchronous lock to prevent double-processing before React re-renders
+  const processingRef = useRef(false);
+
+  const addToCart = (item: CartItem) => {
+    setCart((prev) => [...prev, item]);
+  };
+
+  const removeFromCart = (uniqueId: string) => {
+    setCart((prev) => prev.filter((c) => c.uniqueId !== uniqueId));
+  };
+
+  const updateQuantity = (uniqueId: string, quantity: number) => {
+    if (quantity <= 0) {
+      removeFromCart(uniqueId);
+    } else {
+      setCart((prev) => 
+        prev.map((c) => (c.uniqueId === uniqueId ? { ...c, quantity } : c))
+      );
+    }
+  };
+
+  const updateCartItem = (uniqueId: string, updates: Partial<CartItem>) => {
+    setCart((prev) =>
+      prev.map((c) => (c.uniqueId === uniqueId ? { ...c, ...updates } : c))
+    );
+  };
+
+  const clearCart = () => setCart([]);
+
+  const checkout = async (onSuccess?: () => void) => {
+    if (processingRef.current) return;
+    if (cart.length === 0) return;
+
+    processingRef.current = true;
+    setIsSubmitting(true);
+
+    try {
+      // Define async action
+      const checkoutPromise = (async () => {
+        const orderData = {
+          items: cart.map(item => ({
+            item_id: item.item_id,
+            item_name: item.item_name,
+            quantity: item.quantity,
+            cost: item.cost
+          }))
+        };
+
+        await fetchApi('/api/order-history', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(orderData),
+        });
+
+        clearCart();
+        if (onSuccess) onSuccess();
+        return { success: true };
+      })();
+
+      // Attach toast
+      toast.promise(checkoutPromise, {
+        loading: "Processing order...",
+        success: "Order created successfully",
+        error: "Failed to create order",
+      });
+
+      await checkoutPromise;
+    } catch (error) {
+      console.error(error);
+    } finally {
+      processingRef.current = false;
+      setIsSubmitting(false);
+    }
+  };
+
+  return {
+    cart,
+    addToCart,
+    removeFromCart,
+    updateQuantity,
+    updateCartItem,
+    clearCart,
+    checkout,
+    isSubmitting
+  };
+}
