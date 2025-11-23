@@ -1,5 +1,6 @@
-import express, { Request, Response, Router} from 'express';
+import express, { Request, Response } from 'express';
 import db from './db';
+import { buildUpdateQuery } from './utils/sql';
 import { sendSuccess, sendError } from './utils/response';
 
 const router = express.Router()
@@ -64,45 +65,24 @@ router.post('/', async (req: Request, res: Response) => {
 
 });
 
+// Refactored PUT using buildUpdateQuery
 router.put('/:id', async (req: Request, res: Response) => {
   const { id } = req.params;
-  const { employee_name, job_title, hourly_rate } = req.body as {
-    employee_name?: string;
-    job_title?: string;
-    hourly_rate?: number;
-  };
+  const { employee_name, job_title, hourly_rate } = req.body;
 
-  if (!employee_name && !job_title && !hourly_rate) {
+  // Helper automatically handles undefined/trimming/parameterization
+  const query = buildUpdateQuery('employees', 'employee_id', parseInt(id), {
+    employee_name,
+    job_title,
+    hourly_rate
+  });
+
+  if (!query) {
     return sendError(res, 'No fields to update', 400);
   }
 
-  const updates: string[] = [];
-  const values: any[] = [];
-  let counter = 1;
-
-  if (employee_name) {
-    updates.push(`employee_name = $${counter++}`);
-    values.push(employee_name.trim());
-  }
-  if (job_title) {
-    updates.push(`job_title = $${counter++}`);
-    values.push(job_title.trim());
-  }
-  if (hourly_rate !== undefined) {
-    updates.push(`hourly_rate = $${counter++}`);
-    values.push(hourly_rate);
-  }
-
-  values.push(id);
-
   try {
-    const updateSql = `
-      UPDATE employees
-      SET ${updates.join(', ')}
-      WHERE employee_id = $${counter}
-      RETURNING *
-    `;
-    const result = await db.query(updateSql, values);
+    const result = await db.query(query.sql, query.values);
     if (result.rows.length === 0) {
       return sendError(res, 'Employee not found', 404);
     }

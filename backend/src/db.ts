@@ -1,5 +1,5 @@
 import 'dotenv/config';
-import { Pool } from 'pg';
+import { Pool, PoolClient } from 'pg';
 
 const pool = new Pool({
   host: process.env.DB_HOST,
@@ -13,5 +13,26 @@ const pool = new Pool({
 pool.on('error', (err) => {
   console.error('Unexpected PG client error', err);
 });
+
+/**
+ * Executes a callback within a database transaction.
+ * Automatically handles BEGIN, COMMIT, ROLLBACK, and release.
+ */
+export const runTransaction = async <T>(
+  callback: (client: PoolClient) => Promise<T>
+): Promise<T> => {
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+    const result = await callback(client);
+    await client.query('COMMIT');
+    return result;
+  } catch (error) {
+    await client.query('ROLLBACK');
+    throw error;
+  } finally {
+    client.release();
+  }
+};
 
 export default pool;

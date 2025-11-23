@@ -1,5 +1,6 @@
 import express, { Request, Response } from 'express';
-import db from './db';
+import db, { runTransaction } from './db';
+import { buildUpdateQuery } from './utils/sql';
 import { sendSuccess, sendError } from './utils/response';
 
 const router = express.Router();
@@ -97,19 +98,15 @@ router.get('/:id/ingredients', async (req: Request, res: Response) => {
   }
 });
 
-// Replace ingredients for a menu item (delete + insert in transaction)
+// Refactored Ingredients Save
 router.post('/:id/ingredients', async (req: Request, res: Response) => {
   const drinkId = Number(req.params.id);
-  const { ingredients } = req.body as { ingredients: { id: number; quantity: number }[] };
+  const { ingredients } = req.body;
 
-  if (!Number.isInteger(drinkId)) {
-    return sendError(res, 'Invalid menu item id.', 400);
-  }
-  if (!Array.isArray(ingredients)) {
-    return sendError(res, 'Ingredients must be an array.', 400);
-  }
+  if (!Number.isInteger(drinkId)) return sendError(res, 'Invalid menu item id.', 400);
+  if (!Array.isArray(ingredients)) return sendError(res, 'Ingredients must be an array.', 400);
 
-  // Aggregate duplicates and validate
+  // Aggregate logic (same as original)
   const agg = new Map<number, number>();
   for (const ing of ingredients) {
     if (!Number.isInteger(ing.id)) continue;
@@ -121,89 +118,44 @@ router.post('/:id/ingredients', async (req: Request, res: Response) => {
   const invIds = Array.from(agg.keys());
   const quantities = Array.from(agg.values());
 
-  let client;
   try {
-    client = await db.connect();
-    await client.query('BEGIN');
+    await runTransaction(async (client) => {
+      await client.query('DELETE FROM drinkjointable WHERE drink_id = $1', [drinkId]);
 
-    // Remove existing links
-    await client.query('DELETE FROM drinkjointable WHERE drink_id = $1', [drinkId]);
+      if (invIds.length > 0) {
+        const insertSql = `
+          INSERT INTO drinkjointable (drink_id, inventory_id, quantity)
+          SELECT $1, t.inventory_id, t.quantity
+          FROM UNNEST($2::int[], $3::numeric[]) AS t(inventory_id, quantity)
+        `;
+        await client.query(insertSql, [drinkId, invIds, quantities]);
+      }
+    });
 
-    // Insert new links if any
-    if (invIds.length > 0) {
-      const insertSql = `
-        INSERT INTO drinkjointable (drink_id, inventory_id, quantity)
-        SELECT $1, t.inventory_id, t.quantity
-        FROM UNNEST($2::int[], $3::numeric[]) AS t(inventory_id, quantity)
-      `;
-      await client.query(insertSql, [drinkId, invIds, quantities]);
-    }
-
-    await client.query('COMMIT');
     res.status(201);
     sendSuccess(res, { message: 'Ingredients saved.' });
   } catch (error) {
-    if (client) await client.query('ROLLBACK');
     console.error('Error saving ingredients:', error);
     sendError(res, 'Failed to save ingredients.');
-  } finally {
-    if (client) client.release();
   }
 });
 
-// Update menu item (name, price, and optionally category)
+// Refactored PUT
 router.put('/:itemId', async (req: Request, res: Response) => {
   const { itemId } = req.params;
-  const { item_name, cost, category } = req.body as {
-    item_name?: string;
-    cost?: number | string;
-    category?: string;
-  };
+  const { item_name, cost, category } = req.body;
 
-  const sets: string[] = [];
-  const values: any[] = [];
-  let idx = 1;
+  const query = buildUpdateQuery('menuitems', 'item_id', Number(itemId), {
+    item_name,
+    cost,
+    category
+  });
 
-  if (typeof item_name === 'string') {
-    const name = item_name.trim();
-    if (!name) return sendError(res, 'item_name cannot be empty.', 400);
-    sets.push(`item_name = $${idx++}`);
-    values.push(name);
-  }
-
-  if (cost != null) {
-    const price = typeof cost === 'string' ? parseFloat(cost) : cost;
-    if (!Number.isFinite(price)) {
-      return sendError(res, 'Cost must be a valid number.', 400);
-    }
-    sets.push(`cost = $${idx++}`);
-    values.push(price);
-  }
-
-  if (typeof category === 'string') {
-    const cat = category.trim();
-    if (!cat) return sendError(res, 'category cannot be empty.', 400);
-    sets.push(`category = $${idx++}`);
-    values.push(cat);
-  }
-
-  if (sets.length === 0) {
-    return sendError(res, 'Provide at least one field to update.', 400);
-  }
+  if (!query) return sendError(res, 'Provide at least one field to update.', 400);
 
   try {
-    const sql = `
-      UPDATE menuitems
-      SET ${sets.join(', ')}
-      WHERE item_id = $${idx}
-      RETURNING item_id, item_name, cost, category
-    `;
-    values.push(itemId);
-
-    const result = await db.query(sql, values);
-    if (result.rowCount === 0) {
-      return sendError(res, 'Menu item not found.', 404);
-    }
+    const result = await db.query(query.sql, query.values);
+    if (result.rowCount === 0) return sendError(res, 'Menu item not found.', 404);
     sendSuccess(res, result.rows[0], 'Item updated');
   } catch (error) {
     console.error(`Error updating item ${itemId}:`, error);
@@ -211,30 +163,21 @@ router.put('/:itemId', async (req: Request, res: Response) => {
   }
 });
 
-// Delete menu item and ingredient associations
-router.delete('/:itemId', async (req: Request, res: Response) => {  
+// Refactored DELETE
+router.delete('/:itemId', async (req: Request, res: Response) => {
   const { itemId } = req.params;
-  let client;
+  
   try {
-    client = await db.connect();
-    await client.query('BEGIN');
-
-    await client.query("DELETE FROM drinkjointable WHERE drink_id = $1", [itemId]);
-    const result = await client.query("DELETE FROM menuitems WHERE item_id = $1", [itemId]);
-
-    if (result.rowCount === 0) {
-      await client.query('ROLLBACK');
-      return sendError(res, 'Menu item not found.', 404);
-    }
-
-    await client.query('COMMIT');
+    await runTransaction(async (client) => {
+        await client.query("DELETE FROM drinkjointable WHERE drink_id = $1", [itemId]);
+        const result = await client.query("DELETE FROM menuitems WHERE item_id = $1", [itemId]);
+        if (result.rowCount === 0) throw new Error('NOT_FOUND');
+    });
     sendSuccess(res, null, 'Item deleted');
-  } catch (error) {
-    if (client) await client.query('ROLLBACK');
+  } catch (error: any) {
+    if (error.message === 'NOT_FOUND') return sendError(res, 'Menu item not found.', 404);
     console.error(`Error deleting item ${itemId}:`, error);
     sendError(res, 'Failed to delete item.');
-  } finally {
-    if (client) client.release();
   }
 });
 

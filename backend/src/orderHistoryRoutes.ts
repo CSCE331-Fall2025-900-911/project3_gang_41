@@ -1,5 +1,5 @@
 import express, { Request, Response } from 'express';
-import db from './db';
+import db, { runTransaction } from './db';
 import { deductInventory } from './services/inventoryService';
 import { sendSuccess, sendError } from './utils/response';
 
@@ -16,62 +16,62 @@ router.post('/', async (req: Request, res: Response) => {
     return sendError(res, 'No items provided', 400);
   }
 
-  const client = await db.connect();
   try {
-    await client.query('BEGIN');
-    const { rows } = await client.query(
-      "SELECT COALESCE(MAX(orderid), 0) + 1 AS new_id FROM order_history"
-    );
-    const orderid = Number(rows[0].new_id);
+    const orderid = await runTransaction(async (client) => {
+      const { rows } = await client.query(
+        "SELECT COALESCE(MAX(orderid), 0) + 1 AS new_id FROM order_history"
+      );
+      const newId = Number(rows[0].new_id);
 
-    // order_history.orderdate is now timestamptz with DEFAULT NOW()
-    const insertSql = `
-      INSERT INTO order_history
-      (orderid, customerid, employeeatcheckout, paymentmethod, menuitemid, itemname, quantity, unitprice, totalprice)
-      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
-    `;
+      const insertSql = `
+        INSERT INTO order_history
+        (orderid, customerid, employeeatcheckout, paymentmethod, menuitemid, itemname, quantity, unitprice, totalprice)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+      `;
 
-    const aggregated = new Map<number, any>();
-    for (const item of items) {
-      if (aggregated.has(item.item_id)) {
-        aggregated.get(item.item_id).quantity += item.quantity;
-      } else {
-        aggregated.set(item.item_id, { ...item });
+      // Aggregate duplicates (same logic as before)
+      const aggregated = new Map<number, any>();
+      for (const item of items) {
+        if (aggregated.has(item.item_id)) {
+          aggregated.get(item.item_id).quantity += item.quantity;
+        } else {
+          aggregated.set(item.item_id, { ...item });
+        }
       }
-    }
 
-    for (const item of aggregated.values()) {
-      const total = item.cost * item.quantity;
-      await client.query(insertSql, [
-        orderid,
-        customerid || 0,
-        employeeId || 0,
-        paymentmethod || 'card',
-        item.item_id,
-        item.item_name,
-        item.quantity,
-        item.cost,
-        total,
-      ]);
-    }
+      for (const item of aggregated.values()) {
+        const total = item.cost * item.quantity;
+        await client.query(insertSql, [
+          newId,
+          customerid || 0,
+          employeeId || 0,
+          paymentmethod || 'card',
+          item.item_id,
+          item.item_name,
+          item.quantity,
+          item.cost,
+          total,
+        ]);
+      }
 
-    await client.query('COMMIT');
+      return newId;
+    });
 
-    // Fire-and-forget inventory deduction
-    deductInventory(
-      Array.from(aggregated.values()).map(i => ({
-        item_id: i.item_id,
-        quantity: i.quantity,
-      }))
-    ).catch(e => console.error('Inventory deduction error', e));
+    // Fire-and-forget inventory deduction (handled safely outside the order tx)
+    // Note: You could verify items exist first, but existing logic did this post-commit
+    const aggregatedItems = items.reduce((acc: any[], item: any) => {
+        const existing = acc.find(i => i.item_id === item.item_id);
+        if (existing) existing.quantity += item.quantity;
+        else acc.push({ item_id: item.item_id, quantity: item.quantity });
+        return acc;
+    }, []);
+
+    deductInventory(aggregatedItems).catch(e => console.error('Inventory deduction error', e));
 
     sendSuccess(res, { orderid }, 'Order created');
   } catch (err) {
-    await client.query('ROLLBACK');
     console.error(err);
     sendError(res, 'Failed to create order');
-  } finally {
-    client.release();
   }
 });
 
