@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState, useCallback, useRef } from 'react';
 import { useLocalStorage } from '@/hooks/useLocalStorage';
 import { fetchApi } from '@/lib/api';
-import { cn } from '@/lib/utils';
+import { cn, formatCurrency } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -51,7 +51,6 @@ import {
 import type { InventoryItem } from "@project3/shared";
 
 const BUILTIN_UNITS = ['units', 'fl oz', 'bags', 'g', 'servings', 'L', 'mL', 'oz'] as const;
-const CURRENCY = 'USD';
 
 // Use shared InventoryItem; cost may be number or string from backend
 type InventoryRow = InventoryItem;
@@ -72,14 +71,6 @@ function useDebouncedValue<T>(value: T, delay = 250) {
 }
 
 
-function formatCurrency(val: number) {
-  if (!Number.isFinite(val)) return '$0.00';
-  return new Intl.NumberFormat(undefined, {
-    style: 'currency',
-    currency: CURRENCY,
-    minimumFractionDigits: 2,
-  }).format(val);
-}
 
 function getSeverity(supply: number, t: Thresholds): Severity {
   if (supply <= t.crit) return 'crit';

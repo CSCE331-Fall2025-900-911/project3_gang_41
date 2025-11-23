@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { fetchApi } from "@/lib/api";
+import { formatCurrency } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -57,9 +58,6 @@ type Order = {
 };
 
 const PAGE_SIZE = 20;
-
-const currency = (n: number) =>
-  n.toLocaleString("en-US", { style: "currency", currency: "USD" });
 
 const parsePgTimestamp = (ts: string) => {
   const [d, t] = ts.split(" ");
@@ -301,7 +299,7 @@ export default function HistoryPage() {
                         <div>
                           <div className="text-xs text-muted-foreground uppercase tracking-wider font-medium">Total</div>
                           <div className="text-xl font-bold text-primary">
-                            {currency(o.total)}
+                            {formatCurrency(o.total)}
                           </div>
                         </div>
                       </div>
@@ -342,12 +340,12 @@ export default function HistoryPage() {
                               <div>
                                 <div className="font-medium text-sm">{it.name}</div>
                                 <div className="text-xs text-muted-foreground">
-                                  @ {currency(it.unitPrice)} each
+                                  @ {formatCurrency(it.unitPrice)} each
                                 </div>
                               </div>
                             </div>
                             <div className="font-medium text-sm">
-                              {currency(it.lineTotal)}
+                              {formatCurrency(it.lineTotal)}
                             </div>
                           </div>
                         ))}
@@ -356,15 +354,15 @@ export default function HistoryPage() {
                       <div className="p-4 bg-white space-y-1.5">
                         <div className="flex justify-between text-sm text-muted-foreground">
                           <span>Subtotal</span>
-                          <span>{currency(o.subtotal)}</span>
+                          <span>{formatCurrency(o.subtotal)}</span>
                         </div>
                         <div className="flex justify-between text-sm text-muted-foreground">
                           <span>Tax ({(TAX_RATE * 100).toFixed(2)}%)</span>
-                          <span>{currency(o.tax)}</span>
+                          <span>{formatCurrency(o.tax)}</span>
                         </div>
                         <div className="flex justify-between text-base font-bold pt-2 border-t mt-2">
                           <span>Total</span>
-                          <span>{currency(o.total)}</span>
+                          <span>{formatCurrency(o.total)}</span>
                         </div>
                       </div>
                     </CardContent>

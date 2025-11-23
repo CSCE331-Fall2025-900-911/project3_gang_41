@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { fetchApi } from "@/lib/api";
+import { formatCurrency } from "@/lib/utils";
 // Types from shared package
 import type { MenuItem, InventoryItem } from "@project3/shared";
 import { toast } from "sonner";
@@ -56,8 +57,6 @@ import {
 
 // --- Types are imported from `@project3/shared` ---
 
-const currency = (n: number) =>
-  n.toLocaleString("en-US", { style: "currency", currency: "USD" });
 
 // --- Sound Effects Engine (Web Audio API) ---
 // Safety check: window is undefined during build time
@@ -522,7 +521,7 @@ export default function MenuPage() {
                             ) : item.category}
                           </TableCell>
                           <TableCell className={isExperimental ? "font-bold text-green-600 text-lg" : ""}>
-                            {currency(parseFloat(String(item.cost ?? "0")))}
+                            {formatCurrency(parseFloat(String(item.cost ?? "0")))}
                           </TableCell>
                           <TableCell className="text-right">
                             <div className="flex justify-end gap-2">
