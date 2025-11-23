@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react"
+import { useLocalStorage } from "@/hooks/useLocalStorage";
 import { fetchApi } from "@/lib/api"
 import { 
   Area, AreaChart, Bar, BarChart, CartesianGrid, XAxis, YAxis, 
@@ -27,15 +28,6 @@ import type { DashboardData } from "@project3/shared";
 type ExtendedDashboardData = DashboardData & {
   topItems?: Array<{ name: string; value: number }>;
 };
-
-function useLocalStorage<T>(key: string, initial: T) {
-  const [val, setVal] = useState<T>(() => {
-    try { return JSON.parse(localStorage.getItem(key) || "") || initial; } 
-    catch { return initial; }
-  });
-  useEffect(() => localStorage.setItem(key, JSON.stringify(val)), [key, val]);
-  return [val, setVal] as const;
-}
 
 // NOTE: Updated to match backend: order_time_label instead of raw orderdate
 interface RecentOrder {

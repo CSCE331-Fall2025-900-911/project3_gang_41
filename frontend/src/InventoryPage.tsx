@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState, useCallback, useRef } from 'react';
+import { useLocalStorage } from '@/hooks/useLocalStorage';
 import { fetchApi } from '@/lib/api';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
@@ -70,22 +71,6 @@ function useDebouncedValue<T>(value: T, delay = 250) {
   return debounced;
 }
 
-function useLocalStorage<T>(key: string, initial: T) {
-  const [val, setVal] = useState<T>(() => {
-    try {
-      const raw = localStorage.getItem(key);
-      return raw ? (JSON.parse(raw) as T) : initial;
-    } catch {
-      return initial;
-    }
-  });
-  useEffect(() => {
-    try {
-      localStorage.setItem(key, JSON.stringify(val));
-    } catch {}
-  }, [key, val]);
-  return [val, setVal] as const;
-}
 
 function formatCurrency(val: number) {
   if (!Number.isFinite(val)) return '$0.00';
