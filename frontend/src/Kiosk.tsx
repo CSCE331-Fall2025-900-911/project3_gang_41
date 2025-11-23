@@ -16,23 +16,9 @@ import { toast } from 'sonner';
 import { WeatherDisplay } from '@/components/WeatherDisplay';
 import { DrinkCustomizationDialog } from "@/components/DrinkCustomizationDialog";
 
-import type { MenuItem } from "@project3/shared";
+import type { MenuItem, CartItem, DrinkCustomization } from "@project3/shared";
 import { TAX_RATE } from "@project3/shared";
 
-interface DrinkCustomization {
-  sweetness: 100 | 50 | 25;
-  ice: 'regular' | 'light' | 'none';
-  size: 'small' | 'medium' | 'large';
-}
-
-interface CartItem {
-  item_id: number;
-  item_name: string;
-  cost: number;
-  quantity: number;
-  customization?: DrinkCustomization;
-  uniqueId: string;
-}
 
 const categories = [
   'All Items',

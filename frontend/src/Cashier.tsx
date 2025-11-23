@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { fetchApi } from "@/lib/api";
-import type { MenuItem } from "@project3/shared";
+import type { MenuItem, CartItem, DrinkCustomization } from "@project3/shared";
 import { TAX_RATE } from "@project3/shared";
 import { useNavigate } from "react-router-dom";
 
@@ -15,20 +15,6 @@ import { Minus, Plus, ShoppingCart, Trash2, LogOut, Settings, Edit, Loader2 } fr
 import { toast } from "sonner";
 import { DrinkCustomizationDialog } from "@/components/DrinkCustomizationDialog";
 
-interface DrinkCustomization {
-  sweetness: 100 | 50 | 25;
-  ice: 'regular' | 'light' | 'none';
-  size: 'small' | 'medium' | 'large';
-}
-
-interface CartItem {
-  item_id: number;
-  item_name: string;
-  cost: number;
-  quantity: number;
-  customization?: DrinkCustomization;
-  uniqueId: string; // handle multiple instances of same item w/ different customizations
-}
 
 const categories = [
   "All Items",
