@@ -143,32 +143,30 @@ function Kiosk() {
       {/* Main content area with product cards */}
       <div className="flex-1 flex flex-col overflow-hidden">
         {/* Product Grid */}
-        <div className="flex-1 overflow-auto p-8 pt-12">
-          <div className="max-w-6xl mx-auto">
-            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
+        <div className="flex-1 overflow-auto p-8">
+          <div className="max-w-5xl mx-auto">
+            <div className="grid grid-cols-3 gap-6">
               {menu
                 .filter((item) => activeCategory === 'All Items' || item.category === activeCategory)
                 .map(item => (
                 <Card
                   key={item.item_id}
-                  className="cursor-pointer transition-all duration-150 hover:shadow-xl hover:scale-105 active:scale-95 active:shadow-md h-40"
+                  className="cursor-pointer transition-all duration-150 hover:shadow-xl hover:scale-105 active:scale-95 active:shadow-md h-72"
                   onClick={() => openCustomizationDialog(item)}
                 >
-                  <CardHeader className="p-4 pb-2">
-                    <CardTitle className="text-base text-center line-clamp-2">
+                  <CardHeader className="p-4 pb-1">
+                    <CardTitle className="text-lg text-center line-clamp-2 min-h-[3rem]">
                       {item.item_name}
                     </CardTitle>
                   </CardHeader>
-                  <CardContent className="p-4 pt-2">
-                    <div className="flex flex-col items-center justify-center">
-                      <img
-                        src="/bobaicon.jpg"
-                        alt="Boba drink"
-                        className="w-12 h-12 object-cover rounded-full mb-2"
-                      />
-                      <span className="text-xl font-bold">
-                        ${item.cost.toFixed(2)}
-                      </span>
+                  <CardContent className="p-4 pt-1 flex flex-col items-center justify-between h-[calc(100%-5rem)]">
+                    <img
+                      src="/brownsugarboba.jpg"
+                      alt={item.item_name}
+                      className="w-36 h-36 object-cover rounded-lg shadow-md"
+                    />
+                    <div className="text-2xl font-bold text-primary mt-2">
+                      ${item.cost.toFixed(2)}
                     </div>
                   </CardContent>
                 </Card>
@@ -219,51 +217,58 @@ function Kiosk() {
                     <div className="space-y-3">
                       {cart.map((item: CartItem) => (
                         <div key={item.uniqueId} className="border rounded-lg p-3">
-                          <div className="flex items-start justify-between mb-2">
-                            <div className="flex-1">
-                              <h4 className="font-medium text-sm">{item.item_name}</h4>
-                              <p className="text-xs text-muted-foreground">
-                                ${item.cost.toFixed(2)} each
-                              </p>
-                              {item.customization && (
-                                <div className="flex flex-wrap gap-1 mt-2">
-                                  {/* Size - always show, display as single letter uppercase */}
-                                  <Badge variant="secondary" className="text-xs uppercase">
-                                    {item.customization.size.charAt(0)}
-                                  </Badge>
-                                  {/* Sweetness - only show if not default (100) */}
-                                  {item.customization.sweetness !== 100 && (
-                                    <Badge variant="secondary" className="text-xs">
-                                      {item.customization.sweetness}% sweet
+                          <div className="flex gap-3 mb-2">
+                            <img
+                              src="/brownsugarboba.jpg"
+                              alt={item.item_name}
+                              className="w-16 h-16 object-cover rounded-lg flex-shrink-0"
+                            />
+                            <div className="flex items-start justify-between flex-1">
+                              <div className="flex-1">
+                                <h4 className="font-medium text-sm">{item.item_name}</h4>
+                                <p className="text-xs text-muted-foreground">
+                                  ${item.cost.toFixed(2)} each
+                                </p>
+                                {item.customization && (
+                                  <div className="flex flex-wrap gap-1 mt-2">
+                                    {/* Size - always show, display as single letter uppercase */}
+                                    <Badge variant="secondary" className="text-xs uppercase">
+                                      {item.customization.size.charAt(0)}
                                     </Badge>
-                                  )}
-                                  {/* Ice - only show if not default (regular) */}
-                                  {item.customization.ice !== 'regular' && (
-                                    <Badge variant="secondary" className="text-xs capitalize">
-                                      {item.customization.ice} ice
-                                    </Badge>
-                                  )}
-                                </div>
-                              )}
-                            </div>
+                                    {/* Sweetness - only show if not default (100) */}
+                                    {item.customization.sweetness !== 100 && (
+                                      <Badge variant="secondary" className="text-xs">
+                                        {item.customization.sweetness}% sweet
+                                      </Badge>
+                                    )}
+                                    {/* Ice - only show if not default (regular) */}
+                                    {item.customization.ice !== 'regular' && (
+                                      <Badge variant="secondary" className="text-xs capitalize">
+                                        {item.customization.ice} ice
+                                      </Badge>
+                                    )}
+                                  </div>
+                                )}
+                              </div>
 
-                            <div className="flex gap-1">
-                              <Button
-                                variant="ghost"
-                                size="icon"
-                                className="h-6 w-6"
-                                onClick={() => openEditDialog(item)}
-                              >
-                                <Edit className="h-3 w-3" />
-                              </Button>
-                              <Button
-                                variant="ghost"
-                                size="icon"
-                                className="h-6 w-6 text-destructive"
-                                onClick={() => removeFromCart(item.uniqueId)}
-                              >
-                                <Trash2 className="h-3 w-3" />
-                              </Button>
+                              <div className="flex gap-1">
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  className="h-6 w-6"
+                                  onClick={() => openEditDialog(item)}
+                                >
+                                  <Edit className="h-3 w-3" />
+                                </Button>
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  className="h-6 w-6 text-destructive"
+                                  onClick={() => removeFromCart(item.uniqueId)}
+                                >
+                                  <Trash2 className="h-3 w-3" />
+                                </Button>
+                              </div>
                             </div>
                           </div>
 
