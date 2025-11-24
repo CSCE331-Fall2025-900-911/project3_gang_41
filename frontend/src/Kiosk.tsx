@@ -11,10 +11,17 @@ import {
   DrawerTitle,
   DrawerTrigger,
 } from '@/components/ui/drawer';
-import { Minus, Plus, ShoppingCart, Trash2, Edit, Loader2 } from 'lucide-react';
+import { Minus, Plus, ShoppingCart, Trash2, Edit, Loader2, FlaskConical, ChevronDown } from 'lucide-react';
 import { WeatherDisplay } from '@/components/WeatherDisplay';
 import { DrinkCustomizationDialog } from "@/components/DrinkCustomizationDialog";
 import { useCart } from "@/hooks/useCart";
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from "@/components/ui/collapsible";
+import { Switch } from "@/components/ui/switch";
+import { SmoothCursor } from "@/components/ui/smooth-cursor";
 
 import type { MenuItem, CartItem, DrinkCustomization } from "@project3/shared";
 import { TAX_RATE } from "@project3/shared";
@@ -36,6 +43,7 @@ function Kiosk() {
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [buttonPulse, setButtonPulse] = useState(false);
   const [weather, setWeather] = useState<{ temperature: number; icon: string } | null>(null);
+  const [experimentalMode, setExperimentalMode] = useState(false);
   const [customizationDialog, setCustomizationDialog] = useState<{
       open: boolean;
       item: MenuItem | null;
@@ -120,7 +128,7 @@ function Kiosk() {
   };
 
   return (
-    <div className="flex h-screen bg-background">
+    <div className={`flex h-screen bg-background ${experimentalMode ? 'cursor-none' : ''}`}>
       {/* Sidebar with categories */}
       <div className="w-64 bg-gray-100 dark:bg-gray-900 border-r p-4 flex flex-col gap-2">
         {categories.map((category, index) => (
@@ -138,6 +146,33 @@ function Kiosk() {
             <WeatherDisplay temperature={weather.temperature} icon={weather.icon} />
           </div>
         )}
+
+        {/* Experimental Mode Toggle */}
+        <div className="mt-auto pt-4 border-t border-gray-300 dark:border-gray-700">
+          <Collapsible>
+            <CollapsibleTrigger asChild>
+              <Button variant="ghost" className="w-full justify-between">
+                <div className="flex items-center gap-2">
+                  <FlaskConical className="h-4 w-4" />
+                  <span className="text-sm">Experimental</span>
+                </div>
+                <ChevronDown className="h-4 w-4 transition-transform duration-200 group-data-[state=open]:rotate-180" />
+              </Button>
+            </CollapsibleTrigger>
+            <CollapsibleContent className="px-2 py-3">
+              <div className="flex items-center justify-between">
+                <label htmlFor="smooth-cursor" className="text-sm text-muted-foreground">
+                  Smooth Cursor
+                </label>
+                <Switch
+                  id="smooth-cursor"
+                  checked={experimentalMode}
+                  onCheckedChange={setExperimentalMode}
+                />
+              </div>
+            </CollapsibleContent>
+          </Collapsible>
+        </div>
       </div>
 
       {/* Main content area with product cards */}
@@ -341,6 +376,9 @@ function Kiosk() {
         defaultCustomization={customizationDialog.editingCartItem?.customization}
         onConfirm={handleCustomizationConfirm}
       />
+
+      {/* Smooth Cursor - only when experimental mode is enabled */}
+      {experimentalMode && <SmoothCursor />}
     </div>
   );
 }
