@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { fetchApi } from '@/lib/api';
+import { formatCurrency } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -67,14 +68,6 @@ const normalizeEmployee = (e: NewApiEmployee): Employee => {
   };
 };
 
-const currency = (value: string | number) => {
-    const num = typeof value === 'string' ? parseFloat(value) : value;
-    return new Intl.NumberFormat('en-US', {
-        style: 'currency',
-        currency: 'USD',
-        minimumFractionDigits: 2,
-    }).format(isNaN(num) ? 0 : num);
-};
 
 const formatDate = (date: Date) => 
     date.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
@@ -117,7 +110,7 @@ const EmployeeDetailModal: React.FC<EmployeeDetailModalProps> = ({ employee, isO
                             <DollarSign className="h-4 w-4" /> Hourly Rate
                         </span>
                         <span className="text-xl font-semibold text-green-600">
-                            {currency(employee.hourlyRate)}
+                            {formatCurrency(employee.hourlyRate)}
                         </span>
                     </div>
 

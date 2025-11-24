@@ -82,6 +82,8 @@ router.get('/', async (req: Request, res: Response) => {
     const limit = parseInt((req.query.limit as string) || '20', 10);
     const offset = (page - 1) * limit;
 
+    const isDashboard = (req.query.mode as string) === 'dashboard';
+
     // IMPORTANT:
     // - We keep MIN(orderdate) AS orderdate for HistoryPage.tsx (raw timestamp).
     // - We ADD order_time_label as a local-time string for DashboardPage.tsx.
@@ -115,10 +117,11 @@ router.get('/', async (req: Request, res: Response) => {
       OFFSET $1 LIMIT $2
     `;
 
-    const countResult = await db.query(
-      'SELECT COUNT(DISTINCT orderid) FROM order_history'
-    );
-    const totalCount = parseInt(countResult.rows[0].count, 10);
+    let totalCount = 0;
+    if (!isDashboard) {
+      const countResult = await db.query('SELECT COUNT(DISTINCT orderid) FROM order_history');
+      totalCount = parseInt(countResult.rows[0].count, 10);
+    }
 
     const dataResult = await db.query(sql, [offset, limit]);
 

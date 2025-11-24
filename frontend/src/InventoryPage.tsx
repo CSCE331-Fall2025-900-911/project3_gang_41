@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useState, useCallback, useRef } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { useLocalStorage } from '@/hooks/useLocalStorage';
 import { fetchApi } from '@/lib/api';
-import { cn } from '@/lib/utils';
+import { cn, formatCurrency } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -51,7 +52,6 @@ import {
 import type { InventoryItem } from "@project3/shared";
 
 const BUILTIN_UNITS = ['units', 'fl oz', 'bags', 'g', 'servings', 'L', 'mL', 'oz'] as const;
-const CURRENCY = 'USD';
 
 // Use shared InventoryItem; cost may be number or string from backend
 type InventoryRow = InventoryItem;
@@ -72,14 +72,6 @@ function useDebouncedValue<T>(value: T, delay = 250) {
 }
 
 
-function formatCurrency(val: number) {
-  if (!Number.isFinite(val)) return '$0.00';
-  return new Intl.NumberFormat(undefined, {
-    style: 'currency',
-    currency: CURRENCY,
-    minimumFractionDigits: 2,
-  }).format(val);
-}
 
 function getSeverity(supply: number, t: Thresholds): Severity {
   if (supply <= t.crit) return 'crit';
@@ -104,11 +96,14 @@ function highlight(text: string, query: string) {
 
 // -------------------- Main Component --------------------
 function InventoryPage() {
+  const [searchParams] = useSearchParams();
+  const initialSearch = searchParams.get("search") || "";
+  
   const [items, setItems] = useState<InventoryRow[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const [search, setSearch] = useState('');
+  const [search, setSearch] = useState(initialSearch);
   const debouncedSearch = useDebouncedValue(search, 200);
   const [sort, setSort] = useState<{ key: SortKey; dir: SortDir }>({ key: 'item_name', dir: 'asc' });
   const [stockFilter, setStockFilter] = useState<'all' | 'ok' | 'warn' | 'crit'>('all');
@@ -158,6 +153,13 @@ function InventoryPage() {
   useEffect(() => {
     loadInventory();
   }, [loadInventory]);
+
+  useEffect(() => {
+    const urlSearch = searchParams.get("search");
+    if (urlSearch) {
+      setSearch(urlSearch);
+    }
+  }, [searchParams]);
 
   const filtered = useMemo(() => {
     const q = debouncedSearch.trim().toLowerCase();

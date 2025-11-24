@@ -43,9 +43,32 @@ export interface ApiResponse<T> {
 }
 
 export interface DashboardKPI {
+  // Current Totals
   total_revenue: number;
   total_orders: number;
   active_staff: number;
+
+  // Trend Percentages (Standard)
+  revenue_percent_change?: number;
+  orders_percent_change?: number;
+  avg_order_value_percent_change?: number;
+  efficiency_percent_change?: number;
+
+  // NEW: Velocity (Pacing) Percentages
+  revenue_pacing_change: number;
+  orders_pacing_change: number;
+
+  // NEW: Previous Values for display
+  prev_revenue_total: number;
+  prev_orders_total: number;
+  prev_revenue_paced: number;
+  prev_orders_paced: number;
+  prev_avg_order_value: number;
+  prev_efficiency: number;
+
+  // Peak Time Labels
+  peak_time_label: string;
+  prev_peak_time_label: string;
 }
 
 export interface DashboardTrend {
