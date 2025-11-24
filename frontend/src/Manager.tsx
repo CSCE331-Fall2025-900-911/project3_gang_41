@@ -1,9 +1,9 @@
 import { useState, useEffect, ReactNode } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { fetchApi } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
-import { Package, Users, History, LogOut, ShoppingCart, LayoutDashboard, SquareMenu } from "lucide-react"; 
+import { Package, Users, History, LogOut, ShoppingCart, LayoutDashboard, SquareMenu } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { WeatherDisplay } from "@/components/WeatherDisplay";
 
@@ -19,7 +19,8 @@ const categories: Category[] = ['Dashboard', 'Inventory', 'Employees', 'History'
 
 function Manager() {
   const navigate = useNavigate();
-  const [activeCategory, setActiveCategory] = useState<Category>("Dashboard");
+  const [searchParams, setSearchParams] = useSearchParams();
+  const [activeCategory, setActiveCategory] = useState<Category>(searchParams.get("tab") as Category || "Dashboard");
   const { logout, user } = useAuth();
   const [weather, setWeather] = useState<{ temperature: number; icon: string } | null>(null);
 
@@ -32,6 +33,11 @@ function Manager() {
   const handleLogout = async () => {
     await logout();
     navigate("/login");
+  };
+
+  const handleCategoryChange = (category: Category) => {
+    setActiveCategory(category);
+    setSearchParams({ tab: category });
   };
 
   // --- RENDER CONTENT SWITCHER ---
@@ -66,6 +72,12 @@ function Manager() {
     <div className="flex w-screen h-screen overflow-hidden bg-background">
       {/* Sidebar */}
       <div className="w-64 bg-gray-100 dark:bg-gray-900 border-r p-4 flex flex-col gap-2 shrink-0">
+        {/* BobaPOS Header */}
+        <div className="mb-4 flex items-center gap-3 px-2">
+          <div className="h-8 w-8 bg-brand-500 rounded-full flex items-center justify-center text-white font-bold text-lg">🧋</div>
+          <h1 className="text-xl font-bold text-brand-900">BobaPOS</h1>
+        </div>
+        
         <h2 className="text-lg font-semibold mb-2 text-foreground">
           Management
         </h2>
@@ -73,8 +85,8 @@ function Manager() {
           <Button
             key={category}
             variant={activeCategory === category ? "default" : "ghost"}
-            className="w-full justify-start text-left"
-            onClick={() => setActiveCategory(category)}
+            className={`w-full justify-start text-left ${activeCategory === category ? "bg-brand-100 text-brand-900" : ""}`}
+            onClick={() => handleCategoryChange(category)}
           >
             {categoryIcons[category as keyof typeof categoryIcons]}
             {category}

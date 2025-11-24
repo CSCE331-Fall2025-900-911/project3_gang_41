@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState, useCallback, useRef } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { useLocalStorage } from '@/hooks/useLocalStorage';
 import { fetchApi } from '@/lib/api';
 import { cn, formatCurrency } from '@/lib/utils';
@@ -95,11 +96,14 @@ function highlight(text: string, query: string) {
 
 // -------------------- Main Component --------------------
 function InventoryPage() {
+  const [searchParams] = useSearchParams();
+  const initialSearch = searchParams.get("search") || "";
+  
   const [items, setItems] = useState<InventoryRow[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const [search, setSearch] = useState('');
+  const [search, setSearch] = useState(initialSearch);
   const debouncedSearch = useDebouncedValue(search, 200);
   const [sort, setSort] = useState<{ key: SortKey; dir: SortDir }>({ key: 'item_name', dir: 'asc' });
   const [stockFilter, setStockFilter] = useState<'all' | 'ok' | 'warn' | 'crit'>('all');
@@ -149,6 +153,13 @@ function InventoryPage() {
   useEffect(() => {
     loadInventory();
   }, [loadInventory]);
+
+  useEffect(() => {
+    const urlSearch = searchParams.get("search");
+    if (urlSearch) {
+      setSearch(urlSearch);
+    }
+  }, [searchParams]);
 
   const filtered = useMemo(() => {
     const q = debouncedSearch.trim().toLowerCase();
