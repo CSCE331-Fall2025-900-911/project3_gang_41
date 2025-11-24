@@ -1,10 +1,15 @@
-import { useEffect, useState } from "react"
+import { useEffect, useState, lazy, Suspense } from "react"
 import { useLocalStorage } from "@/hooks/useLocalStorage";
 import { fetchApi } from "@/lib/api"
-import { 
-  Area, AreaChart, Bar, BarChart, CartesianGrid, XAxis, YAxis, 
-  LabelList, Pie, PieChart, Cell, Tooltip
+import {
+  Area, Bar, CartesianGrid, XAxis, YAxis,
+  LabelList, Pie, Cell, Tooltip
 } from "recharts"
+
+const SkeletonFallback = <Skeleton className="h-[300px] w-full" />
+const LazyAreaChart = lazy(() => import('recharts').then(module => ({ default: module.AreaChart })));
+const LazyBarChart = lazy(() => import('recharts').then(module => ({ default: module.BarChart })));
+const LazyPieChart = lazy(() => import('recharts').then(module => ({ default: module.PieChart })));
 import {
   DollarSign, Users, CreditCard, Activity, Download, TrendingUp, 
   TrendingDown, AlertTriangle, AlertOctagon, CheckCircle2, Clock, Zap, Receipt
@@ -67,7 +72,7 @@ export default function DashboardPage() {
         // Fetch both endpoints in parallel
         const [stats, history] = await Promise.all([
           fetchApi<DashboardData>(`/api/reports/dashboard?range=${timeRange}`),
-          fetchApi<{ orders: RecentOrder[] }>('/api/order-history?limit=5')
+          fetchApi<{ orders: RecentOrder[] }>('/api/order-history?limit=5&mode=dashboard')
         ]);
         setData(stats);
         setRecentOrders(history.orders || []);
@@ -150,21 +155,23 @@ export default function DashboardPage() {
               <CardDescription>Revenue over time</CardDescription>
             </CardHeader>
             <CardContent className="pl-0">
-              <ChartContainer config={revenueConfig} className="h-[300px] w-full">
-                <AreaChart data={trend} margin={{ left: 10, right: 10, top: 10, bottom: 0 }}>
-                  <defs>
-                    <linearGradient id="fillRevenue" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="var(--color-revenue)" stopOpacity={0.8} />
-                      <stop offset="95%" stopColor="var(--color-revenue)" stopOpacity={0.1} />
-                    </linearGradient>
-                  </defs>
-                  <CartesianGrid vertical={false} strokeDasharray="3 3" strokeOpacity={0.4} />
-                  <XAxis dataKey="time_label" tickLine={false} axisLine={false} tickMargin={8} />
-                  <YAxis orientation="left" tickLine={false} axisLine={false} tickFormatter={(v) => `$${v}`} />
-                  <ChartTooltip content={<ChartTooltipContent />} />
-                  <Area type="monotone" dataKey="revenue" stroke="var(--color-revenue)" fill="url(#fillRevenue)" strokeWidth={2} />
-                </AreaChart>
-              </ChartContainer>
+              <Suspense fallback={SkeletonFallback}>
+                <ChartContainer config={revenueConfig} className="h-[300px] w-full">
+                  <LazyAreaChart data={trend} margin={{ left: 10, right: 10, top: 10, bottom: 0 }}>
+                    <defs>
+                      <linearGradient id="fillRevenue" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="5%" stopColor="var(--color-revenue)" stopOpacity={0.8} />
+                        <stop offset="95%" stopColor="var(--color-revenue)" stopOpacity={0.1} />
+                      </linearGradient>
+                    </defs>
+                    <CartesianGrid vertical={false} strokeDasharray="3 3" strokeOpacity={0.4} />
+                    <XAxis dataKey="time_label" tickLine={false} axisLine={false} tickMargin={8} />
+                    <YAxis orientation="left" tickLine={false} axisLine={false} tickFormatter={(v) => `$${v}`} />
+                    <ChartTooltip content={<ChartTooltipContent />} />
+                    <Area type="monotone" dataKey="revenue" stroke="var(--color-revenue)" fill="url(#fillRevenue)" strokeWidth={2} />
+                  </LazyAreaChart>
+                </ChartContainer>
+              </Suspense>
             </CardContent>
           </Card>
 
@@ -175,16 +182,18 @@ export default function DashboardPage() {
               <CardDescription>Top performing categories</CardDescription>
             </CardHeader>
             <CardContent>
-              <ChartContainer config={categoryConfig} className="h-[300px] w-full">
-                <BarChart data={categorySales} layout="vertical" margin={{ left: 0 }}>
-                  <YAxis dataKey="name" type="category" tickLine={false} axisLine={false} width={100} fontSize={12} />
-                  <XAxis type="number" hide />
-                  <ChartTooltip content={<ChartTooltipContent hideLabel />} />
-                  <Bar dataKey="value" fill="var(--color-value)" radius={4} barSize={20}>
-                    <LabelList dataKey="value" position="right" formatter={(v:number) => `$${v}`} className="fill-foreground text-xs" />
-                  </Bar>
-                </BarChart>
-              </ChartContainer>
+              <Suspense fallback={SkeletonFallback}>
+                <ChartContainer config={categoryConfig} className="h-[300px] w-full">
+                  <LazyBarChart data={categorySales} layout="vertical" margin={{ left: 0 }}>
+                    <YAxis dataKey="name" type="category" tickLine={false} axisLine={false} width={100} fontSize={12} />
+                    <XAxis type="number" hide />
+                    <ChartTooltip content={<ChartTooltipContent hideLabel />} />
+                    <Bar dataKey="value" fill="var(--color-value)" radius={4} barSize={20}>
+                      <LabelList dataKey="value" position="right" formatter={(v:number) => `$${v}`} className="fill-foreground text-xs" />
+                    </Bar>
+                  </LazyBarChart>
+                </ChartContainer>
+              </Suspense>
             </CardContent>
           </Card>
         </div>
@@ -254,17 +263,19 @@ export default function DashboardPage() {
               
               {/* Payment Pie Chart */}
               <div className="h-[150px] mt-4">
-                <ChartContainer config={pieConfig} className="h-full w-full">
-                  <PieChart>
-                    <Pie data={paymentMethods} cx="50%" cy="50%" innerRadius={40} outerRadius={60} paddingAngle={5} dataKey="value">
-                      {paymentMethods?.map((_, index) => (
-                        <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                      ))}
-                    </Pie>
-                    <Tooltip />
-                    <ChartLegend content={<ChartLegendContent />} className="-translate-y-2" />
-                  </PieChart>
-                </ChartContainer>
+                <Suspense fallback={<Skeleton className="h-[150px] w-full" />}>
+                  <ChartContainer config={pieConfig} className="h-full w-full">
+                    <LazyPieChart>
+                      <Pie data={paymentMethods} cx="50%" cy="50%" innerRadius={40} outerRadius={60} paddingAngle={5} dataKey="value">
+                        {paymentMethods?.map((_, index) => (
+                          <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                        ))}
+                      </Pie>
+                      <Tooltip />
+                      <ChartLegend content={<ChartLegendContent />} className="-translate-y-2" />
+                    </LazyPieChart>
+                  </ChartContainer>
+                </Suspense>
               </div>
             </CardContent>
           </Card>

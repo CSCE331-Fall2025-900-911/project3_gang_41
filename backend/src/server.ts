@@ -5,6 +5,7 @@ import express, { Request, Response } from "express";
 import cors from "cors";
 import session from "express-session";
 import helmet from "helmet"; // Security Headers
+import compression from 'compression';
 import rateLimit from "express-rate-limit"; // Rate Limiting
 import { OAuth2Client } from "google-auth-library";
 import pool from "./db";
@@ -22,6 +23,7 @@ const PORT = process.env.PORT || 3000;
 
 // --- 1. Security Middleware ---
 app.use(helmet()); // Protects against common vulnerabilities
+app.use(compression());
 
 // Rate limiting: max 100 requests per 15 minutes per IP
 const limiter = rateLimit({
