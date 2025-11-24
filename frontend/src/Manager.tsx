@@ -85,7 +85,13 @@ function Manager() {
           <Button
             key={category}
             variant={activeCategory === category ? "default" : "ghost"}
-            className={`w-full justify-start text-left ${activeCategory === category ? "bg-brand-100 text-brand-900" : ""}`}
+            className={`
+              w-full justify-start text-left transition-colors duration-200
+              ${activeCategory === category
+                ? "bg-gray-300 dark:bg-gray-800 font-semibold border-l-4 border-brand-500 shadow-sm text-foreground hover:bg-gray-300/90 dark:hover:bg-gray-800/80"
+                : "hover:bg-gray-200 dark:hover:bg-gray-700 hover:text-foreground"
+              }
+            `}
             onClick={() => handleCategoryChange(category)}
           >
             {categoryIcons[category as keyof typeof categoryIcons]}
