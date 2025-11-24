@@ -152,8 +152,8 @@ export default function DashboardPage() {
   const peakLabel = kpi?.peak_time_label || "N/A";
   const prevPeakLabel = kpi?.prev_peak_time_label || "N/A";
 
-  const peakHourData = [...(trend || [])].sort((a, b) => Number(b.revenue) - Number(a.revenue))[0];
-  const peakHourValue = peakHourData ? Number(peakHourData.revenue) : 0;
+  // const peakHourData = [...(trend || [])].sort((a, b) => Number(b.revenue) - Number(a.revenue))[0];
+  // const peakHourValue = peakHourData ? Number(peakHourData.revenue) : 0;
 
   const activeAlerts = (lowStock || [])
     .map(item => {
