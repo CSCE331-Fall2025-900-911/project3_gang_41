@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { API_URL } from '@/lib/api';
+import { fetchApi } from '@/lib/api';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -11,33 +11,21 @@ import {
   DrawerTitle,
   DrawerTrigger,
 } from '@/components/ui/drawer';
-import { Minus, Plus, ShoppingCart, Trash2, Edit } from 'lucide-react';
-import { toast } from 'sonner';
+import { Minus, Plus, ShoppingCart, Trash2, Edit, Loader2, FlaskConical, ChevronDown } from 'lucide-react';
 import { WeatherDisplay } from '@/components/WeatherDisplay';
 import { DrinkCustomizationDialog } from "@/components/DrinkCustomizationDialog";
+import { useCart } from "@/hooks/useCart";
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from "@/components/ui/collapsible";
+import { Switch } from "@/components/ui/switch";
+import { SmoothCursor } from "@/components/ui/smooth-cursor";
 
+import type { MenuItem, CartItem, DrinkCustomization } from "@project3/shared";
+import { TAX_RATE } from "@project3/shared";
 
-interface MenuItem {
-  item_id: number;
-  item_name: string;
-  cost: number;
-  category: string;
-}
-
-interface DrinkCustomization {
-  sweetness: 100 | 50 | 25;
-  ice: 'regular' | 'light' | 'none';
-  size: 'small' | 'medium' | 'large';
-}
-
-interface CartItem {
-  item_id: number;
-  item_name: string;
-  cost: number;
-  quantity: number;
-  customization?: DrinkCustomization;
-  uniqueId: string;
-}
 
 const categories = [
   'All Items',
@@ -50,11 +38,12 @@ const categories = [
 
 function Kiosk() {
   const [menu, setMenu] = useState<MenuItem[]>([]);
-  const [cart, setCart] = useState<CartItem[]>([]);
+  const { cart, addToCart, removeFromCart, updateQuantity, updateCartItem, checkout, isSubmitting } = useCart();
   const [activeCategory, setActiveCategory] = useState('All Items');
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [buttonPulse, setButtonPulse] = useState(false);
   const [weather, setWeather] = useState<{ temperature: number; icon: string } | null>(null);
+  const [experimentalMode, setExperimentalMode] = useState(false);
   const [customizationDialog, setCustomizationDialog] = useState<{
       open: boolean;
       item: MenuItem | null;
@@ -66,27 +55,20 @@ function Kiosk() {
     });
 
   useEffect(() => {
-    fetch(`${API_URL}/api/menu`)
-      .then(res => res.json())
-      .then((response) => {
-        // Handle wrapped response
-        const data = response.success ? response.data : [];
-        
-        if (Array.isArray(data)) {
-          const menuWithNumbers = data.map(item => ({
-            ...item,
-            cost: parseFloat(item.cost)
-          }));
-          setMenu(menuWithNumbers);
-        }
+    // 1. Menu Fetch
+    fetchApi<MenuItem[]>('/api/menu')
+      .then((data) => {
+        const menuWithNumbers = data.map((item) => ({
+          ...item,
+          cost: parseFloat(String(item.cost)),
+        }));
+        setMenu(menuWithNumbers);
       })
-      .catch(() => {
-        setMenu([]);
-      });
+      .catch(() => setMenu([]));
 
-    fetch(`${API_URL}/api/weather/current`)
-      .then(res => res.json())
-      .then(data => setWeather(data))
+    // 2. Weather Fetch
+    fetchApi<{ temperature: number; icon: string }>('/api/weather/current')
+      .then((data) => setWeather(data))
       .catch(() => setWeather(null));
   }, []);
 
@@ -114,13 +96,7 @@ function Kiosk() {
 
     if (customizationDialog.editingCartItem) {
       // Editing existing cart item
-      setCart(
-        cart.map((c) =>
-          c.uniqueId === customizationDialog.editingCartItem!.uniqueId
-            ? { ...c, customization }
-            : c
-        )
-      );
+      updateCartItem(customizationDialog.editingCartItem.uniqueId, { customization });
     } else {
       // Adding new item to cart
       const newCartItem: CartItem = {
@@ -131,7 +107,7 @@ function Kiosk() {
         customization,
         uniqueId: `${customizationDialog.item.item_id}-${Date.now()}-${Math.random()}`,
       };
-      setCart([...cart, newCartItem]);
+      addToCart(newCartItem);
 
       // Trigger button pulse animation
       setButtonPulse(true);
@@ -141,60 +117,18 @@ function Kiosk() {
     setCustomizationDialog({ open: false, item: null, editingCartItem: null });
   };
 
-  const removeFromCart = (uniqueId: string) => {
-    setCart(cart.filter((c) => c.uniqueId !== uniqueId));
-  };
-
-  const updateQuantity = (uniqueId: string, quantity: number) => {
-    if (quantity <= 0) {
-      removeFromCart(uniqueId);
-    } else {
-      setCart(cart.map((c) => (c.uniqueId === uniqueId ? { ...c, quantity } : c)));
-    }
-  };
-
-  const total = cart.reduce((sum, item) => sum + (item.cost * item.quantity), 0);
-  const tax = total * 0.0825;
+  const total = cart.reduce((sum, item: CartItem) => sum + (item.cost * item.quantity), 0);
+  const tax = total * TAX_RATE;
   const finalTotal = total + tax;
 
   const handleCheckout = () => {
-    toast.promise(
-      async () => {
-        const orderData = {
-          items: cart.map(item => ({
-            item_id: item.item_id,
-            item_name: item.item_name,
-            quantity: item.quantity,
-            cost: item.cost
-          }))
-        };
-
-        const response = await fetch(`${API_URL}/api/order-history`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify(orderData),
-        });
-
-        if (!response.ok) {
-          throw new Error('Failed to create order');
-        }
-
-        setCart([]);
-        setDrawerOpen(false);
-        return { success: true };
-      },
-      {
-        loading: "Processing payment...",
-        success: "Order complete!",
-        error: "Payment failed",
-      }
-    );
+    checkout(() => {
+      setDrawerOpen(false);
+    });
   };
 
   return (
-    <div className="flex h-screen bg-background">
+    <div className={`flex h-screen bg-background ${experimentalMode ? 'cursor-none' : ''}`}>
       {/* Sidebar with categories */}
       <div className="w-64 bg-gray-100 dark:bg-gray-900 border-r p-4 flex flex-col gap-2">
         {categories.map((category, index) => (
@@ -212,37 +146,62 @@ function Kiosk() {
             <WeatherDisplay temperature={weather.temperature} icon={weather.icon} />
           </div>
         )}
+
+        {/* Experimental Mode Toggle */}
+        <div className="mt-auto pt-4 border-t border-gray-300 dark:border-gray-700">
+          <Collapsible>
+            <CollapsibleTrigger asChild>
+              <Button variant="ghost" className="w-full justify-between">
+                <div className="flex items-center gap-2">
+                  <FlaskConical className="h-4 w-4" />
+                  <span className="text-sm">Experimental</span>
+                </div>
+                <ChevronDown className="h-4 w-4 transition-transform duration-200 group-data-[state=open]:rotate-180" />
+              </Button>
+            </CollapsibleTrigger>
+            <CollapsibleContent className="px-2 py-3">
+              <div className="flex items-center justify-between">
+                <label htmlFor="smooth-cursor" className="text-sm text-muted-foreground">
+                  Smooth Cursor
+                </label>
+                <Switch
+                  id="smooth-cursor"
+                  checked={experimentalMode}
+                  onCheckedChange={setExperimentalMode}
+                />
+              </div>
+            </CollapsibleContent>
+          </Collapsible>
+        </div>
       </div>
 
       {/* Main content area with product cards */}
       <div className="flex-1 flex flex-col overflow-hidden">
         {/* Product Grid */}
-        <div className="flex-1 overflow-auto p-8 pt-12">
-          <div className="max-w-6xl mx-auto">
-            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
+        <div className="flex-1 overflow-auto p-8">
+          <div className="max-w-5xl mx-auto">
+            <div className="grid grid-cols-3 gap-6">
               {menu
                 .filter((item) => activeCategory === 'All Items' || item.category === activeCategory)
                 .map(item => (
                 <Card
                   key={item.item_id}
-                  className="cursor-pointer transition-all duration-150 hover:shadow-xl hover:scale-105 active:scale-95 active:shadow-md h-40"
+                  className="cursor-pointer transition-all duration-150 hover:shadow-xl hover:scale-105 active:scale-95 active:shadow-md h-72"
                   onClick={() => openCustomizationDialog(item)}
                 >
-                  <CardHeader className="p-4 pb-2">
-                    <CardTitle className="text-base text-center line-clamp-2">
+                  <CardHeader className="p-4 pb-1">
+                    <CardTitle className="text-lg text-center line-clamp-2 min-h-[3rem]">
                       {item.item_name}
                     </CardTitle>
                   </CardHeader>
-                  <CardContent className="p-4 pt-2">
-                    <div className="flex flex-col items-center justify-center">
-                      <img
-                        src="/bobaicon.jpg"
-                        alt="Boba drink"
-                        className="w-12 h-12 object-cover rounded-full mb-2"
-                      />
-                      <span className="text-xl font-bold">
-                        ${item.cost.toFixed(2)}
-                      </span>
+                  <CardContent className="p-4 pt-1 flex flex-col items-center justify-between h-[calc(100%-5rem)]">
+                    <img
+                      src="/brownsugarboba.jpg"
+                      alt={item.item_name}
+                      className="w-36 h-36 object-cover rounded-lg shadow-md"
+                    />
+                    <div className="text-2xl font-bold text-primary mt-2">
+                      ${item.cost.toFixed(2)}
                     </div>
                   </CardContent>
                 </Card>
@@ -266,7 +225,7 @@ function Kiosk() {
                 Checkout
                 {cart.length > 0 && (
                   <Badge variant="secondary" className="ml-2">
-                    {cart.reduce((sum, item) => sum + item.quantity, 0)}
+                    {cart.reduce((sum: number, item: CartItem) => sum + item.quantity, 0)}
                   </Badge>
                 )}
               </Button>
@@ -291,53 +250,60 @@ function Kiosk() {
                     </div>
                   ) : (
                     <div className="space-y-3">
-                      {cart.map(item => (
+                      {cart.map((item: CartItem) => (
                         <div key={item.uniqueId} className="border rounded-lg p-3">
-                          <div className="flex items-start justify-between mb-2">
-                            <div className="flex-1">
-                              <h4 className="font-medium text-sm">{item.item_name}</h4>
-                              <p className="text-xs text-muted-foreground">
-                                ${item.cost.toFixed(2)} each
-                              </p>
-                              {item.customization && (
-                                <div className="flex flex-wrap gap-1 mt-2">
-                                  {/* Size - always show, display as single letter uppercase */}
-                                  <Badge variant="secondary" className="text-xs uppercase">
-                                    {item.customization.size.charAt(0)}
-                                  </Badge>
-                                  {/* Sweetness - only show if not default (100) */}
-                                  {item.customization.sweetness !== 100 && (
-                                    <Badge variant="secondary" className="text-xs">
-                                      {item.customization.sweetness}% sweet
+                          <div className="flex gap-3 mb-2">
+                            <img
+                              src="/brownsugarboba.jpg"
+                              alt={item.item_name}
+                              className="w-16 h-16 object-cover rounded-lg flex-shrink-0"
+                            />
+                            <div className="flex items-start justify-between flex-1">
+                              <div className="flex-1">
+                                <h4 className="font-medium text-sm">{item.item_name}</h4>
+                                <p className="text-xs text-muted-foreground">
+                                  ${item.cost.toFixed(2)} each
+                                </p>
+                                {item.customization && (
+                                  <div className="flex flex-wrap gap-1 mt-2">
+                                    {/* Size - always show, display as single letter uppercase */}
+                                    <Badge variant="secondary" className="text-xs uppercase">
+                                      {item.customization.size.charAt(0)}
                                     </Badge>
-                                  )}
-                                  {/* Ice - only show if not default (regular) */}
-                                  {item.customization.ice !== 'regular' && (
-                                    <Badge variant="secondary" className="text-xs capitalize">
-                                      {item.customization.ice} ice
-                                    </Badge>
-                                  )}
-                                </div>
-                              )}
-                            </div>
+                                    {/* Sweetness - only show if not default (100) */}
+                                    {item.customization.sweetness !== 100 && (
+                                      <Badge variant="secondary" className="text-xs">
+                                        {item.customization.sweetness}% sweet
+                                      </Badge>
+                                    )}
+                                    {/* Ice - only show if not default (regular) */}
+                                    {item.customization.ice !== 'regular' && (
+                                      <Badge variant="secondary" className="text-xs capitalize">
+                                        {item.customization.ice} ice
+                                      </Badge>
+                                    )}
+                                  </div>
+                                )}
+                              </div>
 
-                            <div className="flex gap-1">
-                              <Button
-                                variant="ghost"
-                                size="icon"
-                                className="h-6 w-6"
-                                onClick={() => openEditDialog(item)}
-                              >
-                                <Edit className="h-3 w-3" />
-                              </Button>
-                              <Button
-                                variant="ghost"
-                                size="icon"
-                                className="h-6 w-6 text-destructive"
-                                onClick={() => removeFromCart(item.uniqueId)}
-                              >
-                                <Trash2 className="h-3 w-3" />
-                              </Button>
+                              <div className="flex gap-1">
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  className="h-6 w-6"
+                                  onClick={() => openEditDialog(item)}
+                                >
+                                  <Edit className="h-3 w-3" />
+                                </Button>
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  className="h-6 w-6 text-destructive"
+                                  onClick={() => removeFromCart(item.uniqueId)}
+                                >
+                                  <Trash2 className="h-3 w-3" />
+                                </Button>
+                              </div>
                             </div>
                           </div>
 
@@ -386,8 +352,8 @@ function Kiosk() {
                           <div>Tax: (${tax.toFixed(2)})</div>
                         </div>
                       </div>
-                      <Button size="lg" className="w-full h-16 text-xl" onClick={handleCheckout}>
-                        Pay Now
+                      <Button size="lg" className="w-full h-16 text-xl" onClick={handleCheckout} disabled={isSubmitting}>
+                        {isSubmitting ? <Loader2 className="animate-spin" /> : "Pay Now"}
                       </Button>
                     </div>
                   </div>
@@ -410,6 +376,9 @@ function Kiosk() {
         defaultCustomization={customizationDialog.editingCartItem?.customization}
         onConfirm={handleCustomizationConfirm}
       />
+
+      {/* Smooth Cursor - only when experimental mode is enabled */}
+      {experimentalMode && <SmoothCursor />}
     </div>
   );
 }

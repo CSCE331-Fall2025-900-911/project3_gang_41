@@ -1,11 +1,17 @@
 import React, { createContext, useContext, useState, useEffect } from "react";
-import { API_URL } from "@/lib/api";
+// 1. Import fetchApi (API_URL is handled inside it)
+import { fetchApi } from "@/lib/api"; 
 
 interface User {
   id: string;
   email: string;
   name: string;
   picture?: string;
+}
+
+// Helper type to match the specific shape of auth responses: { user: User }
+interface AuthResponse {
+  user: User;
 }
 
 interface AuthContextType {
@@ -27,45 +33,34 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
 
   const isAuthenticated = user !== null;
 
-  // Check authentication status on mount
   const checkAuthStatus = async () => {
     try {
-      const response = await fetch(`${API_URL}/auth/user`, {
+      // 2. Use fetchApi. It throws an error if not logged in, which we catch below.
+      // We pass { credentials: 'include' } to send cookies.
+      const data = await fetchApi<AuthResponse>('/auth/user', {
         credentials: "include",
       });
-
-      if (response.ok) {
-        const userData = await response.json();
-        setUser(userData);
-      } else {
-        setUser(null);
-      }
+      
+      // fetchApi returns "json.data", which looks like { user: {...} }
+      setUser(data.user);
     } catch (error) {
-      console.error("Failed to check auth status:", error);
+      // If fetchApi fails (401 Unauthorized), we know no one is logged in
       setUser(null);
     } finally {
       setIsLoading(false);
     }
   };
 
-  // Verify Google token and create session
   const verifyGoogleToken = async (credential: string) => {
     try {
       setIsLoading(true);
-      const response = await fetch(`${API_URL}/auth/google/verify`, {
+      const data = await fetchApi<AuthResponse>('/auth/google/verify', {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
+        headers: { "Content-Type": "application/json" },
         credentials: "include",
         body: JSON.stringify({ credential }),
       });
 
-      if (!response.ok) {
-        throw new Error("Failed to verify token");
-      }
-
-      const data = await response.json();
       setUser(data.user);
     } catch (error) {
       console.error("Token verification failed:", error);
@@ -75,22 +70,19 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
     }
   };
 
-  // Logout user
   const logout = async () => {
     try {
-      await fetch(`${API_URL}/auth/logout`, {
+      await fetchApi('/auth/logout', {
         method: "POST",
         credentials: "include",
       });
       setUser(null);
     } catch (error) {
       console.error("Logout failed:", error);
-      // Clear user even if request fails
       setUser(null);
     }
   };
 
-  // Check auth status on component mount
   useEffect(() => {
     checkAuthStatus();
   }, []);
@@ -107,7 +99,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 };
 
-// Custom hook to use auth context
 export const useAuth = () => {
   const context = useContext(AuthContext);
   if (context === undefined) {

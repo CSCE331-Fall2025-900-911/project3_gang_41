@@ -5,6 +5,7 @@ import express, { Request, Response } from "express";
 import cors from "cors";
 import session from "express-session";
 import helmet from "helmet"; // Security Headers
+import compression from 'compression';
 import rateLimit from "express-rate-limit"; // Rate Limiting
 import { OAuth2Client } from "google-auth-library";
 import pool from "./db";
@@ -13,6 +14,8 @@ import inventoryRoutes from "./inventoryRoutes";
 import orderHistoryRoutes from "./orderHistoryRoutes";
 import salesReportRoutes from "./salesReportRoutes";
 import employeeRoutes from "./employeeRoutes";
+import reportsRoutes from "./reportsRoutes";
+import { sendSuccess, sendError } from './utils/response';
 
 const client = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
 const app = express();
@@ -20,11 +23,12 @@ const PORT = process.env.PORT || 3000;
 
 // --- 1. Security Middleware ---
 app.use(helmet()); // Protects against common vulnerabilities
+app.use(compression());
 
 // Rate limiting: max 100 requests per 15 minutes per IP
 const limiter = rateLimit({
   windowMs: 15 * 60 * 1000, 
-  max: 300, // Increased slightly for POS usage
+  max: 2000, // Increased slightly for POS usage
   standardHeaders: true,
   legacyHeaders: false,
 });
@@ -79,9 +83,9 @@ app.use(
 app.get("/health", async (req: Request, res: Response) => {
   try {
     const result = await pool.query("SELECT NOW()");
-    res.json({ status: "ok", database: "connected", time: result.rows[0] });
+    sendSuccess(res, { status: "ok", database: "connected", time: result.rows[0] });
   } catch (err: any) {
-    res.status(500).json({ status: "error", database: "disconnected", error: err.message });
+    sendError(res, `Database disconnected: ${err.message}`, 500);
   }
 });
 
@@ -90,7 +94,9 @@ app.use('/api/menu', menuRoutes);
 app.use('/api/order-history', orderHistoryRoutes);
 app.use('/api/sales-report', salesReportRoutes);
 app.use('/api/employees', employeeRoutes)
-app.use('/api/employees/:id', employeeRoutes)
+// Only mount employeeRoutes at the base path; the router handles `/:id` internally.
+app.use('/api/employees', employeeRoutes)
+app.use('/api/reports', reportsRoutes);
 
 // Weather Proxy
 app.get('/api/weather/current', async (req: Request, res: Response) => {
@@ -113,10 +119,10 @@ app.get('/api/weather/current', async (req: Request, res: Response) => {
     else if (forecast.includes('cloudy') && !forecast.includes('partly')) icon = 'cloud';
     else if (forecast.includes('partly')) icon = 'cloud-sun';
 
-    res.json({ temperature: current.temperature, icon: icon });
+    sendSuccess(res, { temperature: current.temperature, icon });
   } catch (error) {
     console.error('Weather fetch error:', error);
-    res.status(500).json({ error: 'Failed to fetch weather' });
+    sendError(res, 'Failed to fetch weather', 500);
   }
 });
 
@@ -124,7 +130,7 @@ app.get('/api/weather/current', async (req: Request, res: Response) => {
 app.post("/auth/google/verify", async (req, res) => {
   try {
     const { credential } = req.body;
-    if (!credential) return res.status(400).json({ error: "No credential provided" });
+    if (!credential) return sendError(res, 'No credential provided', 400);
 
     const ticket = await client.verifyIdToken({
       idToken: credential,
@@ -132,7 +138,7 @@ app.post("/auth/google/verify", async (req, res) => {
     });
 
     const payload = ticket.getPayload();
-    if (!payload) return res.status(401).json({ error: "Invalid token" });
+    if (!payload) return sendError(res, 'Invalid token', 401);
 
     const user = {
       id: payload.sub,
@@ -142,29 +148,29 @@ app.post("/auth/google/verify", async (req, res) => {
     };
 
     req.session.user = user;
-    req.session.save((err) => {
+      req.session.save((err) => {
       if (err) {
         console.error("Session save error:", err);
-        return res.status(500).json({ error: "Failed to save session" });
+        return sendError(res, 'Failed to save session', 500);
       }
-      res.json({ success: true, user });
+      sendSuccess(res, { user });
     });
   } catch (error) {
     console.error("Auth error:", error);
-    res.status(401).json({ error: "Invalid token" });
+    sendError(res, 'Invalid token', 401);
   }
 });
 
 app.get("/auth/user", (req, res) => {
-  if (req.session.user) res.json(req.session.user);
-  else res.status(401).json({ error: "Not authenticated" });
+  if (req.session.user) sendSuccess(res, { user: req.session.user });
+  else sendError(res, 'Not authenticated', 401);
 });
 
 app.post("/auth/logout", (req, res) => {
   req.session.destroy((err) => {
     if (err) console.error("Logout error:", err);
     res.clearCookie("connect.sid");
-    res.json({ success: true });
+    sendSuccess(res, { loggedOut: true });
   });
 });
 

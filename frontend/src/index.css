@@ -56,4 +56,17 @@
   body {
     @apply bg-background text-foreground;
   }
+
+  /* Hide default cursor for all elements when smooth cursor is active */
+  .cursor-none,
+  .cursor-none * {
+    cursor: none !important;
+  }
+
+  /* Preserve text cursor for inputs when custom cursor is active */
+  .cursor-none input,
+  .cursor-none textarea,
+  .cursor-none select {
+    cursor: text !important;
+  }
 }

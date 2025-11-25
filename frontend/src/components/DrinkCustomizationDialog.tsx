@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import type { DrinkCustomization } from "@project3/shared";
 import {
   Dialog,
   DialogContent,
@@ -10,11 +11,6 @@ import {
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 
-interface DrinkCustomization {
-  sweetness: 100 | 50 | 25;
-  ice: 'regular' | 'light' | 'none';
-  size: 'small' | 'medium' | 'large';
-}
 
 interface DrinkCustomizationDialogProps {
   open: boolean;

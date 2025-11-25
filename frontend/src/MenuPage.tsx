@@ -1,5 +1,8 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { API_URL, fetchApi } from "@/lib/api";
+import { fetchApi } from "@/lib/api";
+import { formatCurrency } from "@/lib/utils";
+// Types from shared package
+import type { MenuItem, InventoryItem } from "@project3/shared";
 import { toast } from "sonner";
 import {
   Card,
@@ -52,40 +55,31 @@ import {
 } from "lucide-react";
 
 
-const API_BASE_URL = `${API_URL}/api`;
+// --- Types are imported from `@project3/shared` ---
 
-// --- Types ---
-interface MenuItem {
-  item_id: number;
-  item_name: string;
-  cost: string;
-  category: string;
-}
-
-interface InventoryItem {
-  item_id: number;
-  item_name: string;
-  supply: number;
-  unit: string;
-  cost: string;
-}
-
-const currency = (n: number) =>
-  n.toLocaleString("en-US", { style: "currency", currency: "USD" });
 
 // --- Sound Effects Engine (Web Audio API) ---
+// Safety check: window is undefined during build time
+const AudioContextConstructor = typeof window !== 'undefined' 
+  ? (window.AudioContext || (window as any).webkitAudioContext) 
+  : null;
+
+const audioCtx: AudioContext | null = AudioContextConstructor ? new AudioContextConstructor() : null;
+
 const playSound = (type: 'success' | 'pop' | 'delete' | 'toggle' | 'error' | 'type' | 'click') => {
-  const AudioContext = window.AudioContext || (window as any).webkitAudioContext;
-  if (!AudioContext) return;
-  
-  const ctx = new AudioContext();
-  const osc = ctx.createOscillator();
-  const gain = ctx.createGain();
+  if (!audioCtx) return;
+  // Resume if suspended due to browser autoplay policies.
+  if (audioCtx.state === 'suspended') {
+    void audioCtx.resume().catch(() => {});
+  }
+
+  const osc = audioCtx.createOscillator();
+  const gain = audioCtx.createGain();
 
   osc.connect(gain);
-  gain.connect(ctx.destination);
+  gain.connect(audioCtx.destination);
 
-  const now = ctx.currentTime;
+  const now = audioCtx.currentTime;
 
   if (type === 'success') {
     // Satisfying "Ding!"
@@ -370,7 +364,7 @@ export default function MenuPage() {
     if (isExperimental) playSound('pop');
     setSelectedItem(item);
     setUpdateName(item.item_name);
-    setUpdatePrice(parseFloat(item.cost || "0").toFixed(2));
+    setUpdatePrice(parseFloat(String(item.cost ?? "0")).toFixed(2));
     setUpdateCategory(item.category || ""); // Pre-fill category
     setEditOpen(true);
   };
@@ -527,7 +521,7 @@ export default function MenuPage() {
                             ) : item.category}
                           </TableCell>
                           <TableCell className={isExperimental ? "font-bold text-green-600 text-lg" : ""}>
-                            {currency(parseFloat(item.cost || "0"))}
+                            {formatCurrency(parseFloat(String(item.cost ?? "0")))}
                           </TableCell>
                           <TableCell className="text-right">
                             <div className="flex justify-end gap-2">
@@ -835,8 +829,8 @@ function IngredientsDialog({ open, onOpenChange, item, onSaved, isExperimental, 
 
   const loadInventory = async () => {
     try {
-      const res = await fetch(`${API_BASE_URL}/inventory`);
-      const data: InventoryItem[] = await res.json();
+      // Changed to fetchApi
+      const data = await fetchApi<InventoryItem[]>('/api/inventory');
       setInventory(data);
     } catch {
       toast.error("Failed to load inventory");
@@ -846,7 +840,7 @@ function IngredientsDialog({ open, onOpenChange, item, onSaved, isExperimental, 
 
   // Compute unique units for the list
   const uniqueUnits = useMemo(() => {
-    const units = inventory.map((i) => i.unit).filter(Boolean);
+    const units = inventory.map((i) => i.unit).filter((u): u is string => !!u);
     return Array.from(new Set(units)).sort();
   }, [inventory]);
 
@@ -860,11 +854,11 @@ function IngredientsDialog({ open, onOpenChange, item, onSaved, isExperimental, 
 
   const loadExisting = async () => {
     try {
-      const res = await fetch(`${API_BASE_URL}/menu/${item.item_id}/ingredients`);
-      if (!res.ok) throw new Error("Failed to load existing ingredients");
-      const payload = await res.json();
-      const list: { id: number; name?: string; quantity: number }[] =
-        Array.isArray(payload) ? payload : payload.ingredients || [];
+      // Changed to fetchApi
+      // Note: fetchApi unwraps the response, so 'payload' is the actual data object
+      const payload = await fetchApi<any>(`/api/menu/${item.item_id}/ingredients`);
+      // The backend returns { ingredients: [...] } inside the data wrapper
+      const list = payload.ingredients || [];
 
       const preselected: Record<number, number> = {};
       for (const ing of list) {
@@ -922,12 +916,12 @@ function IngredientsDialog({ open, onOpenChange, item, onSaved, isExperimental, 
         id: Number(id),
         quantity,
       }));
-      const res = await fetch(`${API_BASE_URL}/menu/${item.item_id}/ingredients`, {
+      // Changed to fetchApi
+      await fetchApi(`/api/menu/${item.item_id}/ingredients`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ ingredients: ingredientsToSave }),
       });
-      if (!res.ok) throw new Error("Failed to save ingredients");
       onSaved();
     } catch (e: any) {
       toast.error(e?.message ?? "Error saving ingredients");
@@ -941,7 +935,8 @@ function IngredientsDialog({ open, onOpenChange, item, onSaved, isExperimental, 
     e.preventDefault();
     handleClick();
     try {
-      const res = await fetch(`${API_BASE_URL}/inventory`, {
+      // Changed to fetchApi
+      await fetchApi('/api/inventory', {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -951,7 +946,6 @@ function IngredientsDialog({ open, onOpenChange, item, onSaved, isExperimental, 
           unit: newIngUnit, 
         }),
       });
-      if (!res.ok) throw new Error("Failed to add inventory item");
       toast.success("Inventory item added");
       if (isExperimental) { 
           if(onConfetti) onConfetti(); 
@@ -1041,7 +1035,7 @@ function IngredientsDialog({ open, onOpenChange, item, onSaved, isExperimental, 
                           {/* Unit Label */}
                           <span 
                             className="text-xs text-muted-foreground w-28 truncate text-left pt-1.5" 
-                            title={inv.unit} 
+                            title={inv.unit ?? undefined}
                           >
                             {inv.unit}
                           </span>
@@ -1133,7 +1127,7 @@ function IngredientsDialog({ open, onOpenChange, item, onSaved, isExperimental, 
                         className="cursor-pointer px-4 py-2 text-sm hover:bg-accent hover:text-accent-foreground"
                         onMouseDown={(e) => e.preventDefault()}
                         onClick={() => {
-                          setNewIngUnit(u);
+                          setNewIngUnit(u as string);
                           setShowUnitSuggestions(false);
                           handleClick();
                         }}

@@ -1,6 +1,8 @@
 import { useEffect, useMemo, useState, useCallback, useRef } from 'react';
-import { API_URL } from '@/lib/api';
-import { cn } from '@/lib/utils';
+import { useSearchParams } from 'react-router-dom';
+import { useLocalStorage } from '@/hooks/useLocalStorage';
+import { fetchApi } from '@/lib/api';
+import { cn, formatCurrency } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -17,6 +19,7 @@ import {
   ArrowUp,
   ArrowDown,
   ChevronLeft,
+  ChevronDown,
   ChevronRight,
   Settings,
   AlertTriangle,
@@ -45,18 +48,13 @@ import {
   TooltipTrigger,
 } from '@/components/ui/tooltip';
 
-const API_BASE_URL = `${API_URL}/api`;
+
+import type { InventoryItem } from "@project3/shared";
 
 const BUILTIN_UNITS = ['units', 'fl oz', 'bags', 'g', 'servings', 'L', 'mL', 'oz'] as const;
-const CURRENCY = 'USD';
 
-type InventoryRow = {
-  item_id: number;
-  item_name: string;
-  supply: number;
-  unit: string | null;
-  cost: string;
-};
+// Use shared InventoryItem; cost may be number or string from backend
+type InventoryRow = InventoryItem;
 
 type Severity = 'ok' | 'warn' | 'crit';
 type Thresholds = { warn: number; crit: number };
@@ -73,31 +71,7 @@ function useDebouncedValue<T>(value: T, delay = 250) {
   return debounced;
 }
 
-function useLocalStorage<T>(key: string, initial: T) {
-  const [val, setVal] = useState<T>(() => {
-    try {
-      const raw = localStorage.getItem(key);
-      return raw ? (JSON.parse(raw) as T) : initial;
-    } catch {
-      return initial;
-    }
-  });
-  useEffect(() => {
-    try {
-      localStorage.setItem(key, JSON.stringify(val));
-    } catch {}
-  }, [key, val]);
-  return [val, setVal] as const;
-}
 
-function formatCurrency(val: number) {
-  if (!Number.isFinite(val)) return '$0.00';
-  return new Intl.NumberFormat(undefined, {
-    style: 'currency',
-    currency: CURRENCY,
-    minimumFractionDigits: 2,
-  }).format(val);
-}
 
 function getSeverity(supply: number, t: Thresholds): Severity {
   if (supply <= t.crit) return 'crit';
@@ -122,11 +96,14 @@ function highlight(text: string, query: string) {
 
 // -------------------- Main Component --------------------
 function InventoryPage() {
+  const [searchParams] = useSearchParams();
+  const initialSearch = searchParams.get("search") || "";
+  
   const [items, setItems] = useState<InventoryRow[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const [search, setSearch] = useState('');
+  const [search, setSearch] = useState(initialSearch);
   const debouncedSearch = useDebouncedValue(search, 200);
   const [sort, setSort] = useState<{ key: SortKey; dir: SortDir }>({ key: 'item_name', dir: 'asc' });
   const [stockFilter, setStockFilter] = useState<'all' | 'ok' | 'warn' | 'crit'>('all');
@@ -162,10 +139,9 @@ function InventoryPage() {
     setError(null);
     const ctrl = new AbortController();
     try {
-      const res = await fetch(`${API_BASE_URL}/inventory`, { signal: ctrl.signal });
-      if (!res.ok) throw new Error('Failed to load inventory.');
-      const data: InventoryRow[] = await res.json();
-      setItems(data);
+      // fetchApi unwraps the { data: ... } wrapper automatically
+      const data = await fetchApi<InventoryRow[]>('/api/inventory', { signal: ctrl.signal });
+      setItems(data ?? []);
     } catch (err: any) {
       if (err?.name !== 'AbortError') setError(err instanceof Error ? err.message : 'Unknown error');
     } finally {
@@ -177,6 +153,13 @@ function InventoryPage() {
   useEffect(() => {
     loadInventory();
   }, [loadInventory]);
+
+  useEffect(() => {
+    const urlSearch = searchParams.get("search");
+    if (urlSearch) {
+      setSearch(urlSearch);
+    }
+  }, [searchParams]);
 
   const filtered = useMemo(() => {
     const q = debouncedSearch.trim().toLowerCase();
@@ -194,7 +177,7 @@ function InventoryPage() {
         return dir * collator.compare((a[sort.key] ?? '') as string, (b[sort.key] ?? '') as string);
       }
       if (sort.key === 'supply') return dir * (a.supply - b.supply);
-      if (sort.key === 'cost') return dir * ((parseFloat(a.cost || '0') || 0) - (parseFloat(b.cost || '0') || 0));
+      if (sort.key === 'cost') return dir * ((parseFloat(String(a.cost || '0')) || 0) - (parseFloat(String(b.cost || '0')) || 0));
       return 0;
     });
   }, [filtered, sort]);
@@ -228,7 +211,7 @@ function InventoryPage() {
       item_name: row.item_name ?? '',
       supply: String(row.supply ?? ''),
       unit: row.unit ?? '',
-      cost: row.cost ? parseFloat(row.cost).toFixed(2) : '',
+      cost: row.cost ? parseFloat(String(row.cost)).toFixed(2) : '',
     };
     setForm(next);
     setFormInitial(next);
@@ -266,7 +249,7 @@ function InventoryPage() {
 
     await toast.promise(
       (async () => {
-        const res = await fetch(`${API_BASE_URL}/inventory/${editingId}`, {
+        const updated: InventoryRow = await fetchApi<InventoryRow>(`/api/inventory/${editingId}`, {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
@@ -276,8 +259,6 @@ function InventoryPage() {
             cost: price,
           }),
         });
-        if (!res.ok) throw new Error('Update failed');
-        const updated: InventoryRow = await res.json();
         setItems((prev) => prev.map((i) => (i.item_id === editingId ? updated : i)));
         setFlashRowId(updated.item_id);
         setTimeout(() => setFlashRowId((id) => (id === updated.item_id ? null : id)), 1200);
@@ -290,8 +271,7 @@ function InventoryPage() {
   const deleteRow = async (row: InventoryRow) => {
     await toast.promise(
       (async () => {
-        const res = await fetch(`${API_BASE_URL}/inventory/${row.item_id}`, { method: 'DELETE' });
-        if (!res.ok) throw new Error('Delete failed');
+        await fetchApi(`/api/inventory/${row.item_id}`, { method: 'DELETE' });
         setItems((prev) => prev.filter((i) => i.item_id !== row.item_id));
       })(),
       { loading: 'Deleting...', success: 'Item deleted', error: 'Failed to delete item' }
@@ -308,7 +288,7 @@ function InventoryPage() {
 
     await toast.promise(
       (async () => {
-        const res = await fetch(`${API_BASE_URL}/inventory`, {
+        const created: InventoryRow = await fetchApi<InventoryRow>('/api/inventory', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
@@ -318,8 +298,6 @@ function InventoryPage() {
             cost: price,
           }),
         });
-        if (!res.ok) throw new Error('Create failed');
-        const created: InventoryRow = await res.json();
         setItems((prev) => {
           const next = [...prev, created];
           return next.sort((a, b) => a.item_name.localeCompare(b.item_name));
@@ -555,21 +533,27 @@ function InventoryPage() {
 
                       <div className="flex items-center gap-4">
                         <div className="flex items-center gap-2">
-                          <label htmlFor="pageSize" className="text-sm text-muted-foreground">
-                            Items per page:
+                          <label htmlFor="pageSize" className="text-sm font-medium text-muted-foreground">
+                            Rows:
                           </label>
-                          <select
-                            id="pageSize"
-                            className="rounded-md border bg-background px-3 py-1.5 text-sm transition-colors hover:bg-accent"
-                            value={pageSize}
-                            onChange={(e) => setPageSize(Number(e.target.value))}
-                          >
-                            {PAGE_SIZE_OPTIONS.map((n) => (
-                              <option key={n} value={n}>
-                                {n}
-                              </option>
-                            ))}
-                          </select>
+                          
+                          {/* ENHANCED DROPDOWN */}
+                          <div className="relative">
+                            <select
+                              id="pageSize"
+                              className="h-8 w-[70px] appearance-none rounded-md border border-input bg-background pl-3 pr-8 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 hover:bg-accent hover:text-accent-foreground cursor-pointer transition-colors"
+                              value={pageSize}
+                              onChange={(e) => setPageSize(Number(e.target.value))}
+                            >
+                              {PAGE_SIZE_OPTIONS.map((n) => (
+                                <option key={n} value={n}>
+                                  {n}
+                                </option>
+                              ))}
+                            </select>
+                            {/* Custom Chevron Icon positioned absolutely */}
+                            <ChevronDown className="pointer-events-none absolute right-2 top-1/2 h-4 w-4 -translate-y-1/2 opacity-50" />
+                          </div>
                         </div>
 
                         <div className="flex items-center gap-1">
@@ -998,8 +982,8 @@ function TableRow({
             onChange={(e) => onFormChange({ ...form, cost: e.target.value })}
             className="h-9 text-right"
           />
-        ) : (
-          <span className="font-medium tabular-nums">{formatCurrency(parseFloat(row.cost))}</span>
+          ) : (
+          <span className="font-medium tabular-nums">{formatCurrency(parseFloat(String(row.cost || '0')))}</span>
         )}
       </td>
 

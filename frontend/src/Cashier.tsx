@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
-import { API_URL } from "@/lib/api";
-import type { MenuItem } from "@project3/shared";
+import { fetchApi } from "@/lib/api";
+import type { MenuItem, CartItem, DrinkCustomization } from "@project3/shared";
+import { TAX_RATE } from "@project3/shared";
 import { useNavigate } from "react-router-dom";
 
 import { Button } from "@/components/ui/button";
@@ -10,24 +11,10 @@ import { Separator } from "@/components/ui/separator";
 import { WeatherDisplay } from "@/components/WeatherDisplay";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { useAuth } from "@/contexts/AuthContext";
-import { Minus, Plus, ShoppingCart, Trash2, LogOut, Settings, Edit } from "lucide-react";
-import { toast } from "sonner";
+import { Minus, Plus, ShoppingCart, Trash2, LogOut, Settings, Edit, Loader2 } from "lucide-react";
 import { DrinkCustomizationDialog } from "@/components/DrinkCustomizationDialog";
+import { useCart } from "@/hooks/useCart";
 
-interface DrinkCustomization {
-  sweetness: 100 | 50 | 25;
-  ice: 'regular' | 'light' | 'none';
-  size: 'small' | 'medium' | 'large';
-}
-
-interface CartItem {
-  item_id: number;
-  item_name: string;
-  cost: number;
-  quantity: number;
-  customization?: DrinkCustomization;
-  uniqueId: string; // handle multiple instances of same item w/ different customizations
-}
 
 const categories = [
   "All Items",
@@ -42,7 +29,7 @@ function Cashier() {
   const navigate = useNavigate();
   const { logout, user } = useAuth();
   const [menu, setMenu] = useState<MenuItem[]>([]);
-  const [cart, setCart] = useState<CartItem[]>([]);
+  const { cart, addToCart, removeFromCart, updateQuantity, updateCartItem, checkout, isSubmitting } = useCart();
   const [activeCategory, setActiveCategory] = useState("All Items");
   const [weather, setWeather] = useState<{ temperature: number; icon: string } | null>(null);
   const [customizationDialog, setCustomizationDialog] = useState<{
@@ -61,27 +48,20 @@ function Cashier() {
   };
 
   useEffect(() => {
-    fetch(`${API_URL}/api/menu`)
-      .then(res => res.json())
-      .then((response) => {
-        // Handle wrapped response
-        const data = response.success ? response.data : [];
-        
-        if (Array.isArray(data)) {
-          const menuWithNumbers = data.map((item: any) => ({
-            ...item,
-            cost: parseFloat(item.cost),
-          }));
-          setMenu(menuWithNumbers);
-        }
+    // 1. Menu Fetch - use fetchApi which unwraps { success, data }
+    fetchApi<MenuItem[]>('/api/menu')
+      .then((data) => {
+        const menuWithNumbers = data.map((item) => ({
+          ...item,
+          cost: parseFloat(String(item.cost)), // Ensure number
+        }));
+        setMenu(menuWithNumbers);
       })
-      .catch(() => {
-        setMenu([]);
-      });
+      .catch(() => setMenu([]));
 
-    fetch(`${API_URL}/api/weather/current`)
-      .then(res => res.json())
-      .then(data => setWeather(data))
+    // FIX: Use fetchApi<Type> to automatically unwrap API responses
+    fetchApi<{ temperature: number; icon: string }>(`/api/weather/current`)
+      .then((data) => setWeather(data))
       .catch(() => setWeather(null));
   }, []);
 
@@ -109,13 +89,7 @@ function Cashier() {
 
     if (customizationDialog.editingCartItem) {
       // Editing existing cart item
-      setCart(
-        cart.map((c) =>
-          c.uniqueId === customizationDialog.editingCartItem!.uniqueId
-            ? { ...c, customization }
-            : c
-        )
-      );
+      updateCartItem(customizationDialog.editingCartItem.uniqueId, { customization });
     } else {
       // Adding new item to cart
       const newCartItem: CartItem = {
@@ -126,62 +100,16 @@ function Cashier() {
         customization,
         uniqueId: `${customizationDialog.item.item_id}-${Date.now()}-${Math.random()}`,
       };
-      setCart([...cart, newCartItem]);
+      addToCart(newCartItem);
     }
 
     setCustomizationDialog({ open: false, item: null, editingCartItem: null });
   };
 
-  const removeFromCart = (uniqueId: string) => {
-    setCart(cart.filter((c) => c.uniqueId !== uniqueId));
-  };
-
-  const updateQuantity = (uniqueId: string, quantity: number) => {
-    if (quantity <= 0) {
-      removeFromCart(uniqueId);
-    } else {
-      setCart(cart.map((c) => (c.uniqueId === uniqueId ? { ...c, quantity } : c)));
-    }
-  };
-
   const total = cart.reduce((sum, item) => sum + item.cost * item.quantity, 0);
 
   const handleCheckout = () => {
-    toast.promise(
-      async () => {
-        // Prepare order data
-        const orderData = {
-          items: cart.map(item => ({
-            item_id: item.item_id,
-            item_name: item.item_name,
-            quantity: item.quantity,
-            cost: item.cost
-          }))
-        };
-
-        // Call the API
-        const response = await fetch(`${API_URL}/api/order-history`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify(orderData),
-        });
-
-        if (!response.ok) {
-          throw new Error('Failed to create order');
-        }
-
-        // Clear cart on success
-        setCart([]);
-        return { success: true };
-      },
-      {
-        loading: "Adding order...",
-        success: "Order created",
-        error: "Error creating order",
-      }
-    );
+    checkout();
   };
 
   return (
@@ -286,7 +214,7 @@ function Cashier() {
             <h2 className="text-xl font-semibold">Current Order</h2>
             {cart.length > 0 && (
               <Badge variant="secondary" className="ml-auto">
-                {cart.reduce((sum, item) => sum + item.quantity, 0)} items
+                {cart.reduce((sum: number, item: CartItem) => sum + item.quantity, 0)} items
               </Badge>
             )}
           </div>
@@ -404,20 +332,18 @@ function Cashier() {
                 <span className="font-medium">${total.toFixed(2)}</span>
               </div>
               <div className="flex justify-between text-sm">
-                <span className="text-muted-foreground">Tax (8.25%)</span>
-                <span className="font-medium">
-                  ${(total * 0.0825).toFixed(2)}
-                </span>
+                <span className="text-muted-foreground">Tax ({(TAX_RATE * 100).toFixed(2)}%)</span>
+                <span className="font-medium">{(total * TAX_RATE).toFixed(2)}</span>
               </div>
               <Separator />
               <div className="flex justify-between text-lg font-bold">
                 <span>Total</span>
-                <span>${(total * 1.0825).toFixed(2)}</span>
+                <span>${(total * (1 + TAX_RATE)).toFixed(2)}</span>
               </div>
             </div>
 
-            <Button size="lg" className="w-full text-lg h-12" onClick={handleCheckout}>
-              Checkout
+            <Button size="lg" className="w-full text-lg h-12" onClick={handleCheckout} disabled={isSubmitting}>
+              {isSubmitting ? <Loader2 className="animate-spin" /> : "Checkout"}
             </Button>
           </div>
         )}

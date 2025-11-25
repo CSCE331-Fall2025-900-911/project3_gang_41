@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from "react";
-import { API_URL } from "@/lib/api";
+import { fetchApi } from "@/lib/api";
+import { formatCurrency } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -12,6 +13,7 @@ import { Badge } from "@/components/ui/badge";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
 import { ChevronDown, ChevronUp, Loader2, ReceiptText, Search, X } from "lucide-react";
+import { TAX_RATE } from "@project3/shared";
 
 // ... (Types and Constants remain exactly the same) ...
 type ApiOrderItem = {
@@ -30,7 +32,8 @@ type ApiOrder = {
   items: ApiOrderItem[];
 };
 
-type ApiResponse = {
+// Rename wrapper type to avoid confusion with the shared ApiResponse
+type OrderHistoryData = {
   orders: ApiOrder[];
   totalPages: number;
   currentPage: number;
@@ -55,10 +58,6 @@ type Order = {
 };
 
 const PAGE_SIZE = 20;
-const TAX_RATE = 0.0825;
-
-const currency = (n: number) =>
-  n.toLocaleString("en-US", { style: "currency", currency: "USD" });
 
 const parsePgTimestamp = (ts: string) => {
   const [d, t] = ts.split(" ");
@@ -102,8 +101,8 @@ const normalizeOrder = (o: ApiOrder): Order => {
 };
 
 export default function HistoryPage() {
-  // Removed { user } from useAuth() since it is no longer used in UI
-  const { } = useAuth();
+  // We don't need anything from auth, but call the hook to ensure auth context exists
+  useAuth();
 
   const [orders, setOrders] = useState<Order[]>([]);
   const [page, setPage] = useState(1);
@@ -122,18 +121,37 @@ export default function HistoryPage() {
       setLoading(true);
       setError(null);
 
-      let url = `${API_URL}/api/order-history?page=${targetPage}&limit=${PAGE_SIZE}`;
+
+      let endpoint = `/api/order-history?page=${targetPage}&limit=${PAGE_SIZE}`;
       if (searchTerm.trim()) {
-        url += `&id=${encodeURIComponent(searchTerm.trim())}`;
+        endpoint += `&id=${encodeURIComponent(searchTerm.trim())}`;
       }
 
-      const res = await fetch(url);
-      if (!res.ok) throw new Error("Failed to load orders");
-      const data: ApiResponse = await res.json();
+      const data = await fetchApi<OrderHistoryData>(endpoint);
 
       const normalized = (data.orders ?? []).map(normalizeOrder);
 
-      setOrders((prev) => (targetPage === 1 ? normalized : [...prev, ...normalized]));
+      // Deduplicate items to prevent duplicate key errors when appending pages
+      setOrders((prev) => {
+        // 1. Determine the base list we are adding to
+        const baseList = targetPage === 1 ? [] : prev;
+        
+        // 2. Create a Set of IDs currently in the list
+        const existingIds = new Set(baseList.map(o => o.id));
+        
+        // 3. Filter the NEW items (deduplicate against existing AND itself)
+        const uniqueIncoming: Order[] = [];
+        
+        for (const item of normalized) {
+          // Only add if we haven't seen this ID in existing state OR in this current batch
+          if (!existingIds.has(item.id)) {
+            uniqueIncoming.push(item);
+            existingIds.add(item.id); // Mark as seen so we don't add it twice from the same batch
+          }
+        }
+
+        return [...baseList, ...uniqueIncoming];
+      });
       setTotalPages(data.totalPages || 1);
       
       setIsSearching(!!searchTerm.trim());
@@ -281,7 +299,7 @@ export default function HistoryPage() {
                         <div>
                           <div className="text-xs text-muted-foreground uppercase tracking-wider font-medium">Total</div>
                           <div className="text-xl font-bold text-primary">
-                            {currency(o.total)}
+                            {formatCurrency(o.total)}
                           </div>
                         </div>
                       </div>
@@ -322,12 +340,12 @@ export default function HistoryPage() {
                               <div>
                                 <div className="font-medium text-sm">{it.name}</div>
                                 <div className="text-xs text-muted-foreground">
-                                  @ {currency(it.unitPrice)} each
+                                  @ {formatCurrency(it.unitPrice)} each
                                 </div>
                               </div>
                             </div>
                             <div className="font-medium text-sm">
-                              {currency(it.lineTotal)}
+                              {formatCurrency(it.lineTotal)}
                             </div>
                           </div>
                         ))}
@@ -336,15 +354,15 @@ export default function HistoryPage() {
                       <div className="p-4 bg-white space-y-1.5">
                         <div className="flex justify-between text-sm text-muted-foreground">
                           <span>Subtotal</span>
-                          <span>{currency(o.subtotal)}</span>
+                          <span>{formatCurrency(o.subtotal)}</span>
                         </div>
                         <div className="flex justify-between text-sm text-muted-foreground">
                           <span>Tax ({(TAX_RATE * 100).toFixed(2)}%)</span>
-                          <span>{currency(o.tax)}</span>
+                          <span>{formatCurrency(o.tax)}</span>
                         </div>
                         <div className="flex justify-between text-base font-bold pt-2 border-t mt-2">
                           <span>Total</span>
-                          <span>{currency(o.total)}</span>
+                          <span>{formatCurrency(o.total)}</span>
                         </div>
                       </div>
                     </CardContent>

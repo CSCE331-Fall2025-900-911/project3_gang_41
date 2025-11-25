@@ -8,7 +8,7 @@
   ],
   "scripts": {
     "dev": "concurrently -n front,back -c \"#00A3FF,#8B5CF6\" \"npm:dev --workspace frontend\" \"npm:dev --workspace backend\"",
-    "build": "npm run -ws build",
+    "build": "npm run build --workspace=shared && npm run build --workspace=backend && npm run build --workspace=frontend",
     "start": "npm --workspace backend start",
     "typecheck": "npm run -ws build --dry-run"
   },

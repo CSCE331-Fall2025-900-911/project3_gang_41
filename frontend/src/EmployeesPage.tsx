@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from "react";
-import {API_URL} from "./lib/api";
+import { fetchApi } from '@/lib/api';
+import { formatCurrency } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -67,14 +68,6 @@ const normalizeEmployee = (e: NewApiEmployee): Employee => {
   };
 };
 
-const currency = (value: string | number) => {
-    const num = typeof value === 'string' ? parseFloat(value) : value;
-    return new Intl.NumberFormat('en-US', {
-        style: 'currency',
-        currency: 'USD',
-        minimumFractionDigits: 2,
-    }).format(isNaN(num) ? 0 : num);
-};
 
 const formatDate = (date: Date) => 
     date.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
@@ -117,7 +110,7 @@ const EmployeeDetailModal: React.FC<EmployeeDetailModalProps> = ({ employee, isO
                             <DollarSign className="h-4 w-4" /> Hourly Rate
                         </span>
                         <span className="text-xl font-semibold text-green-600">
-                            {currency(employee.hourlyRate)}
+                            {formatCurrency(employee.hourlyRate)}
                         </span>
                     </div>
 
@@ -164,18 +157,13 @@ export default function EmployeesPage() {
           setError(null);
         }
 
-        let url = `${API_URL}/api/employees?page=${targetPage}&limit=${PAGE_SIZE}`;
+        let endpoint = `/api/employees?page=${targetPage}&limit=${PAGE_SIZE}`;
 
         if (search.trim()) {
-          url += `&search=${encodeURIComponent(search.trim())}`;
+          endpoint += `&search=${encodeURIComponent(search.trim())}`;
         }
 
-        const res = await fetch(url);
-        if (!res.ok) {
-          throw new Error(`Failed to load employees: ${res.statusText}`);
-        }
-        
-        const data: EmployeeApiResponse = await res.json(); 
+        const data = await fetchApi<EmployeeApiResponse>(endpoint);
 
         const normalized = (data ?? []).map(normalizeEmployee);
 
@@ -183,7 +171,7 @@ export default function EmployeesPage() {
           targetPage === 1 ? normalized : [...prev, ...normalized]
         );
         
-        setHasMoreData(data.length === PAGE_SIZE);
+        setHasMoreData((data ?? []).length === PAGE_SIZE);
         
         setIsSearching(!!search.trim());
         
