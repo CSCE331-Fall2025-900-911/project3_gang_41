@@ -38,6 +38,14 @@ const categories: Category[] = [
   "Menu Items",
 ];
 
+const categoryTranslationKeys: Record<Category, string> = {
+  Dashboard: "manager.categories.dashboard",
+  Inventory: "manager.categories.inventory",
+  Employees: "manager.categories.employees",
+  History: "manager.categories.history",
+  "Menu Items": "manager.categories.menuItems",
+};
+
 function Manager() {
   const { t: translate } = useTranslation();
   const navigate = useNavigate();
@@ -128,7 +136,7 @@ function Manager() {
             onClick={() => handleCategoryChange(category)}
           >
             {categoryIcons[category as keyof typeof categoryIcons]}
-            {category}
+            {translate(categoryTranslationKeys[category])}
           </Button>
         ))}
 

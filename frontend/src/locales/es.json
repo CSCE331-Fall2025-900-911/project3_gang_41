@@ -15,6 +15,11 @@
     "ice": "hielo",
     "addToCart": "Agregar al Carrito"
   },
+  "checkout": {
+    "processing": "Procesando pedido...",
+    "success": "Pedido creado exitosamente",
+    "error": "Error al crear pedido"
+  },
   "categories": {
     "allItems": "Todos",
     "milkTea": "Té con Leche",
@@ -51,7 +56,14 @@
     "password": "Contraseña",
     "enterUsername": "Ingrese usuario",
     "enterPassword": "Ingrese contraseña",
-    "invalidCredentials": "Credenciales inválidas"
+    "invalidCredentials": "Credenciales inválidas",
+    "categories": {
+      "dashboard": "Panel",
+      "inventory": "Inventario",
+      "employees": "Empleados",
+      "history": "Historial",
+      "menuItems": "Menú"
+    }
   },
   "modeToggle": {
     "cashier": "Cajero",

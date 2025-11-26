@@ -38,6 +38,15 @@ const categories = [
   'Seasonal',
 ];
 
+const categoryTranslationKeys: Record<string, string> = {
+  "All Items": "categories.allItems",
+  "Milk Tea": "categories.milkTea",
+  "Matcha": "categories.matcha",
+  "Fruit Tea": "categories.fruitTea",
+  "Slush": "categories.slush",
+  "Seasonal": "categories.seasonal",
+};
+
 function Kiosk() {
   const { t: translate } = useTranslation();
   const [menu, setMenu] = useState<MenuItem[]>([]);
@@ -141,7 +150,7 @@ function Kiosk() {
             className="w-full justify-start text-left"
             onClick={() => setActiveCategory(category)}
           >
-            {category}
+            {translate(categoryTranslationKeys[category])}
           </Button>
         ))}
         {weather && (

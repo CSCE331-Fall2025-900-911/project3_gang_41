@@ -15,6 +15,11 @@
     "ice": "ice",
     "addToCart": "Add to Cart"
   },
+  "checkout": {
+    "processing": "Processing order...",
+    "success": "Order created successfully",
+    "error": "Failed to create order"
+  },
   "categories": {
     "allItems": "All Items",
     "milkTea": "Milk Tea",
@@ -51,7 +56,14 @@
     "password": "Password",
     "enterUsername": "Enter username",
     "enterPassword": "Enter password",
-    "invalidCredentials": "Invalid credentials"
+    "invalidCredentials": "Invalid credentials",
+    "categories": {
+      "dashboard": "Dashboard",
+      "inventory": "Inventory",
+      "employees": "Employees",
+      "history": "History",
+      "menuItems": "Menu Items"
+    }
   },
   "modeToggle": {
     "cashier": "Cashier",
