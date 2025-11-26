@@ -1,0 +1,75 @@
+{
+  "common": {
+    "checkout": "Pagar",
+    "cancel": "Cancelar",
+    "confirm": "Confirmar",
+    "logout": "Cerrar sesión",
+    "login": "Iniciar sesión",
+    "total": "Total",
+    "subtotal": "Subtotal",
+    "tax": "Impuesto",
+    "payNow": "Pagar Ahora",
+    "each": "cada uno",
+    "items": "artículos",
+    "sweet": "dulce",
+    "ice": "hielo"
+  },
+  "categories": {
+    "allItems": "Todos",
+    "milkTea": "Té con Leche",
+    "matcha": "Matcha",
+    "fruitTea": "Té de Frutas",
+    "slush": "Granizado",
+    "seasonal": "De Temporada"
+  },
+  "kiosk": {
+    "yourOrder": "Tu Pedido",
+    "reviewItems": "Revisa tus artículos y procede al pago",
+    "cartEmpty": "Tu carrito está vacío",
+    "addItemsToStart": "Agrega artículos para comenzar",
+    "experimental": "Experimental",
+    "smoothCursor": "Cursor Suave"
+  },
+  "cashier": {
+    "title": "Cajero",
+    "currentOrder": "Pedido Actual"
+  },
+  "manager": {
+    "title": "Gerente",
+    "management": "Administración",
+    "dashboard": "Panel",
+    "inventory": "Inventario",
+    "employees": "Empleados",
+    "history": "Historial",
+    "menuItems": "Menú",
+    "managerLogin": "Acceso de Gerente",
+    "enterCredentials": "Ingrese las credenciales de gerente para acceder al panel de administración.",
+    "username": "Usuario",
+    "password": "Contraseña",
+    "enterUsername": "Ingrese usuario",
+    "enterPassword": "Ingrese contraseña",
+    "invalidCredentials": "Credenciales inválidas"
+  },
+  "modeToggle": {
+    "switchToCashier": "Cambiar a Modo Cajero",
+    "confirmExitManager": "¿Está seguro de que desea salir del modo gerente y volver a la vista de cajero?"
+  },
+  "language": {
+    "toggle": "Idioma",
+    "english": "Inglés",
+    "spanish": "Español"
+  },
+  "aria": {
+    "languageToggle": "Cambiar idioma",
+    "selectLanguage": "Seleccionar idioma: {{language}}",
+    "cartButton": "Ver carrito, {{count}} artículos",
+    "addToCart": "Agregar {{item}} al carrito",
+    "removeFromCart": "Quitar {{item}} del carrito",
+    "editItem": "Editar {{item}}",
+    "increaseQuantity": "Aumentar cantidad de {{item}}",
+    "decreaseQuantity": "Disminuir cantidad de {{item}}",
+    "categoryFilter": "Filtrar por {{category}}",
+    "closeDialog": "Cerrar diálogo",
+    "openCheckout": "Abrir cajón de pago"
+  }
+}

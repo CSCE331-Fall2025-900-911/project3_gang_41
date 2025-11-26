@@ -1,0 +1,75 @@
+{
+  "common": {
+    "checkout": "Checkout",
+    "cancel": "Cancel",
+    "confirm": "Confirm",
+    "logout": "Logout",
+    "login": "Login",
+    "total": "Total",
+    "subtotal": "Subtotal",
+    "tax": "Tax",
+    "payNow": "Pay Now",
+    "each": "each",
+    "items": "items",
+    "sweet": "sweet",
+    "ice": "ice"
+  },
+  "categories": {
+    "allItems": "All Items",
+    "milkTea": "Milk Tea",
+    "matcha": "Matcha",
+    "fruitTea": "Fruit Tea",
+    "slush": "Slush",
+    "seasonal": "Seasonal"
+  },
+  "kiosk": {
+    "yourOrder": "Your Order",
+    "reviewItems": "Review your items and proceed to payment",
+    "cartEmpty": "Your cart is empty",
+    "addItemsToStart": "Add items to get started",
+    "experimental": "Experimental",
+    "smoothCursor": "Smooth Cursor"
+  },
+  "cashier": {
+    "title": "Cashier",
+    "currentOrder": "Current Order"
+  },
+  "manager": {
+    "title": "Manager",
+    "management": "Management",
+    "dashboard": "Dashboard",
+    "inventory": "Inventory",
+    "employees": "Employees",
+    "history": "History",
+    "menuItems": "Menu Items",
+    "managerLogin": "Manager Login",
+    "enterCredentials": "Enter manager credentials to access the management dashboard.",
+    "username": "Username",
+    "password": "Password",
+    "enterUsername": "Enter username",
+    "enterPassword": "Enter password",
+    "invalidCredentials": "Invalid credentials"
+  },
+  "modeToggle": {
+    "switchToCashier": "Switch to Cashier Mode",
+    "confirmExitManager": "Are you sure you want to exit manager mode and return to cashier view?"
+  },
+  "language": {
+    "toggle": "Language",
+    "english": "English",
+    "spanish": "Spanish"
+  },
+  "aria": {
+    "languageToggle": "Change language",
+    "selectLanguage": "Select language: {{language}}",
+    "cartButton": "View cart, {{count}} items",
+    "addToCart": "Add {{item}} to cart",
+    "removeFromCart": "Remove {{item}} from cart",
+    "editItem": "Edit {{item}}",
+    "increaseQuantity": "Increase quantity of {{item}}",
+    "decreaseQuantity": "Decrease quantity of {{item}}",
+    "categoryFilter": "Filter by {{category}}",
+    "closeDialog": "Close dialog",
+    "openCheckout": "Open checkout drawer"
+  }
+}
