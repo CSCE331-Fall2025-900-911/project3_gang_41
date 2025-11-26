@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { useTranslation } from "react-i18next";
 import { ShoppingCart, Settings, Lock } from "lucide-react";
 import { cn } from "@/lib/utils";
 import {
@@ -23,6 +24,7 @@ const MANAGER_USERNAME = "admin";
 const MANAGER_PASSWORD = "password";
 
 export function ModeToggle({ currentMode }: ModeToggleProps) {
+  const { t: translate } = useTranslation();
   const navigate = useNavigate();
   const [managerDialogOpen, setManagerDialogOpen] = useState(false);
   const [cashierDialogOpen, setCashierDialogOpen] = useState(false);
@@ -48,7 +50,7 @@ export function ModeToggle({ currentMode }: ModeToggleProps) {
       setManagerDialogOpen(false);
       navigate("/manager");
     } else {
-      setError("Invalid credentials");
+      setError(translate("manager.invalidCredentials"));
     }
   };
 
@@ -70,7 +72,7 @@ export function ModeToggle({ currentMode }: ModeToggleProps) {
           )}
         >
           <ShoppingCart className="h-4 w-4" />
-          Cashier
+          {translate("modeToggle.cashier")}
         </button>
         <button
           onClick={handleManagerClick}
@@ -82,7 +84,7 @@ export function ModeToggle({ currentMode }: ModeToggleProps) {
           )}
         >
           <Settings className="h-4 w-4" />
-          Manager
+          {translate("modeToggle.manager")}
         </button>
       </div>
 
@@ -92,31 +94,31 @@ export function ModeToggle({ currentMode }: ModeToggleProps) {
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <Lock className="h-5 w-5" />
-              Manager Login
+              {translate("manager.managerLogin")}
             </DialogTitle>
             <DialogDescription>
-              Enter manager credentials to access the management dashboard.
+              {translate("manager.enterCredentials")}
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4 py-4">
             <div className="space-y-2">
-              <Label htmlFor="username">Username</Label>
+              <Label htmlFor="username">{translate("manager.username")}</Label>
               <Input
                 id="username"
                 value={username}
                 onChange={(e) => setUsername(e.target.value)}
-                placeholder="Enter username"
+                placeholder={translate("manager.enterUsername")}
                 onKeyDown={(e) => e.key === "Enter" && handleManagerLogin()}
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="password">Password</Label>
+              <Label htmlFor="password">{translate("manager.password")}</Label>
               <Input
                 id="password"
                 type="password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                placeholder="Enter password"
+                placeholder={translate("manager.enterPassword")}
                 onKeyDown={(e) => e.key === "Enter" && handleManagerLogin()}
               />
             </div>
@@ -127,9 +129,9 @@ export function ModeToggle({ currentMode }: ModeToggleProps) {
               variant="outline"
               onClick={() => setManagerDialogOpen(false)}
             >
-              Cancel
+              {translate("common.cancel")}
             </Button>
-            <Button onClick={handleManagerLogin}>Login</Button>
+            <Button onClick={handleManagerLogin}>{translate("common.login")}</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
@@ -138,10 +140,9 @@ export function ModeToggle({ currentMode }: ModeToggleProps) {
       <Dialog open={cashierDialogOpen} onOpenChange={setCashierDialogOpen}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle>Switch to Cashier Mode</DialogTitle>
+            <DialogTitle>{translate("modeToggle.switchToCashier")}</DialogTitle>
             <DialogDescription>
-              Are you sure you want to exit manager mode and return to cashier
-              view?
+              {translate("modeToggle.confirmExitManager")}
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>
@@ -149,9 +150,9 @@ export function ModeToggle({ currentMode }: ModeToggleProps) {
               variant="outline"
               onClick={() => setCashierDialogOpen(false)}
             >
-              Cancel
+              {translate("common.cancel")}
             </Button>
-            <Button onClick={handleCashierConfirm}>Confirm</Button>
+            <Button onClick={handleCashierConfirm}>{translate("common.confirm")}</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

@@ -253,15 +253,15 @@ function Cashier() {
         {/* Cart Header */}
         <div className="border-b p-6">
           <div className="flex items-center gap-2">
-            <ShoppingCart className="h-5 w-5" />
-            <h2 className="text-xl font-semibold">Current Order</h2>
+            <ShoppingCart className="h-5 w-5" aria-hidden="true" />
+            <h2 className="text-xl font-semibold">{translate("cashier.currentOrder")}</h2>
             {cart.length > 0 && (
               <Badge variant="secondary" className="ml-auto">
                 {cart.reduce(
                   (sum: number, item: CartItem) => sum + item.quantity,
                   0
                 )}{" "}
-                items
+                {translate("common.items")}
               </Badge>
             )}
           </div>
@@ -271,9 +271,9 @@ function Cashier() {
         <div className="flex-1 overflow-auto p-6 space-y-4">
           {cart.length === 0 ? (
             <div className="flex flex-col items-center justify-center h-full text-center text-muted-foreground">
-              <ShoppingCart className="h-16 w-16 mb-4 opacity-20" />
-              <p className="text-lg font-medium">Cart is empty</p>
-              <p className="text-sm">Add items from the menu to get started</p>
+              <ShoppingCart className="h-16 w-16 mb-4 opacity-20" aria-hidden="true" />
+              <p className="text-lg font-medium">{translate("cashier.cartEmpty")}</p>
+              <p className="text-sm">{translate("cashier.addItemsToStart")}</p>
             </div>
           ) : (
             cart.map((item) => (
@@ -286,7 +286,7 @@ function Cashier() {
                           {item.item_name}
                         </h3>
                         <p className="text-sm text-muted-foreground mt-1">
-                          ${item.cost.toFixed(2)} each
+                          ${item.cost.toFixed(2)} {translate("common.each")}
                         </p>
                         {item.customization && (
                           <div className="flex flex-wrap gap-1 mt-2">
@@ -300,7 +300,7 @@ function Cashier() {
                             {/* Sweetness - only show if not default (100) */}
                             {item.customization.sweetness !== 100 && (
                               <Badge variant="secondary" className="text-xs">
-                                {item.customization.sweetness}% Sweet
+                                {item.customization.sweetness}% {translate("common.sweet")}
                               </Badge>
                             )}
                             {/* Ice - only show if not default (regular) */}
@@ -309,7 +309,7 @@ function Cashier() {
                                 variant="secondary"
                                 className="text-xs capitalize"
                               >
-                                {item.customization.ice} ice
+                                {item.customization.ice} {translate("common.ice")}
                               </Badge>
                             )}
                           </div>
@@ -321,16 +321,18 @@ function Cashier() {
                           size="icon"
                           className="h-8 w-8"
                           onClick={() => openEditDialog(item)}
+                          aria-label={translate("aria.editItem", { item: item.item_name })}
                         >
-                          <Edit className="h-4 w-4" />
+                          <Edit className="h-4 w-4" aria-hidden="true" />
                         </Button>
                         <Button
                           variant="ghost"
                           size="icon"
                           className="h-8 w-8 text-destructive"
                           onClick={() => removeFromCart(item.uniqueId)}
+                          aria-label={translate("aria.removeFromCart", { item: item.item_name })}
                         >
-                          <Trash2 className="h-4 w-4" />
+                          <Trash2 className="h-4 w-4" aria-hidden="true" />
                         </Button>
                       </div>
                     </div>
@@ -346,10 +348,11 @@ function Cashier() {
                           onClick={() =>
                             updateQuantity(item.uniqueId, item.quantity - 1)
                           }
+                          aria-label={translate("aria.decreaseQuantity", { item: item.item_name })}
                         >
-                          <Minus className="h-4 w-4" />
+                          <Minus className="h-4 w-4" aria-hidden="true" />
                         </Button>
-                        <span className="w-8 text-center font-medium">
+                        <span className="w-8 text-center font-medium" aria-live="polite">
                           {item.quantity}
                         </span>
                         <Button
@@ -359,8 +362,9 @@ function Cashier() {
                           onClick={() =>
                             updateQuantity(item.uniqueId, item.quantity + 1)
                           }
+                          aria-label={translate("aria.increaseQuantity", { item: item.item_name })}
                         >
-                          <Plus className="h-4 w-4" />
+                          <Plus className="h-4 w-4" aria-hidden="true" />
                         </Button>
                       </div>
                       <div className="text-right">
@@ -381,12 +385,12 @@ function Cashier() {
           <div className="border-t p-6 space-y-4 bg-background">
             <div className="space-y-2">
               <div className="flex justify-between text-sm">
-                <span className="text-muted-foreground">Subtotal</span>
+                <span className="text-muted-foreground">{translate("common.subtotal")}</span>
                 <span className="font-medium">${total.toFixed(2)}</span>
               </div>
               <div className="flex justify-between text-sm">
                 <span className="text-muted-foreground">
-                  Tax ({(TAX_RATE * 100).toFixed(2)}%)
+                  {translate("common.tax")} ({(TAX_RATE * 100).toFixed(2)}%)
                 </span>
                 <span className="font-medium">
                   {(total * TAX_RATE).toFixed(2)}
@@ -394,7 +398,7 @@ function Cashier() {
               </div>
               <Separator />
               <div className="flex justify-between text-lg font-bold">
-                <span>Total</span>
+                <span>{translate("common.total")}</span>
                 <span>${(total * (1 + TAX_RATE)).toFixed(2)}</span>
               </div>
             </div>
@@ -405,7 +409,7 @@ function Cashier() {
               onClick={handleCheckout}
               disabled={isSubmitting}
             >
-              {isSubmitting ? <Loader2 className="animate-spin" /> : "Checkout"}
+              {isSubmitting ? <Loader2 className="animate-spin" aria-label="Processing" /> : translate("common.checkout")}
             </Button>
           </div>
         )}

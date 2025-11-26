@@ -9,10 +9,11 @@
     "subtotal": "Subtotal",
     "tax": "Impuesto",
     "payNow": "Pagar Ahora",
-    "each": "cada uno",
+    "each": "c/u",
     "items": "artículos",
-    "sweet": "dulce",
-    "ice": "hielo"
+    "sweet": "Dulce",
+    "ice": "hielo",
+    "addToCart": "Agregar al Carrito"
   },
   "categories": {
     "allItems": "Todos",
@@ -32,7 +33,9 @@
   },
   "cashier": {
     "title": "Cajero",
-    "currentOrder": "Pedido Actual"
+    "currentOrder": "Pedido Actual",
+    "cartEmpty": "Carrito vacío",
+    "addItemsToStart": "Agrega artículos del menú para comenzar"
   },
   "manager": {
     "title": "Gerente",
@@ -51,8 +54,23 @@
     "invalidCredentials": "Credenciales inválidas"
   },
   "modeToggle": {
+    "cashier": "Cajero",
+    "manager": "Gerente",
     "switchToCashier": "Cambiar a Modo Cajero",
     "confirmExitManager": "¿Está seguro de que desea salir del modo gerente y volver a la vista de cajero?"
+  },
+  "customization": {
+    "title": "Personalizar {{item}}",
+    "description": "Ajusta la bebida a tu gusto",
+    "size": "Tamaño",
+    "sweetness": "Dulzura",
+    "ice": "Hielo",
+    "small": "Pequeño",
+    "medium": "Mediano",
+    "large": "Grande",
+    "regular": "Normal",
+    "light": "Poco",
+    "none": "Sin"
   },
   "language": {
     "toggle": "Idioma",

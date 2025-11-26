@@ -11,8 +11,9 @@
     "payNow": "Pay Now",
     "each": "each",
     "items": "items",
-    "sweet": "sweet",
-    "ice": "ice"
+    "sweet": "Sweet",
+    "ice": "ice",
+    "addToCart": "Add to Cart"
   },
   "categories": {
     "allItems": "All Items",
@@ -32,7 +33,9 @@
   },
   "cashier": {
     "title": "Cashier",
-    "currentOrder": "Current Order"
+    "currentOrder": "Current Order",
+    "cartEmpty": "Cart is empty",
+    "addItemsToStart": "Add items from the menu to get started"
   },
   "manager": {
     "title": "Manager",
@@ -51,8 +54,23 @@
     "invalidCredentials": "Invalid credentials"
   },
   "modeToggle": {
+    "cashier": "Cashier",
+    "manager": "Manager",
     "switchToCashier": "Switch to Cashier Mode",
     "confirmExitManager": "Are you sure you want to exit manager mode and return to cashier view?"
+  },
+  "customization": {
+    "title": "Customize {{item}}",
+    "description": "Adjust the drink to your preferences",
+    "size": "Size",
+    "sweetness": "Sweetness",
+    "ice": "Ice",
+    "small": "Small",
+    "medium": "Medium",
+    "large": "Large",
+    "regular": "Regular",
+    "light": "Light",
+    "none": "None"
   },
   "language": {
     "toggle": "Language",
