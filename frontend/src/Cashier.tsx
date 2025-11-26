@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { useTranslation } from "react-i18next";
 import { fetchApi } from "@/lib/api";
 import type { MenuItem, CartItem, DrinkCustomization } from "@project3/shared";
 import { TAX_RATE } from "@project3/shared";
@@ -29,6 +30,7 @@ import {
 import { DrinkCustomizationDialog } from "@/components/DrinkCustomizationDialog";
 import { useCart } from "@/hooks/useCart";
 import { ModeToggle } from "@/components/ModeToggle";
+import { LanguageToggle } from "@/components/LanguageToggle";
 
 const categories = [
   "All Items",
@@ -40,6 +42,7 @@ const categories = [
 ];
 
 function Cashier() {
+  const { t: translate } = useTranslation();
   const navigate = useNavigate();
   const { logout, user } = useAuth();
   const [menu, setMenu] = useState<MenuItem[]>([]);
@@ -149,8 +152,9 @@ function Cashier() {
         <div className="border-b">
           <div className="flex h-16 items-center px-6 justify-between">
             <h1 className="text-2xl font-bold">BobaPOS</h1>
-            <div className="w-64">
+            <div className="flex items-center gap-4">
               <ModeToggle currentMode="cashier" />
+              <LanguageToggle />
             </div>
             <div className="flex items-center gap-3">
               {weather && (
@@ -186,8 +190,8 @@ function Cashier() {
                 onClick={handleLogout}
                 className="gap-2"
               >
-                <LogOut className="h-4 w-4" />
-                Logout
+                <LogOut className="h-4 w-4" aria-hidden="true" />
+                {translate("common.logout")}
               </Button>
             </div>
           </div>

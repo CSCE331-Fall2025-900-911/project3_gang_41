@@ -1,4 +1,5 @@
 import { useState, useEffect, ReactNode } from "react";
+import { useTranslation } from "react-i18next";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { fetchApi } from "@/lib/api";
 import { Button } from "@/components/ui/button";
@@ -14,6 +15,7 @@ import {
 import { useAuth } from "@/contexts/AuthContext";
 import { WeatherDisplay } from "@/components/WeatherDisplay";
 import { ModeToggle } from "@/components/ModeToggle";
+import { LanguageToggle } from "@/components/LanguageToggle";
 
 // --- IMPORT YOUR PAGES ---
 import MenuPage from "./MenuPage";
@@ -37,6 +39,7 @@ const categories: Category[] = [
 ];
 
 function Manager() {
+  const { t: translate } = useTranslation();
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const [activeCategory, setActiveCategory] = useState<Category>(
@@ -102,12 +105,13 @@ function Manager() {
           <h1 className="text-xl font-bold text-brand-900">BobaPOS</h1>
         </div>
 
-        <div className="mb-4">
+        <div className="mb-4 space-y-2">
           <ModeToggle currentMode="manager" />
+          <LanguageToggle />
         </div>
 
         <h2 className="text-lg font-semibold mb-2 text-foreground">
-          Management
+          {translate("manager.management")}
         </h2>
         {categories.map((category) => (
           <Button
@@ -165,8 +169,8 @@ function Manager() {
             className="w-full justify-start gap-2"
             onClick={handleLogout}
           >
-            <LogOut className="h-4 w-4" />
-            Logout
+            <LogOut className="h-4 w-4" aria-hidden="true" />
+            {translate("common.logout")}
           </Button>
         </div>
       </div>

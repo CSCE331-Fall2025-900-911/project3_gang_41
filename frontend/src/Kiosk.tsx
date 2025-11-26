@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import { fetchApi } from '@/lib/api';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -22,6 +23,7 @@ import {
 } from "@/components/ui/collapsible";
 import { Switch } from "@/components/ui/switch";
 import { SmoothCursor } from "@/components/ui/smooth-cursor";
+import { LanguageToggle } from "@/components/LanguageToggle";
 
 import type { MenuItem, CartItem, DrinkCustomization } from "@project3/shared";
 import { TAX_RATE } from "@project3/shared";
@@ -37,6 +39,7 @@ const categories = [
 ];
 
 function Kiosk() {
+  const { t: translate } = useTranslation();
   const [menu, setMenu] = useState<MenuItem[]>([]);
   const { cart, addToCart, removeFromCart, updateQuantity, updateCartItem, checkout, isSubmitting } = useCart();
   const [activeCategory, setActiveCategory] = useState('All Items');
@@ -147,6 +150,11 @@ function Kiosk() {
           </div>
         )}
 
+        {/* Language Toggle */}
+        <div className="px-2 py-2">
+          <LanguageToggle />
+        </div>
+
         {/* Experimental Mode Toggle */}
         <div className="mt-auto pt-4 border-t border-gray-300 dark:border-gray-700">
           <Collapsible>
@@ -220,9 +228,10 @@ function Kiosk() {
                   buttonPulse ? 'scale-110' : 'scale-100'
                 }`}
                 variant={cart.length > 0 ? "default" : "outline"}
+                aria-label={translate('aria.cartButton', { count: cart.reduce((sum: number, item: CartItem) => sum + item.quantity, 0) })}
               >
-                <ShoppingCart className="h-5 w-5" />
-                Checkout
+                <ShoppingCart className="h-5 w-5" aria-hidden="true" />
+                {translate('common.checkout')}
                 {cart.length > 0 && (
                   <Badge variant="secondary" className="ml-2">
                     {cart.reduce((sum: number, item: CartItem) => sum + item.quantity, 0)}

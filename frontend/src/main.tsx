@@ -4,6 +4,7 @@ import { Toaster } from 'sonner';
 import App from './App';
 import "./global.css";
 import './index.css';
+import '@/lib/i18n';
 
 const clientId = import.meta.env.VITE_GOOGLE_CLIENT_ID;
 
