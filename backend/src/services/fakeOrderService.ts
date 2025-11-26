@@ -65,7 +65,10 @@ function normalizeMenuRows(rows: MenuDbRow[]): MenuItem[] {
   return rows.map((r) => ({
     item_id: r.item_id,
     item_name: r.item_name,
-    cost: typeof r.cost === 'string' ? parseFloat(r.cost) || 0 : Number(r.cost) || 0,
+    cost:
+      typeof r.cost === 'string'
+        ? parseFloat(r.cost) || 0
+        : Number(r.cost) || 0,
     category: (r.category ?? 'Uncategorized').trim() || 'Uncategorized',
   }));
 }
@@ -131,7 +134,7 @@ async function createSyntheticOrder(
     });
   }
 
-  // Aggregate duplicates (OrderItem from shared types)
+  // Aggregate duplicates
   const agg = new Map<number, OrderItem>();
   for (const c of chosen) {
     const existing = agg.get(c.item_id);
@@ -183,7 +186,7 @@ async function createSyntheticOrder(
     return newId;
   });
 
-  // Deduct inventory using shared item_id + quantity shape
+  // Deduct inventory using existing service (item_id + quantity)
   const itemsForInventory = aggregatedItems.map((it) => ({
     item_id: it.item_id,
     quantity: it.quantity,
