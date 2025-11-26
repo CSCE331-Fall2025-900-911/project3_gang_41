@@ -1,4 +1,5 @@
 import { useEffect, useState, lazy, Suspense } from "react"
+import { useTranslation } from "react-i18next";
 import { useLocalStorage } from "@/hooks/useLocalStorage";
 import { fetchApi } from "@/lib/api"
 import { formatCurrency } from "@/lib/utils"
@@ -45,15 +46,15 @@ interface RecentOrder {
   order_time_label: string;
 }
 
-// Enhanced chart configs
-const revenueConfig = {
-  revenue: { label: "Revenue ($)", color: "hsl(var(--primary))" },
-  order_count: { label: "Orders (#)", color: "hsl(var(--chart-2))" },
-} satisfies ChartConfig
+// Chart config factory functions (to support i18n)
+const getRevenueConfig = (translate: (key: string) => string): ChartConfig => ({
+  revenue: { label: translate("dashboard.revenue"), color: "hsl(var(--primary))" },
+  order_count: { label: translate("dashboard.orders"), color: "hsl(var(--chart-2))" },
+});
 
-const categoryConfig = {
-  value: { label: "Sales ($)", color: "hsl(var(--primary))" },
-} satisfies ChartConfig
+const getCategoryConfig = (translate: (key: string) => string): ChartConfig => ({
+  value: { label: translate("dashboard.sales"), color: "hsl(var(--primary))" },
+});
 
 // Vibrant, accessible colors
 const COLORS = ['#6366f1', '#8b5cf6', '#ec4899', '#f97316', '#10b981', '#06b6d4'];
@@ -80,6 +81,7 @@ const slideInAnimation = `
 `;
 
 export default function DashboardPage() {
+  const { t: translate } = useTranslation();
   const [data, setData] = useState<ExtendedDashboardData | null>(null);
   const [recentOrders, setRecentOrders] = useState<RecentOrder[]>([]);
   const [loading, setLoading] = useState(true);
@@ -117,9 +119,29 @@ export default function DashboardPage() {
   }, [timeRange]);
 
   if (loading) return <EnhancedDashboardSkeleton />;
-  if (!data) return <ErrorState onRetry={() => loadDashboard()} />;
+  if (!data) return <ErrorState onRetry={() => loadDashboard()} translate={translate} />;
 
   const { kpi, trend, categorySales, paymentMethods, lowStock } = data;
+
+  // Dynamic chart configs with translations
+  const revenueConfig = getRevenueConfig(translate);
+  const categoryConfig = getCategoryConfig(translate);
+
+  // Category name translation mapping
+  const categoryTranslationKeys: Record<string, string> = {
+    "All Items": "categories.allItems",
+    "Milk Tea": "categories.milkTea",
+    "Matcha": "categories.matcha",
+    "Fruit Tea": "categories.fruitTea",
+    "Slush": "categories.slush",
+    "Seasonal": "categories.seasonal",
+  };
+
+  // Translate category names for the chart
+  const translatedCategorySales = categorySales?.map(item => ({
+    ...item,
+    name: categoryTranslationKeys[item.name] ? translate(categoryTranslationKeys[item.name]) : item.name
+  }));
 
   // --- KPI Extraction ---
   const totalRevenue = Number(kpi?.total_revenue || 0);
@@ -175,7 +197,7 @@ export default function DashboardPage() {
             <div className="space-y-1">
               <div className="flex items-center gap-2">
                 <h2 className="text-3xl font-bold tracking-tight bg-gradient-to-r from-slate-900 to-slate-600 dark:from-slate-100 dark:to-slate-400 bg-clip-text text-transparent">
-                  Dashboard
+                  {translate("dashboard.title")}
                 </h2>
                 {refreshing && (
                   <RefreshCw className="h-4 w-4 text-muted-foreground animate-spin" />
@@ -190,28 +212,28 @@ export default function DashboardPage() {
               <Tabs value={timeRange} onValueChange={setTimeRange} className="w-fit">
                 <TabsList className="grid w-full grid-cols-3 bg-slate-100 dark:bg-slate-800">
                   <TabsTrigger value="today" className="data-[state=active]:bg-white dark:data-[state=active]:bg-slate-900">
-                    Today
+                    {translate("dashboard.today")}
                   </TabsTrigger>
                   <TabsTrigger value="week" className="data-[state=active]:bg-white dark:data-[state=active]:bg-slate-900">
-                    Week
+                    {translate("dashboard.week")}
                   </TabsTrigger>
                   <TabsTrigger value="month" className="data-[state=active]:bg-white dark:data-[state=active]:bg-slate-900">
-                    Month
+                    {translate("dashboard.month")}
                   </TabsTrigger>
                 </TabsList>
               </Tabs>
-              <Button 
-                size="sm" 
-                variant="outline" 
+              <Button
+                size="sm"
+                variant="outline"
                 className="gap-2 hover:bg-primary hover:text-primary-foreground transition-all"
                 onClick={() => loadDashboard(true)}
               >
                 <RefreshCw className={cn("h-4 w-4", refreshing && "animate-spin")} />
-                Refresh
+                {translate("dashboard.refresh")}
               </Button>
               <Button size="sm" className="gap-2 bg-gradient-to-r from-primary to-primary/80 hover:from-primary/90 hover:to-primary/70">
                 <Download className="h-4 w-4" />
-                Export
+                {translate("dashboard.export")}
               </Button>
             </div>
           </div>
@@ -222,10 +244,10 @@ export default function DashboardPage() {
             
             {/* 1. Total Revenue (Standard) */}
             <EnhancedKpiCard
-              title="Total Revenue"
+              title={translate("dashboard.totalRevenue")}
               icon={DollarSign}
               value={formatCurrency(totalRevenue)}
-              sub="Gross sales"
+              sub={translate("dashboard.grossSales")}
               trend={revTrend}
               previousValue={formatCurrency(prevRevTotal)}
               color="emerald"
@@ -233,10 +255,10 @@ export default function DashboardPage() {
 
             {/* 2. Revenue Pacing (NEW) */}
             <EnhancedKpiCard
-              title="Revenue Velocity"
+              title={translate("dashboard.revenueVelocity")}
               icon={Activity}
               value={formatCurrency(totalRevenue)}
-              sub="At this time"
+              sub={translate("dashboard.atThisTime")}
               trend={revPacing}
               previousValue={formatCurrency(prevRevPaced)}
               color="blue"
@@ -244,10 +266,10 @@ export default function DashboardPage() {
 
             {/* 3. Total Orders (Standard) */}
             <EnhancedKpiCard
-              title="Total Orders"
+              title={translate("dashboard.totalOrders")}
               icon={ShoppingCart}
               value={totalOrders.toLocaleString()}
-              sub="Transactions"
+              sub={translate("dashboard.transactions")}
               trend={ordTrend}
               previousValue={prevOrdTotal.toLocaleString()}
               color="purple"
@@ -255,10 +277,10 @@ export default function DashboardPage() {
 
             {/* 4. Order Pacing (NEW) */}
             <EnhancedKpiCard
-              title="Order Velocity"
+              title={translate("dashboard.orderVelocity")}
               icon={Zap}
               value={totalOrders.toLocaleString()}
-              sub="At this time"
+              sub={translate("dashboard.atThisTime")}
               trend={ordPacing}
               previousValue={prevOrdPaced.toLocaleString()}
               color="cyan"
@@ -266,10 +288,10 @@ export default function DashboardPage() {
 
             {/* 5. Avg Order Value */}
             <EnhancedKpiCard
-              title="Avg Order Value"
+              title={translate("dashboard.avgOrderValue")}
               icon={CreditCard}
               value={formatCurrency(avgOrderValue)}
-              sub="Per order"
+              sub={translate("dashboard.perOrder")}
               trend={aovTrend}
               previousValue={formatCurrency(prevAov)}
               color="orange"
@@ -277,10 +299,10 @@ export default function DashboardPage() {
 
             {/* 6. Active Staff (Badge Removed) */}
             <EnhancedKpiCard
-              title="Total Unique Staff"
+              title={translate("dashboard.totalUniqueStaff")}
               icon={Users}
               value={activeStaff}
-              sub="Clocked in today"
+              sub={translate("dashboard.clockedInToday")}
               trend={undefined} // Hide badge
               previousValue={undefined}
               color="pink"
@@ -288,10 +310,10 @@ export default function DashboardPage() {
 
             {/* 7. Efficiency */}
             <EnhancedKpiCard
-              title="Efficiency"
+              title={translate("dashboard.efficiency")}
               icon={BarChart3}
               value={`$${revPerStaff.toFixed(0)}`}
-              sub="Rev/Staff"
+              sub={translate("dashboard.revPerStaff")}
               trend={effTrend}
               previousValue={`$${prevEff.toFixed(0)}`}
               color="emerald"
@@ -299,10 +321,10 @@ export default function DashboardPage() {
 
             {/* 8. Peak Time (Comparison Label Only) */}
             <EnhancedKpiCard
-              title="Peak Time"
+              title={translate("dashboard.peakTime")}
               icon={Clock}
               value={peakLabel}
-              sub="Busiest period"
+              sub={translate("dashboard.busiestPeriod")}
               previousValue={`vs ${prevPeakLabel}`}
               trend={undefined} // Hide badge
               color="blue"
@@ -319,13 +341,13 @@ export default function DashboardPage() {
                   <div>
                     <CardTitle className="flex items-center gap-2">
                       <BarChart3 className="h-5 w-5 text-primary" />
-                      Sales Trend
+                      {translate("dashboard.salesTrend")}
                     </CardTitle>
-                    <CardDescription>Revenue performance over time</CardDescription>
+                    <CardDescription>{translate("dashboard.revenueOverTime")}</CardDescription>
                   </div>
                   <Badge variant="outline" className="bg-emerald-50 text-emerald-700 border-emerald-200">
                     <TrendingUp className="h-3 w-3 mr-1" />
-                    Live
+                    {translate("dashboard.live")}
                   </Badge>
                 </div>
               </CardHeader>
@@ -380,15 +402,15 @@ export default function DashboardPage() {
                 <div>
                   <CardTitle className="flex items-center gap-2">
                     <PieChart className="h-5 w-5 text-primary" />
-                    Category Performance
+                    {translate("dashboard.categoryPerformance")}
                   </CardTitle>
-                  <CardDescription>Top selling categories</CardDescription>
+                  <CardDescription>{translate("dashboard.topSellingCategories")}</CardDescription>
                 </div>
               </CardHeader>
               <CardContent>
                 <Suspense fallback={<ChartSkeleton />}>
                   <ChartContainer config={categoryConfig} className="h-[320px] w-full">
-                    <LazyBarChart data={categorySales} layout="vertical" margin={{ left: 0, right: 40 }}>
+                    <LazyBarChart data={translatedCategorySales} layout="vertical" margin={{ left: 0, right: 40 }}>
                       <defs>
                         <linearGradient id="barGradient" x1="0" y1="0" x2="1" y2="0">
                           <stop offset="0%" stopColor="hsl(var(--primary))" stopOpacity={0.8} />
@@ -435,13 +457,13 @@ export default function DashboardPage() {
                   <div>
                     <CardTitle className="flex items-center gap-2">
                       <Receipt className="h-5 w-5 text-primary" />
-                      Recent Orders
+                      {translate("dashboard.recentOrders")}
                     </CardTitle>
-                    <CardDescription>Live transaction feed</CardDescription>
+                    <CardDescription>{translate("dashboard.liveTransactionFeed")}</CardDescription>
                   </div>
                   <Badge className="bg-gradient-to-r from-emerald-500 to-emerald-600">
                     <Sparkles className="h-3 w-3 mr-1" />
-                    Real-time
+                    {translate("dashboard.realTime")}
                   </Badge>
                 </div>
               </CardHeader>
@@ -471,7 +493,7 @@ export default function DashboardPage() {
                             </div>
                             <div>
                               <p className="text-sm font-semibold text-slate-900 dark:text-slate-100">
-                                Order #{order.orderid}
+                                {translate("dashboard.order")} #{order.orderid}
                               </p>
                               <p className="text-xs text-muted-foreground flex items-center gap-1">
                                 <Clock className="h-3 w-3" />
@@ -498,10 +520,10 @@ export default function DashboardPage() {
                     })}
                   </div>
                 ) : (
-                  <EmptyState 
-                    icon={Receipt} 
-                    message="No recent orders" 
-                    description="Orders will appear here as they come in"
+                  <EmptyState
+                    icon={Receipt}
+                    message={translate("dashboard.noRecentOrders")}
+                    description={translate("dashboard.ordersWillAppear")}
                   />
                 )}
               </CardContent>
@@ -513,16 +535,16 @@ export default function DashboardPage() {
                 <div>
                   <CardTitle className="flex items-center gap-2">
                     <Package className="h-5 w-5 text-primary" />
-                    Operations Center
+                    {translate("dashboard.operationsCenter")}
                   </CardTitle>
-                  <CardDescription>Inventory & payment insights</CardDescription>
+                  <CardDescription>{translate("dashboard.inventoryPaymentInsights")}</CardDescription>
                 </div>
               </CardHeader>
               <CardContent className="space-y-4">
                 {/* Stock Alerts Section */}
                 <div className="space-y-3">
                   <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
-                    Stock Alerts ({activeAlerts.length})
+                    {translate("dashboard.stockAlerts")} ({activeAlerts.length})
                   </h4>
                   {activeAlerts.length > 0 ? (
                     <div className="space-y-2">
@@ -569,9 +591,9 @@ export default function DashboardPage() {
                     <div className="flex items-center gap-3 text-emerald-700 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/30 p-4 rounded-xl border border-emerald-200 dark:border-emerald-900">
                       <CheckCircle2 className="h-5 w-5 flex-shrink-0" />
                       <div>
-                        <p className="font-semibold">All Systems Operational</p>
+                        <p className="font-semibold">{translate("dashboard.allSystemsOperational")}</p>
                         <p className="text-xs text-emerald-600 dark:text-emerald-500 mt-0.5">
-                          Inventory levels are healthy
+                          {translate("dashboard.inventoryLevelsHealthy")}
                         </p>
                       </div>
                     </div>
@@ -581,7 +603,7 @@ export default function DashboardPage() {
                 {/* Payment Methods Pie Chart */}
                 <div className="pt-4 border-t">
                   <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">
-                    Payment Distribution
+                    {translate("dashboard.paymentDistribution")}
                   </h4>
                   <div className="h-[180px]">
                     <Suspense fallback={<Skeleton className="h-[180px] w-full rounded-lg" />}>
@@ -605,10 +627,10 @@ export default function DashboardPage() {
                               />
                             ))}
                           </Pie>
-                          <Tooltip 
-                            formatter={(value: number) => [`${value} orders`, 'Count']}
-                            contentStyle={{ 
-                              borderRadius: '8px', 
+                          <Tooltip
+                            formatter={(value: number) => [`${value} ${translate("dashboard.ordersCount")}`, translate("dashboard.count")]}
+                            contentStyle={{
+                              borderRadius: '8px',
                               border: '1px solid #e2e8f0',
                               backgroundColor: 'rgba(255, 255, 255, 0.95)'
                             }}
@@ -785,22 +807,22 @@ function EmptyState({
   )
 }
 
-// Error State Component  
-function ErrorState({ onRetry }: { onRetry: () => void }) {
+// Error State Component
+function ErrorState({ onRetry, translate }: { onRetry: () => void; translate: (key: string) => string }) {
   return (
     <div className="flex flex-col items-center justify-center h-full min-h-[600px] gap-4">
       <div className="p-4 bg-red-100 dark:bg-red-950/30 rounded-full">
         <AlertOctagon className="h-8 w-8 text-red-600 dark:text-red-500" />
       </div>
       <div className="text-center space-y-2">
-        <h3 className="text-lg font-semibold">Failed to load dashboard</h3>
+        <h3 className="text-lg font-semibold">{translate("dashboard.failedToLoad")}</h3>
         <p className="text-sm text-muted-foreground max-w-sm">
-          Something went wrong while fetching the dashboard data. Please try again.
+          {translate("dashboard.errorDescription")}
         </p>
       </div>
       <Button onClick={onRetry} className="gap-2">
         <RefreshCw className="h-4 w-4" />
-        Try Again
+        {translate("dashboard.tryAgain")}
       </Button>
     </div>
   )

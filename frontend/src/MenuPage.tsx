@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { fetchApi } from "@/lib/api";
 import { formatCurrency } from "@/lib/utils";
 // Types from shared package
@@ -172,6 +173,7 @@ const fireConfetti = () => {
 };
 
 export default function MenuPage() {
+  const { t: translate } = useTranslation();
   const [menuItems, setMenuItems] = useState<MenuItem[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -219,8 +221,8 @@ export default function MenuPage() {
          playSound('success');
       }
     } catch (e: any) {
-      setError(e?.message ?? "Unknown error");
-      toast.error("Failed to load menu");
+      setError(e?.message ?? translate("menu.unknownError"));
+      toast.error(translate("menu.failedToLoad"));
       if (isExperimental) playSound('error');
     } finally {
       setIsLoading(false);
@@ -271,7 +273,7 @@ export default function MenuPage() {
     if (isExperimental) playSound('click');
 
     if (!newItemCategory.trim()) {
-      toast.error("Please provide a category");
+      toast.error(translate("menu.provideCategory"));
       if (isExperimental) playSound('error');
       return;
     }
@@ -286,7 +288,7 @@ export default function MenuPage() {
         }),
       });
 
-      toast.success(`Added ${created.item_name}`);
+      toast.success(translate("menu.added", { name: created.item_name }));
       if (isExperimental) {
           fireConfetti();
           playSound('success');
@@ -304,7 +306,7 @@ export default function MenuPage() {
         setIngredientsOpen(true);
       }
     } catch (e: any) {
-      toast.error(e?.message ?? "Error adding item");
+      toast.error(e?.message ?? translate("menu.errorAdding"));
       if (isExperimental) playSound('error');
     }
   };
@@ -325,7 +327,7 @@ export default function MenuPage() {
           category: updateCategory, // NEW: Send updated category
         }),
       });
-      toast.success("Item updated");
+      toast.success(translate("menu.itemUpdated"));
       if (isExperimental) {
           fireConfetti();
           playSound('success');
@@ -337,7 +339,7 @@ export default function MenuPage() {
       setUpdateCategory("");
       await loadMenuItems();
     } catch (e: any) {
-      toast.error(e?.message ?? "Error updating item");
+      toast.error(e?.message ?? translate("menu.errorUpdating"));
       if (isExperimental) playSound('error');
     }
   };
@@ -348,13 +350,13 @@ export default function MenuPage() {
     if (!selectedItem) return;
     try {
       await fetchApi<null>(`/api/menu/${selectedItem.item_id}`, { method: "DELETE" });
-      toast.success(`Deleted ${selectedItem.item_name}`);
+      toast.success(translate("menu.deleted", { name: selectedItem.item_name }));
       if (isExperimental) playSound('delete');
       setDeleteOpen(false);
       setSelectedItem(null);
       await loadMenuItems();
     } catch (e: any) {
-      toast.error(e?.message ?? "Error deleting item");
+      toast.error(e?.message ?? translate("menu.errorDeleting"));
       if (isExperimental) playSound('error');
     }
   };
@@ -417,14 +419,14 @@ export default function MenuPage() {
                 <Coffee className="h-5 w-5" />
               )}
               <h1 className={`text-2xl font-bold ${isExperimental ? "bg-gradient-to-r from-purple-600 to-pink-600 bg-clip-text text-transparent" : ""}`}>
-                {isExperimental ? "✨ Dopamine Mode ✨" : "Menu Items"}
+                {isExperimental ? `✨ ${translate("menu.dopamineMode")} ✨` : translate("menu.title")}
               </h1>
             </div>
 
             <div className="flex items-center gap-3">
               <div className="hidden md:block">
                 <Input
-                  placeholder={isExperimental ? "Search for tasty things..." : "Search by name or category..."}
+                  placeholder={isExperimental ? translate("menu.searchPlaceholderFun") : translate("menu.searchPlaceholder")}
                   value={query}
                   onChange={(e) => { setQuery(e.target.value); handleTyping(); }}
                   className={`w-[260px] ${isExperimental ? "border-purple-300 focus:ring-purple-400 rounded-full bg-white/80" : ""}`}
@@ -440,7 +442,7 @@ export default function MenuPage() {
                     playSound('toggle');
                     if (!isExperimental) fireConfetti();
                 }}
-                title="Huh, what the heck is this?"
+                title={translate("menu.experimentalTooltip")}
                 className={isExperimental ? "text-purple-600 bg-purple-100 hover:bg-purple-200" : "text-muted-foreground"}
               >
                 <FlaskConical className="h-5 w-5" />
@@ -457,14 +459,14 @@ export default function MenuPage() {
                 ) : (
                   <RefreshCw className={`h-4 w-4 ${isExperimental ? "animate-spin-slow" : ""}`} />
                 )}
-                Refresh
+                {translate("menu.refresh")}
               </Button>
-              <Button 
-                className={`gap-2 ${buttonClass} ${isExperimental ? "bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 border-0" : ""}`} 
+              <Button
+                className={`gap-2 ${buttonClass} ${isExperimental ? "bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 border-0" : ""}`}
                 onClick={() => { handleBtnClick(); setAddOpen(true); }}
               >
                 <Plus className="h-4 w-4" />
-                New Item
+                {translate("menu.newItem")}
               </Button>
             </div>
           </div>
@@ -476,14 +478,14 @@ export default function MenuPage() {
             <CardHeader className="p-4">
               <CardTitle className="text-lg flex items-center gap-2">
                  {isExperimental && <Sparkles className="h-4 w-4 text-yellow-500" />}
-                 All Menu Items
+                 {translate("menu.allMenuItems")}
               </CardTitle>
             </CardHeader>
             <CardContent className="p-0">
               {isLoading && menuItems.length === 0 ? (
                 <div className="flex items-center justify-center py-16 text-muted-foreground">
                   <Loader2 className="h-5 w-5 animate-spin mr-2" />
-                  Loading menu...
+                  {translate("menu.loading")}
                 </div>
               ) : error ? (
                 <div className="p-6 text-sm text-destructive">{error}</div>
@@ -493,10 +495,10 @@ export default function MenuPage() {
                     <TableHeader>
                       <TableRow className={isExperimental ? "bg-purple-50/50 hover:bg-purple-50/80" : ""}>
                         <TableHead className="w-24">ID</TableHead>
-                        <TableHead>Name</TableHead>
-                        <TableHead>Category</TableHead>
-                        <TableHead className="w-32">Price</TableHead>
-                        <TableHead className="w-48 text-right">Actions</TableHead>
+                        <TableHead>{translate("menu.name")}</TableHead>
+                        <TableHead>{translate("menu.category")}</TableHead>
+                        <TableHead className="w-32">{translate("menu.price")}</TableHead>
+                        <TableHead className="w-48 text-right">{translate("menu.actions")}</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
@@ -532,7 +534,7 @@ export default function MenuPage() {
                                 onClick={(e) => { e.stopPropagation(); openEdit(item); }}
                               >
                                 <Pencil className="h-4 w-4" />
-                                Edit
+                                {translate("menu.edit")}
                               </Button>
                               <Button
                                 variant="outline"
@@ -541,7 +543,7 @@ export default function MenuPage() {
                                 onClick={(e) => { e.stopPropagation(); openIngredients(item); }}
                               >
                                 <ListChecks className="h-4 w-4" />
-                                Ingredients
+                                {translate("menu.ingredients")}
                               </Button>
                               <Button
                                 variant="destructive"
@@ -550,7 +552,7 @@ export default function MenuPage() {
                                 onClick={(e) => { e.stopPropagation(); confirmDelete(item); }}
                               >
                                 <Trash2 className="h-4 w-4" />
-                                Delete
+                                {translate("menu.delete")}
                               </Button>
                             </div>
                           </TableCell>
@@ -559,7 +561,7 @@ export default function MenuPage() {
                       {filtered.length === 0 && (
                         <TableRow>
                           <TableCell colSpan={5} className="text-center py-10 text-muted-foreground">
-                            {isExperimental ? "🏜️ Wow, such empty. Much void." : "No items found."}
+                            {isExperimental ? `🏜️ ${translate("menu.noItemsFun")}` : translate("menu.noItems")}
                           </TableCell>
                         </TableRow>
                       )}
@@ -576,14 +578,14 @@ export default function MenuPage() {
       <Dialog open={addOpen} onOpenChange={setAddOpen}>
         <DialogContent className="overflow-visible">
           <DialogHeader>
-            <DialogTitle>{isExperimental ? "✨ Create Masterpiece ✨" : "Add new item"}</DialogTitle>
+            <DialogTitle>{isExperimental ? `✨ ${translate("menu.createMasterpiece")} ✨` : translate("menu.addNewItem")}</DialogTitle>
             <DialogDescription>
-              Create a menu item with a base (pre-tax) price and category.
+              {translate("menu.createDescription")}
             </DialogDescription>
           </DialogHeader>
           <form onSubmit={handleAddItem} className="grid gap-4">
             <div className="grid gap-2">
-              <Label htmlFor="newName">Name</Label>
+              <Label htmlFor="newName">{translate("menu.name")}</Label>
               <Input
                 id="newName"
                 value={newItemName}
@@ -593,20 +595,20 @@ export default function MenuPage() {
               />
             </div>
             <div className="grid gap-2">
-              <Label htmlFor="newCost">Price</Label>
+              <Label htmlFor="newCost">{translate("menu.price")}</Label>
               <Input
                 id="newCost"
                 value={newItemCost}
                 onChange={(e) => { setNewItemCost(e.target.value); handleTyping(); }}
-                placeholder="e.g. 5.99"
+                placeholder={translate("menu.pricePlaceholder")}
                 required
                 className={isExperimental ? "border-purple-200 focus-visible:ring-purple-400" : ""}
               />
             </div>
-            
+
             {/* Custom Autocomplete for Category */}
             <div className="grid gap-2 relative">
-              <Label htmlFor="newCategory">Category</Label>
+              <Label htmlFor="newCategory">{translate("menu.category")}</Label>
               <Input
                 id="newCategory"
                 value={newItemCategory}
@@ -617,7 +619,7 @@ export default function MenuPage() {
                 }}
                 onFocus={() => setShowCategorySuggestions(true)}
                 onBlur={() => setTimeout(() => setShowCategorySuggestions(false), 200)}
-                placeholder="Select or type category..."
+                placeholder={translate("menu.selectCategory")}
                 required
                 autoComplete="off"
                 className={isExperimental ? "border-purple-200 focus-visible:ring-purple-400" : ""}
@@ -652,15 +654,15 @@ export default function MenuPage() {
                 checked={openIngredientsAfterCreate}
                 onChange={(e) => { setOpenIngredientsAfterCreate(e.target.checked); handleBtnClick(); }}
               />
-              <Label htmlFor="afterCreate">Open ingredients after create</Label>
+              <Label htmlFor="afterCreate">{translate("menu.openIngredientsAfter")}</Label>
             </div>
             <DialogFooter className="gap-2">
               <Button type="button" variant="outline" onClick={() => { setAddOpen(false); handleBtnClick(); }}>
-                Cancel
+                {translate("menu.cancel")}
               </Button>
               <Button type="submit" className={`gap-2 ${isExperimental ? "bg-purple-600 hover:bg-purple-700" : ""}`}>
                 <Plus className="h-4 w-4" />
-                Add
+                {translate("menu.add")}
               </Button>
             </DialogFooter>
           </form>
@@ -671,14 +673,14 @@ export default function MenuPage() {
       <Dialog open={editOpen} onOpenChange={setEditOpen}>
         <DialogContent className={`${isExperimental ? "border-4 border-blue-200 shadow-xl" : ""} overflow-visible`}>
           <DialogHeader className={editDialogHeaderClass}>
-            <DialogTitle className={editTitleClass}>{isExperimental ? "✨ Remix This Item ✨" : "Edit item"}</DialogTitle>
+            <DialogTitle className={editTitleClass}>{isExperimental ? `✨ ${translate("menu.remixItem")} ✨` : translate("menu.editItem")}</DialogTitle>
             <DialogDescription className={isExperimental ? "text-blue-700" : ""}>
-              {isExperimental ? "Give it a fresh new look!" : `Update the details for ${selectedItem?.item_name}.`}
+              {isExperimental ? translate("menu.editDescriptionFun") : translate("menu.editDescription", { name: selectedItem?.item_name })}
             </DialogDescription>
           </DialogHeader>
           <form onSubmit={handleUpdateItem} className={`grid gap-4 ${isExperimental ? "p-4" : ""}`}>
             <div className="grid gap-2">
-              <Label htmlFor="editName">Name</Label>
+              <Label htmlFor="editName">{translate("menu.name")}</Label>
               <Input
                 id="editName"
                 value={updateName}
@@ -688,7 +690,7 @@ export default function MenuPage() {
               />
             </div>
             <div className="grid gap-2">
-              <Label htmlFor="editPrice">Price</Label>
+              <Label htmlFor="editPrice">{translate("menu.price")}</Label>
               <Input
                 id="editPrice"
                 value={updatePrice}
@@ -697,10 +699,10 @@ export default function MenuPage() {
                 className={isExperimental ? "border-blue-200 focus-visible:ring-blue-400" : ""}
               />
             </div>
-            
+
             {/* NEW: Category Edit with Custom Autocomplete */}
             <div className="grid gap-2 relative">
-              <Label htmlFor="editCategory">Category</Label>
+              <Label htmlFor="editCategory">{translate("menu.category")}</Label>
               <Input
                 id="editCategory"
                 value={updateCategory}
@@ -711,7 +713,7 @@ export default function MenuPage() {
                 }}
                 onFocus={() => setShowEditCategorySuggestions(true)}
                 onBlur={() => setTimeout(() => setShowEditCategorySuggestions(false), 200)}
-                placeholder="Select or type category..."
+                placeholder={translate("menu.selectCategory")}
                 required
                 autoComplete="off"
                 className={isExperimental ? "border-blue-200 focus-visible:ring-blue-400" : ""}
@@ -740,11 +742,11 @@ export default function MenuPage() {
 
             <DialogFooter className="gap-2">
               <Button type="button" variant="outline" onClick={() => { setEditOpen(false); handleBtnClick(); }}>
-                Cancel
+                {translate("menu.cancel")}
               </Button>
               <Button type="submit" className={editSaveButtonClass}>
                 <Pencil className="h-4 w-4" />
-                Save
+                {translate("menu.save")}
               </Button>
             </DialogFooter>
           </form>
@@ -755,17 +757,17 @@ export default function MenuPage() {
       <AlertDialog open={deleteOpen} onOpenChange={setDeleteOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>{isExperimental ? "🗑️ Yeet this item?" : `Delete ${selectedItem?.item_name}?`}</AlertDialogTitle>
+            <AlertDialogTitle>{isExperimental ? `🗑️ ${translate("menu.deleteTitleFun")}` : translate("menu.deleteTitle", { name: selectedItem?.item_name })}</AlertDialogTitle>
             <AlertDialogDescription>
-              {isExperimental 
-                ? "This action cannot be undone. It will be gone forever like tears in rain." 
-                : "This action cannot be undone and will remove the item from the menu."}
+              {isExperimental
+                ? translate("menu.deleteDescriptionFun")
+                : translate("menu.deleteDescription")}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel onClick={handleBtnClick}>Cancel</AlertDialogCancel>
+            <AlertDialogCancel onClick={handleBtnClick}>{translate("menu.cancel")}</AlertDialogCancel>
             <AlertDialogAction onClick={handleDeleteItem} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
-              Delete
+              {translate("menu.delete")}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
@@ -780,8 +782,9 @@ export default function MenuPage() {
           isExperimental={isExperimental}
           playSound={isExperimental ? playSound : undefined}
           onConfetti={fireConfetti}
+          translate={translate}
           onSaved={() => {
-            toast.success("Ingredients saved");
+            toast.success(translate("menu.ingredientsSaved"));
             if (isExperimental) { fireConfetti(); playSound('success'); }
             setIngredientsOpen(false);
           }}
@@ -804,9 +807,10 @@ type IngredientsDialogProps = {
   isExperimental?: boolean;
   playSound?: (type: 'success' | 'pop' | 'delete' | 'toggle' | 'error' | 'type' | 'click') => void;
   onConfetti?: () => void;
+  translate: (key: string, options?: Record<string, string>) => string;
 };
 
-function IngredientsDialog({ open, onOpenChange, item, onSaved, isExperimental, playSound, onConfetti }: IngredientsDialogProps) {
+function IngredientsDialog({ open, onOpenChange, item, onSaved, isExperimental, playSound, onConfetti, translate }: IngredientsDialogProps) {
   const [inventory, setInventory] = useState<InventoryItem[]>([]);
   const [selected, setSelected] = useState<Record<number, number>>({});
   const [loading, setLoading] = useState(false);
@@ -833,7 +837,7 @@ function IngredientsDialog({ open, onOpenChange, item, onSaved, isExperimental, 
       const data = await fetchApi<InventoryItem[]>('/api/inventory');
       setInventory(data);
     } catch {
-      toast.error("Failed to load inventory");
+      toast.error(translate("menu.failedToLoadInventory"));
       if (playSound) playSound('error');
     }
   };
@@ -905,7 +909,7 @@ function IngredientsDialog({ open, onOpenChange, item, onSaved, isExperimental, 
     const hasZeroQuantity = Object.values(selected).some((qty) => qty <= 0);
 
     if (hasZeroQuantity) {
-      toast.error("Please set a quantity for all selected ingredients.");
+      toast.error(translate("menu.setQuantityError"));
       if (playSound) playSound('error');
       return;
     }
@@ -924,7 +928,7 @@ function IngredientsDialog({ open, onOpenChange, item, onSaved, isExperimental, 
       });
       onSaved();
     } catch (e: any) {
-      toast.error(e?.message ?? "Error saving ingredients");
+      toast.error(e?.message ?? translate("menu.errorSavingIngredients"));
       if (playSound) playSound('error');
     } finally {
       setLoading(false);
@@ -943,22 +947,22 @@ function IngredientsDialog({ open, onOpenChange, item, onSaved, isExperimental, 
           item_name: newIngName,
           quantity: newIngStock || 0,
           cost: newIngCost,
-          unit: newIngUnit, 
+          unit: newIngUnit,
         }),
       });
-      toast.success("Inventory item added");
-      if (isExperimental) { 
-          if(onConfetti) onConfetti(); 
-          if(playSound) playSound('success'); 
+      toast.success(translate("menu.inventoryAdded"));
+      if (isExperimental) {
+          if(onConfetti) onConfetti();
+          if(playSound) playSound('success');
       }
       setNewIngName("");
       setNewIngStock("");
       setNewIngCost("0.00");
-      setNewIngUnit(""); 
+      setNewIngUnit("");
       setShowUnitSuggestions(false); // Close suggestion box
       await loadInventory();
     } catch (e: any) {
-      toast.error(e?.message ?? "Error adding inventory item");
+      toast.error(e?.message ?? translate("menu.errorAddingInventory"));
       if (playSound) playSound('error');
     }
   };
@@ -974,17 +978,17 @@ function IngredientsDialog({ open, onOpenChange, item, onSaved, isExperimental, 
       <DialogContent className={`max-w-5xl overflow-visible ${isExperimental ? "border-4 border-purple-200 shadow-2xl" : ""}`}>
         <DialogHeader className={dialogHeaderClass}>
           <DialogTitle className={titleClass}>
-            {isExperimental ? `🧪 Configuring: ${item.item_name}` : `Ingredients for ${item.item_name}`}
+            {isExperimental ? `🧪 ${translate("menu.configuringItem", { name: item.item_name })}` : translate("menu.ingredientsFor", { name: item.item_name })}
           </DialogTitle>
           <DialogDescription className={isExperimental ? "text-purple-700 font-medium" : ""}>
-            {isExperimental ? "Mix and match your magical components!" : "Select ingredients from the list below. You must specify the quantity used per drink."}
+            {isExperimental ? translate("menu.ingredientsDescriptionFun") : translate("menu.ingredientsDescription")}
           </DialogDescription>
         </DialogHeader>
 
         <div className="grid md:grid-cols-2 gap-8 pt-4">
           {/* Left Column: Ingredient picker */}
           <div>
-            <div className={`text-sm font-medium mb-2 ${isExperimental ? "text-purple-800" : ""}`}>Select Inventory Items</div>
+            <div className={`text-sm font-medium mb-2 ${isExperimental ? "text-purple-800" : ""}`}>{translate("menu.selectInventory")}</div>
             <div className={`max-h-[500px] overflow-auto rounded-md border p-1 ${isExperimental ? "border-purple-200 bg-purple-50/30" : ""}`}>
               {inventory.map((inv) => {
                 const isChecked = selected[inv.item_id] !== undefined;
@@ -1018,7 +1022,7 @@ function IngredientsDialog({ open, onOpenChange, item, onSaved, isExperimental, 
                       {/* Quantity Input Group */}
                       <div className="flex items-center gap-2 shrink-0">
                         <span className="text-xs text-muted-foreground text-right pt-1.5">
-                          Qty:
+                          {translate("menu.qty")}
                         </span>
                         <div className="flex items-center gap-2">
                           <Input
@@ -1047,7 +1051,7 @@ function IngredientsDialog({ open, onOpenChange, item, onSaved, isExperimental, 
               })}
               {inventory.length === 0 && (
                 <div className="p-8 text-center text-sm text-muted-foreground">
-                  No inventory items found. Add some on the right.
+                  {translate("menu.noInventory")}
                 </div>
               )}
             </div>
@@ -1056,27 +1060,27 @@ function IngredientsDialog({ open, onOpenChange, item, onSaved, isExperimental, 
           {/* Right Column: Add new inventory item */}
           <div className="border-l pl-8 flex flex-col">
             <div className="mb-6">
-                <h3 className={`font-semibold text-sm ${isExperimental ? "text-purple-800" : ""}`}>Missing an ingredient?</h3>
+                <h3 className={`font-semibold text-sm ${isExperimental ? "text-purple-800" : ""}`}>{translate("menu.missingIngredient")}</h3>
                 <p className="text-sm text-muted-foreground">
-                    Add a new database entry here so you can select it on the left.
+                    {translate("menu.missingIngredientDesc")}
                 </p>
             </div>
-            
+
             <form onSubmit={addInventoryItem} className={`space-y-4 p-4 rounded-lg border ${isExperimental ? "bg-white border-purple-200 shadow-sm" : "bg-muted/20"}`}>
-              {isExperimental && <div className="text-xs text-purple-500 font-bold uppercase tracking-widest mb-2">Quick Add</div>}
+              {isExperimental && <div className="text-xs text-purple-500 font-bold uppercase tracking-widest mb-2">{translate("menu.quickAdd")}</div>}
               <div className="grid gap-2">
-                <Label htmlFor="ingName">Ingredient Name</Label>
+                <Label htmlFor="ingName">{translate("menu.ingredientName")}</Label>
                 <Input
                   id="ingName"
                   value={newIngName}
                   onChange={(e) => { setNewIngName(e.target.value); handleTyping(); }}
-                  placeholder="e.g. Tapioca pearls"
+                  placeholder={translate("menu.ingredientNamePlaceholder")}
                   required
                   className={isExperimental ? "border-purple-200 focus-visible:ring-purple-400" : ""}
                 />
               </div>
               <div className="grid gap-2">
-                <Label htmlFor="ingStock">Initial Stock Level</Label>
+                <Label htmlFor="ingStock">{translate("menu.initialStock")}</Label>
                 <Input
                   id="ingStock"
                   type="number"
@@ -1086,25 +1090,25 @@ function IngredientsDialog({ open, onOpenChange, item, onSaved, isExperimental, 
                     setNewIngStock(e.target.value === "" ? "" : parseInt(e.target.value, 10));
                     handleTyping();
                   }}
-                  placeholder="e.g. 100"
+                  placeholder={translate("menu.initialStockPlaceholder")}
                   className={isExperimental ? "border-purple-200 focus-visible:ring-purple-400" : ""}
                 />
               </div>
               <div className="grid gap-2">
-                <Label htmlFor="ingCost">Unit Cost ($)</Label>
+                <Label htmlFor="ingCost">{translate("menu.unitCost")}</Label>
                 <Input
                   id="ingCost"
                   value={newIngCost}
                   onChange={(e) => { setNewIngCost(e.target.value); handleTyping(); }}
-                  placeholder="e.g. 4.99"
+                  placeholder={translate("menu.unitCostPlaceholder")}
                   required
                   className={isExperimental ? "border-purple-200 focus-visible:ring-purple-400" : ""}
                 />
               </div>
-              
+
               {/* Unit Custom Autocomplete */}
               <div className="grid gap-2 relative">
-                <Label htmlFor="ingUnit">Unit</Label>
+                <Label htmlFor="ingUnit">{translate("menu.unit")}</Label>
                 <Input
                   id="ingUnit"
                   value={newIngUnit}
@@ -1115,7 +1119,7 @@ function IngredientsDialog({ open, onOpenChange, item, onSaved, isExperimental, 
                   }}
                   onFocus={() => setShowUnitSuggestions(true)}
                   onBlur={() => setTimeout(() => setShowUnitSuggestions(false), 200)}
-                  placeholder="e.g. grams, oz, count"
+                  placeholder={translate("menu.unitPlaceholder")}
                   autoComplete="off"
                   className={isExperimental ? "border-purple-200 focus-visible:ring-purple-400" : ""}
                 />
@@ -1141,7 +1145,7 @@ function IngredientsDialog({ open, onOpenChange, item, onSaved, isExperimental, 
 
               <Button type="submit" variant={isExperimental ? "default" : "secondary"} className={`w-full gap-2 mt-2 ${isExperimental ? "bg-purple-100 text-purple-700 hover:bg-purple-200" : ""}`}>
                 {isExperimental ? <Zap className="h-4 w-4" /> : <Plus className="h-4 w-4" />}
-                Add to Database
+                {translate("menu.addToDatabase")}
               </Button>
             </form>
           </div>
@@ -1151,11 +1155,11 @@ function IngredientsDialog({ open, onOpenChange, item, onSaved, isExperimental, 
 
         <DialogFooter className="gap-2">
           <Button variant="outline" onClick={() => { onOpenChange(false); handleClick(); }}>
-            Cancel
+            {translate("menu.cancel")}
           </Button>
           <Button className={saveButtonClass} onClick={saveIngredients} disabled={loading}>
             {loading && <Loader2 className="h-4 w-4 animate-spin" />}
-            Save Recipe
+            {translate("menu.saveRecipe")}
           </Button>
         </DialogFooter>
       </DialogContent>

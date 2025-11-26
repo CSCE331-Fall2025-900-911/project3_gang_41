@@ -1,9 +1,11 @@
 import { useState, useRef } from 'react';
+import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
 import { fetchApi } from '@/lib/api';
 import type { CartItem } from '@project3/shared';
 
 export function useCart() {
+  const { t: translate } = useTranslation();
   const [cart, setCart] = useState<CartItem[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
   // Synchronous lock to prevent double-processing before React re-renders
@@ -67,9 +69,9 @@ export function useCart() {
 
       // Attach toast
       toast.promise(checkoutPromise, {
-        loading: "Processing order...",
-        success: "Order created successfully",
-        error: "Failed to create order",
+        loading: translate("checkout.processing"),
+        success: translate("checkout.success"),
+        error: translate("checkout.error"),
       });
 
       await checkoutPromise;
