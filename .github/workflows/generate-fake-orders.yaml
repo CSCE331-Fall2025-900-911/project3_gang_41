@@ -2,7 +2,7 @@ name: Generate fake orders
 
 on:
   schedule:
-    # Every 10 minutes (UTC). Adjust if you want.
+    # Every 8 minutes (UTC). Adjust if you want.
     - cron: '*/8 * * * *'
   # Allow manual runs from the Actions tab as well
   workflow_dispatch: {}
