@@ -115,7 +115,7 @@ function Manager() {
 
         <div className="mb-4 space-y-2">
           <ModeToggle currentMode="manager" />
-          <LanguageToggle />
+          <LanguageToggle fullWidth />
         </div>
 
         <h2 className="text-lg font-semibold mb-2 text-foreground">
