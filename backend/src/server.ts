@@ -15,6 +15,7 @@ import orderHistoryRoutes from "./orderHistoryRoutes";
 import salesReportRoutes from "./salesReportRoutes";
 import employeeRoutes from "./employeeRoutes";
 import reportsRoutes from "./reportsRoutes";
+import { generateFakeOrdersForRun } from "./services/fakeOrderService";
 import { sendSuccess, sendError } from './utils/response';
 
 const client = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
@@ -172,6 +173,17 @@ app.post("/auth/logout", (req, res) => {
     res.clearCookie("connect.sid");
     sendSuccess(res, { loggedOut: true });
   });
+});
+
+// Public endpoint for scheduled fake orders (GitHub Actions will call this)
+app.post("/internal/generate-fake-orders", async (req: Request, res: Response) => {
+  try {
+    const orderIds = await generateFakeOrdersForRun();
+    sendSuccess(res, { createdOrders: orderIds });
+  } catch (err) {
+    console.error("Error generating fake orders:", err);
+    sendError(res, "Failed to generate fake orders", 500);
+  }
 });
 
 app.listen(PORT, () => {
