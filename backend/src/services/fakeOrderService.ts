@@ -1,5 +1,8 @@
+// backend/src/services/fakeOrderService.ts
+
 import db, { runTransaction } from '../db';
 import { deductInventory } from './inventoryService';
+import type { MenuItem, OrderItem } from '@project3/shared';
 
 const BUSINESS_TZ = 'America/Chicago';
 
@@ -40,22 +43,42 @@ function getBusinessHourAndWeekKey(date: Date): { hour: number; weekKey: number 
   return { hour, weekKey };
 }
 
-type MenuRow = {
+// Raw DB row type for menuitems
+type MenuDbRow = {
   item_id: number;
   item_name: string;
   cost: number | string;
   category: string | null;
 };
 
+// Raw DB row type for employees
+type EmployeeRow = {
+  employee_id: number;
+};
+
+/**
+ * Convert raw DB rows into shared MenuItem type.
+ * - Ensures cost is a number
+ * - Normalizes category to non-null string
+ */
+function normalizeMenuRows(rows: MenuDbRow[]): MenuItem[] {
+  return rows.map((r) => ({
+    item_id: r.item_id,
+    item_name: r.item_name,
+    cost: typeof r.cost === 'string' ? parseFloat(r.cost) || 0 : Number(r.cost) || 0,
+    category: (r.category ?? 'Uncategorized').trim() || 'Uncategorized',
+  }));
+}
+
 /**
  * Weighted random choice of a menu item, with bias toward a favored
  * category or a favored item. Uses Math.random() so each run is different.
  */
 function pickWeightedMenuItem(
-  menu: MenuRow[],
+  menu: MenuItem[],
   favoredCategory: string | null,
   favoredItemId: number | null
-): MenuRow {
+): MenuItem {
   const BASE = 1;
   const FAVORITE_MULTIPLIER = 4;
 
@@ -86,36 +109,30 @@ function pickWeightedMenuItem(
  * Returns the new orderid or null if it could not be created.
  */
 async function createSyntheticOrder(
-  menu: MenuRow[],
+  menu: MenuItem[],
   favoredCategory: string | null,
-  favoredItemId: number | null
+  favoredItemId: number | null,
+  employeeIds: number[]
 ): Promise<number | null> {
   if (menu.length === 0) return null;
 
   // 1–4 items per order (per-run randomness)
   const numItems = 1 + Math.floor(Math.random() * 4);
-  const chosen: {
-    item_id: number;
-    item_name: string;
-    cost: number;
-    quantity: number;
-  }[] = [];
+  const chosen: OrderItem[] = [];
 
   for (let i = 0; i < numItems; i++) {
     const item = pickWeightedMenuItem(menu, favoredCategory, favoredItemId);
     const quantity = 1 + Math.floor(Math.random() * 3); // 1–3 units
-    const costNum =
-      typeof item.cost === 'string' ? parseFloat(item.cost) : Number(item.cost);
     chosen.push({
       item_id: item.item_id,
       item_name: item.item_name,
-      cost: costNum,
+      cost: item.cost,
       quantity,
     });
   }
 
-  // Aggregate duplicates
-  const agg = new Map<number, { item_id: number; item_name: string; cost: number; quantity: number }>();
+  // Aggregate duplicates (OrderItem from shared types)
+  const agg = new Map<number, OrderItem>();
   for (const c of chosen) {
     const existing = agg.get(c.item_id);
     if (existing) existing.quantity += c.quantity;
@@ -141,7 +158,12 @@ async function createSyntheticOrder(
       paymentMethods[Math.floor(Math.random() * paymentMethods.length)];
 
     const customerid = 0;
-    const employeeId = 0;
+
+    // Pick a random existing employee, or 0 if no employees in DB
+    const employeeId =
+      employeeIds.length > 0
+        ? employeeIds[Math.floor(Math.random() * employeeIds.length)]
+        : 0;
 
     for (const item of aggregatedItems) {
       const total = item.cost * item.quantity;
@@ -161,7 +183,7 @@ async function createSyntheticOrder(
     return newId;
   });
 
-  // Deduct inventory
+  // Deduct inventory using shared item_id + quantity shape
   const itemsForInventory = aggregatedItems.map((it) => ({
     item_id: it.item_id,
     quantity: it.quantity,
@@ -181,13 +203,22 @@ async function createSyntheticOrder(
  * - Uses random selection per run so actual orders vary
  */
 export async function generateFakeOrdersForRun(): Promise<number[]> {
-  const { rows: menu } = await db.query<MenuRow>(
+  // Load raw menu rows and normalize into shared MenuItem
+  const { rows: rawMenu } = await db.query<MenuDbRow>(
     'SELECT item_id, item_name, cost, category FROM menuitems'
   );
+  const menu = normalizeMenuRows(rawMenu);
+
   if (menu.length === 0) {
     console.warn('No menu items found; cannot generate fake orders.');
     return [];
   }
+
+  // Load employees so we can assign orders to real cashiers
+  const { rows: employees } = await db.query<EmployeeRow>(
+    'SELECT employee_id FROM employees'
+  );
+  const employeeIds = employees.map((e) => e.employee_id);
 
   const now = new Date();
   const { hour, weekKey } = getBusinessHourAndWeekKey(now);
@@ -220,7 +251,7 @@ export async function generateFakeOrdersForRun(): Promise<number[]> {
     new Set(menu.map((m) => (m.category ?? '').trim()).filter(Boolean))
   );
 
-  const weekRng = mulberry32(weekKey); // used ONLY here
+  const weekRng = mulberry32(weekKey); // used ONLY for weekly favorite
   const preferCategory = categories.length > 0 && weekRng() < 0.5;
 
   let favoredCategory: string | null = null;
@@ -240,7 +271,12 @@ export async function generateFakeOrdersForRun(): Promise<number[]> {
   // Now actually create the orders (each run will differ due to Math.random)
   const orderIds: number[] = [];
   for (let i = 0; i < ordersCount; i++) {
-    const id = await createSyntheticOrder(menu, favoredCategory, favoredItemId);
+    const id = await createSyntheticOrder(
+      menu,
+      favoredCategory,
+      favoredItemId,
+      employeeIds
+    );
     if (id != null) orderIds.push(id);
   }
 
