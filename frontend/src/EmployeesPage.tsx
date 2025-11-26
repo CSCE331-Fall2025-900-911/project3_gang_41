@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { fetchApi } from '@/lib/api';
 import { formatCurrency } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -77,9 +78,10 @@ interface EmployeeDetailModalProps {
     employee: Employee;
     isOpen: boolean;
     onClose: () => void;
+    translate: (key: string, options?: Record<string, string | number>) => string;
 }
 
-const EmployeeDetailModal: React.FC<EmployeeDetailModalProps> = ({ employee, isOpen, onClose }) => {
+const EmployeeDetailModal: React.FC<EmployeeDetailModalProps> = ({ employee, isOpen, onClose, translate }) => {
     return (
         <Dialog open={isOpen} onOpenChange={onClose}>
             <DialogContent className="sm:max-w-[425px]">
@@ -95,10 +97,10 @@ const EmployeeDetailModal: React.FC<EmployeeDetailModalProps> = ({ employee, isO
                     </DialogDescription>
                 </DialogHeader>
                 <div className="pt-4 space-y-4">
-                    
+
                     <div className="flex items-center justify-between border-b pb-2">
                         <span className="text-muted-foreground flex items-center gap-2">
-                            <Tag className="h-4 w-4" /> Employee ID
+                            <Tag className="h-4 w-4" /> {translate("employees.employeeId")}
                         </span>
                         <Badge className="text-lg bg-indigo-500 hover:bg-indigo-600">
                             {employee.id}
@@ -107,7 +109,7 @@ const EmployeeDetailModal: React.FC<EmployeeDetailModalProps> = ({ employee, isO
 
                     <div className="flex items-center justify-between">
                         <span className="text-muted-foreground flex items-center gap-2">
-                            <DollarSign className="h-4 w-4" /> Hourly Rate
+                            <DollarSign className="h-4 w-4" /> {translate("employees.hourlyRate")}
                         </span>
                         <span className="text-xl font-semibold text-green-600">
                             {formatCurrency(employee.hourlyRate)}
@@ -116,7 +118,7 @@ const EmployeeDetailModal: React.FC<EmployeeDetailModalProps> = ({ employee, isO
 
                     <div className="flex items-center justify-between">
                         <span className="text-muted-foreground flex items-center gap-2">
-                            <Calendar className="h-4 w-4" /> Date Hired
+                            <Calendar className="h-4 w-4" /> {translate("employees.dateHired")}
                         </span>
                         <span className="text-base font-medium">
                             {formatDate(employee.hireDate)}
@@ -126,7 +128,7 @@ const EmployeeDetailModal: React.FC<EmployeeDetailModalProps> = ({ employee, isO
                 </div>
                 <div className="flex justify-end pt-4">
                     <DialogClose asChild>
-                        <Button type="button" variant="outline">Close</Button>
+                        <Button type="button" variant="outline">{translate("employees.close")}</Button>
                     </DialogClose>
                 </div>
             </DialogContent>
@@ -135,6 +137,7 @@ const EmployeeDetailModal: React.FC<EmployeeDetailModalProps> = ({ employee, isO
 };
 
 export default function EmployeesPage() {
+  const { t: translate } = useTranslation();
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [page, setPage] = useState(1);
   const [loading, setLoading] = useState(false);
@@ -182,8 +185,8 @@ export default function EmployeesPage() {
         currentRetry++;
         if (currentRetry >= maxRetries) {
           console.error("Load error after retries:", e);
-          setError(e?.message ?? "Unable to load employee data after multiple attempts.");
-          toast.error("Failed to load employee directory");
+          setError(e?.message ?? translate("employees.unableToLoad"));
+          toast.error(translate("employees.failedToLoad"));
           setLoading(false);
           return; // Exit the loop on final failure
         }
@@ -235,17 +238,17 @@ export default function EmployeesPage() {
         <div className="flex h-16 items-center px-6 justify-between gap-4">
           <div className="flex items-center gap-2 min-w-fit">
             <Users className="h-5 w-5" />
-            <h1 className="text-2xl font-bold hidden md:block">Employee Directory</h1>
-            <h1 className="text-xl font-bold md:hidden">Employees</h1>
+            <h1 className="text-2xl font-bold hidden md:block">{translate("employees.title")}</h1>
+            <h1 className="text-xl font-bold md:hidden">{translate("employees.titleShort")}</h1>
           </div>
-          
+
           {/* Search Bar */}
           <form onSubmit={handleSearch} className="flex-1 max-w-lg flex items-center gap-2 ml-auto">
             <div className="relative flex-1">
               <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
               <Input
                 type="text"
-                placeholder="Search by name, title, or ID..."
+                placeholder={translate("employees.searchPlaceholder")}
                 className="pl-9"
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
@@ -261,7 +264,7 @@ export default function EmployeesPage() {
               )}
             </div>
             <Button type="submit" disabled={loading}>
-              Search
+              {translate("employees.search")}
             </Button>
           </form>
         </div>
@@ -272,14 +275,14 @@ export default function EmployeesPage() {
           // Initial Loading State
           <div className="flex h-full items-center justify-center text-muted-foreground">
             <Loader2 className="h-6 w-6 animate-spin mr-2" />
-            Loading employees...
+            {translate("employees.loading")}
           </div>
         ) : error ? (
           // Error State
           <div className="flex flex-col items-center justify-center gap-3 text-center h-full">
             <p className="text-sm text-destructive">{error}</p>
             <Button variant="outline" onClick={() => loadEmployees(1, searchTerm)}>
-              Retry
+              {translate("employees.retry")}
             </Button>
           </div>
         ) : employees.length === 0 ? (
@@ -287,13 +290,13 @@ export default function EmployeesPage() {
           <div className="flex flex-col items-center justify-center h-full text-muted-foreground gap-2">
             <Users className="h-10 w-10 opacity-20" />
             <p>
-              {isSearching 
-                ? `No employees found matching "${searchTerm}"` 
-                : "No employee data available."}
+              {isSearching
+                ? translate("employees.noResults", { term: searchTerm })
+                : translate("employees.noData")}
             </p>
             {isSearching && (
               <Button variant="link" onClick={clearSearch}>
-                Clear search
+                {translate("employees.clearSearch")}
               </Button>
             )}
           </div>
@@ -330,7 +333,7 @@ export default function EmployeesPage() {
                             className="bg-indigo-600 hover:bg-indigo-700 transition-colors"
                         >
                             <Eye className="h-4 w-4 mr-2" />
-                            deets
+                            {translate("employees.viewDetails")}
                         </Button>
                       </div>
                     </div>
@@ -343,7 +346,7 @@ export default function EmployeesPage() {
               <div className="flex justify-center pt-4 pb-8">
                 <Button variant="secondary" onClick={loadMore} disabled={loading} className="min-w-[150px]">
                   {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                  Load More Employees
+                  {translate("employees.loadMore")}
                 </Button>
               </div>
             )}
@@ -353,10 +356,11 @@ export default function EmployeesPage() {
 
       {/* Employee Detail Modal */}
       {selectedEmployee && (
-        <EmployeeDetailModal 
-          employee={selectedEmployee} 
-          isOpen={!!selectedEmployee} 
-          onClose={closeDetailsModal} 
+        <EmployeeDetailModal
+          employee={selectedEmployee}
+          isOpen={!!selectedEmployee}
+          onClose={closeDetailsModal}
+          translate={translate}
         />
       )}
     </div>

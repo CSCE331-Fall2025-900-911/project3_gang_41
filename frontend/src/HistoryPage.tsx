@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { fetchApi } from "@/lib/api";
 import { formatCurrency } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -101,6 +102,7 @@ const normalizeOrder = (o: ApiOrder): Order => {
 };
 
 export default function HistoryPage() {
+  const { t: translate } = useTranslation();
   // We don't need anything from auth, but call the hook to ensure auth context exists
   useAuth();
 
@@ -157,8 +159,8 @@ export default function HistoryPage() {
       setIsSearching(!!searchTerm.trim());
     } catch (e: any) {
       console.error("Load error:", e);
-      setError(e?.message ?? "Unable to load orders");
-      toast.error("Failed to load order history");
+      setError(e?.message ?? translate("history.unableToLoad"));
+      toast.error(translate("history.failedToLoad"));
     } finally {
       setLoading(false);
     }
@@ -198,17 +200,17 @@ export default function HistoryPage() {
         <div className="flex h-16 items-center px-6 justify-between gap-4">
           <div className="flex items-center gap-2 min-w-fit">
             <ReceiptText className="h-5 w-5" />
-            <h1 className="text-2xl font-bold hidden md:block">Order History</h1>
-            <h1 className="text-xl font-bold md:hidden">Orders</h1>
+            <h1 className="text-2xl font-bold hidden md:block">{translate("history.title")}</h1>
+            <h1 className="text-xl font-bold md:hidden">{translate("history.titleShort")}</h1>
           </div>
-          
+
           {/* Search Bar */}
           <form onSubmit={handleSearch} className="flex-1 max-w-md flex items-center gap-2 ml-auto">
             <div className="relative flex-1">
               <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
               <Input
                 type="number"
-                placeholder="Search by Order ID..."
+                placeholder={translate("history.searchPlaceholder")}
                 className="pl-9"
                 value={searchId}
                 onChange={(e) => setSearchId(e.target.value)}
@@ -224,7 +226,7 @@ export default function HistoryPage() {
               )}
             </div>
             <Button type="submit" disabled={loading}>
-              Search
+              {translate("history.search")}
             </Button>
           </form>
           
@@ -237,26 +239,26 @@ export default function HistoryPage() {
         {loading && page === 1 ? (
           <div className="flex h-full items-center justify-center text-muted-foreground">
             <Loader2 className="h-6 w-6 animate-spin mr-2" />
-            Loading orders...
+            {translate("history.loading")}
           </div>
         ) : error ? (
           <div className="flex flex-col items-center justify-center gap-3 text-center h-full">
             <p className="text-sm text-destructive">{error}</p>
             <Button variant="outline" onClick={() => load(1, searchId)}>
-              Retry
+              {translate("history.retry")}
             </Button>
           </div>
         ) : orders.length === 0 ? (
           <div className="flex flex-col items-center justify-center h-full text-muted-foreground gap-2">
             <ReceiptText className="h-10 w-10 opacity-20" />
             <p>
-              {isSearching 
-                ? `No order found with ID #${searchId}` 
-                : "No order history available."}
+              {isSearching
+                ? translate("history.noResults", { id: searchId })
+                : translate("history.noData")}
             </p>
             {isSearching && (
               <Button variant="link" onClick={clearSearch}>
-                Clear search
+                {translate("history.clearSearch")}
               </Button>
             )}
           </div>
@@ -270,7 +272,7 @@ export default function HistoryPage() {
                     <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
                       <div>
                         <div className="flex items-center gap-2">
-                          <CardTitle className="text-lg">Order #{o.id}</CardTitle>
+                          <CardTitle className="text-lg">{translate("history.order")} #{o.id}</CardTitle>
                           <Badge variant="outline" className="font-normal text-xs">
                             {o.paymentMethod || "unknown"}
                           </Badge>
@@ -279,25 +281,25 @@ export default function HistoryPage() {
                           <span>{o.date.toLocaleString()}</span>
                           <span>•</span>
                           <span>
-                            {o.itemCount} {o.itemCount === 1 ? "item" : "items"}
+                            {o.itemCount} {o.itemCount === 1 ? translate("history.item") : translate("history.items")}
                           </span>
                           <span>•</span>
                           <span>
                             {o.customerId && o.customerId !== 0
-                              ? `Customer #${o.customerId}`
-                              : "Guest"}
+                              ? `${translate("history.customer")} #${o.customerId}`
+                              : translate("history.guest")}
                           </span>
                           {o.employeeId != null && (
                             <>
                               <span>•</span>
-                              <span>Cashier #{o.employeeId}</span>
+                              <span>{translate("history.cashier")} #{o.employeeId}</span>
                             </>
                           )}
                         </div>
                       </div>
                       <div className="flex items-center gap-4 sm:text-right">
                         <div>
-                          <div className="text-xs text-muted-foreground uppercase tracking-wider font-medium">Total</div>
+                          <div className="text-xs text-muted-foreground uppercase tracking-wider font-medium">{translate("history.total")}</div>
                           <div className="text-xl font-bold text-primary">
                             {formatCurrency(o.total)}
                           </div>
@@ -314,12 +316,12 @@ export default function HistoryPage() {
                       {isOpen ? (
                         <>
                           <ChevronUp className="h-3 w-3" />
-                          Hide Details
+                          {translate("history.hideDetails")}
                         </>
                       ) : (
                         <>
                           <ChevronDown className="h-3 w-3" />
-                          View Details
+                          {translate("history.viewDetails")}
                         </>
                       )}
                     </div>
@@ -340,7 +342,7 @@ export default function HistoryPage() {
                               <div>
                                 <div className="font-medium text-sm">{it.name}</div>
                                 <div className="text-xs text-muted-foreground">
-                                  @ {formatCurrency(it.unitPrice)} each
+                                  @ {formatCurrency(it.unitPrice)} {translate("history.each")}
                                 </div>
                               </div>
                             </div>
@@ -353,15 +355,15 @@ export default function HistoryPage() {
 
                       <div className="p-4 bg-white space-y-1.5">
                         <div className="flex justify-between text-sm text-muted-foreground">
-                          <span>Subtotal</span>
+                          <span>{translate("history.subtotal")}</span>
                           <span>{formatCurrency(o.subtotal)}</span>
                         </div>
                         <div className="flex justify-between text-sm text-muted-foreground">
-                          <span>Tax ({(TAX_RATE * 100).toFixed(2)}%)</span>
+                          <span>{translate("history.tax")} ({(TAX_RATE * 100).toFixed(2)}%)</span>
                           <span>{formatCurrency(o.tax)}</span>
                         </div>
                         <div className="flex justify-between text-base font-bold pt-2 border-t mt-2">
-                          <span>Total</span>
+                          <span>{translate("history.total")}</span>
                           <span>{formatCurrency(o.total)}</span>
                         </div>
                       </div>
@@ -375,7 +377,7 @@ export default function HistoryPage() {
               <div className="flex justify-center pt-4 pb-8">
                 <Button variant="secondary" onClick={loadMore} disabled={loading} className="min-w-[150px]">
                   {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                  Load More Orders
+                  {translate("history.loadMore")}
                 </Button>
               </div>
             )}

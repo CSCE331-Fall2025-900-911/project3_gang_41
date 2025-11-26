@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState, useCallback, useRef } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useSearchParams } from 'react-router-dom';
 import { useLocalStorage } from '@/hooks/useLocalStorage';
 import { fetchApi } from '@/lib/api';
@@ -96,6 +97,7 @@ function highlight(text: string, query: string) {
 
 // -------------------- Main Component --------------------
 function InventoryPage() {
+  const { t: translate } = useTranslation();
   const [searchParams] = useSearchParams();
   const initialSearch = searchParams.get("search") || "";
   
@@ -243,9 +245,9 @@ function InventoryPage() {
     if (editingId == null) return;
     const qty = Number(form.supply);
     const price = Number(form.cost);
-    if (!form.item_name.trim()) return toast.error('Item name is required.');
-    if (!Number.isFinite(qty) || qty < 0) return toast.error('Supply must be a non-negative number.');
-    if (!Number.isFinite(price) || price < 0) return toast.error('Cost must be a non-negative number.');
+    if (!form.item_name.trim()) return toast.error(translate('inventory.itemNameRequired'));
+    if (!Number.isFinite(qty) || qty < 0) return toast.error(translate('inventory.supplyMustBeNonNegative'));
+    if (!Number.isFinite(price) || price < 0) return toast.error(translate('inventory.costMustBeNonNegative'));
 
     await toast.promise(
       (async () => {
@@ -264,7 +266,7 @@ function InventoryPage() {
         setTimeout(() => setFlashRowId((id) => (id === updated.item_id ? null : id)), 1200);
         cancelEdit();
       })(),
-      { loading: 'Saving changes...', success: 'Inventory updated', error: 'Failed to update inventory' }
+      { loading: translate('inventory.savingChanges'), success: translate('inventory.inventoryUpdated'), error: translate('inventory.failedToUpdate') }
     );
   };
 
@@ -274,7 +276,7 @@ function InventoryPage() {
         await fetchApi(`/api/inventory/${row.item_id}`, { method: 'DELETE' });
         setItems((prev) => prev.filter((i) => i.item_id !== row.item_id));
       })(),
-      { loading: 'Deleting...', success: 'Item deleted', error: 'Failed to delete item' }
+      { loading: translate('inventory.deleting'), success: translate('inventory.itemDeleted'), error: translate('inventory.failedToDelete') }
     );
   };
 
@@ -282,9 +284,9 @@ function InventoryPage() {
     e.preventDefault();
     const qty = Number(newItem.quantity);
     const price = Number(newItem.cost);
-    if (!newItem.item_name.trim()) return toast.error('Item name is required.');
-    if (!Number.isFinite(qty) || qty < 0) return toast.error('Supply must be a non-negative number.');
-    if (!Number.isFinite(price) || price < 0) return toast.error('Cost must be a non-negative number.');
+    if (!newItem.item_name.trim()) return toast.error(translate('inventory.itemNameRequired'));
+    if (!Number.isFinite(qty) || qty < 0) return toast.error(translate('inventory.supplyMustBeNonNegative'));
+    if (!Number.isFinite(price) || price < 0) return toast.error(translate('inventory.costMustBeNonNegative'));
 
     await toast.promise(
       (async () => {
@@ -305,7 +307,7 @@ function InventoryPage() {
         setNewItem({ item_name: '', quantity: '', unit: '', cost: '' });
         setPage(1);
       })(),
-      { loading: 'Adding item...', success: 'Item added successfully', error: 'Failed to add item' }
+      { loading: translate('inventory.addingItem'), success: translate('inventory.itemAdded'), error: translate('inventory.failedToAdd') }
     );
   };
 
@@ -324,18 +326,18 @@ function InventoryPage() {
             <div className="space-y-1">
               <h1 className="flex items-center gap-3 text-4xl font-bold tracking-tight">
                 <Package className="h-8 w-8 text-primary" />
-                Inventory Management
+                {translate('inventory.title')}
               </h1>
               <p className="text-muted-foreground">
-                Track your stock levels and manage inventory items efficiently
+                {translate('inventory.subtitle')}
               </p>
             </div>
 
             <div className="flex items-center gap-2">
-              <ThresholdsDialog thresholds={thresholds} onSave={setThresholds}>
+              <ThresholdsDialog thresholds={thresholds} onSave={setThresholds} translate={translate}>
                 <Button variant="outline" size="sm" className="gap-2">
                   <Settings className="h-4 w-4" />
-                  <span className="hidden sm:inline">Configure Thresholds</span>
+                  <span className="hidden sm:inline">{translate('inventory.configureThresholds')}</span>
                 </Button>
               </ThresholdsDialog>
             </div>
@@ -344,7 +346,7 @@ function InventoryPage() {
           {/* Stock Status Overview Cards */}
           <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
             <StockStatusCard
-              label="Critical"
+              label={translate('inventory.critical')}
               count={counts.crit}
               icon={<AlertTriangle className="h-5 w-5" />}
               variant="destructive"
@@ -352,7 +354,7 @@ function InventoryPage() {
               onClick={() => setStockFilter(stockFilter === 'crit' ? 'all' : 'crit')}
             />
             <StockStatusCard
-              label="Low Stock"
+              label={translate('inventory.lowStock')}
               count={counts.warn}
               icon={<TrendingDown className="h-5 w-5" />}
               variant="warning"
@@ -360,7 +362,7 @@ function InventoryPage() {
               onClick={() => setStockFilter(stockFilter === 'warn' ? 'all' : 'warn')}
             />
             <StockStatusCard
-              label="In Stock"
+              label={translate('inventory.inStock')}
               count={counts.ok}
               icon={<Check className="h-5 w-5" />}
               variant="success"
@@ -368,7 +370,7 @@ function InventoryPage() {
               onClick={() => setStockFilter(stockFilter === 'ok' ? 'all' : 'ok')}
             />
             <StockStatusCard
-              label="Total Items"
+              label={translate('inventory.totalItems')}
               count={counts.all}
               icon={<Package className="h-5 w-5" />}
               variant="default"
@@ -381,7 +383,7 @@ function InventoryPage() {
           <div className="relative">
             <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
             <Input
-              placeholder="Search inventory items..."
+              placeholder={translate('inventory.searchPlaceholder')}
               className="h-11 pl-10 pr-10"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
@@ -405,48 +407,48 @@ function InventoryPage() {
             <CardHeader className="space-y-1 pb-4">
               <div className="flex items-center justify-between">
                 <div>
-                  <CardTitle>Inventory Items</CardTitle>
+                  <CardTitle>{translate('inventory.inventoryItems')}</CardTitle>
                   <CardDescription>
-                    {filtered.length} {filtered.length === 1 ? 'item' : 'items'} found
+                    {filtered.length} {filtered.length === 1 ? translate('inventory.itemFound') : translate('inventory.itemsFound')} {translate('inventory.found')}
                   </CardDescription>
                 </div>
                 {!loading && items.length > 0 && (
                   <Badge variant="secondary" className="gap-1">
                     <Info className="h-3 w-3" />
-                    Double-click to edit
+                    {translate('inventory.doubleClickEdit')}
                   </Badge>
                 )}
               </div>
             </CardHeader>
             <CardContent className="p-0">
               {loading ? (
-                <TableSkeleton rows={6} />
+                <TableSkeleton rows={6} translate={translate} />
               ) : error ? (
                 <div className="m-6 rounded-lg border border-destructive/50 bg-destructive/10 p-4">
                   <div className="flex items-center justify-between">
                     <p className="text-sm font-medium text-destructive">{error}</p>
                     <Button size="sm" variant="outline" onClick={loadInventory}>
-                      Retry
+                      {translate('inventory.retry')}
                     </Button>
                   </div>
                 </div>
               ) : items.length === 0 ? (
                 <EmptyState
-                  title="No inventory items yet"
-                  description="Start by adding your first inventory item"
+                  title={translate('inventory.noItemsYet')}
+                  description={translate('inventory.addFirstItemDesc')}
                   icon={<Package className="h-12 w-12 text-muted-foreground/50" />}
                   primary={{
-                    label: 'Add First Item',
+                    label: translate('inventory.addFirstItem'),
                     onClick: () => addFormRef.current?.scrollIntoView({ behavior: 'smooth' }),
                   }}
                 />
               ) : filtered.length === 0 ? (
                 <EmptyState
-                  title="No items match your filters"
-                  description="Try adjusting your search or filter criteria"
+                  title={translate('inventory.noItemsMatch')}
+                  description={translate('inventory.tryAdjusting')}
                   icon={<Search className="h-12 w-12 text-muted-foreground/50" />}
                   secondary={{
-                    label: 'Clear Filters',
+                    label: translate('inventory.clearFilters'),
                     onClick: () => {
                       setSearch('');
                       setStockFilter('all');
@@ -460,7 +462,7 @@ function InventoryPage() {
                       <thead className="border-y bg-muted/50">
                         <tr>
                           <TableHeader
-                            label="Item Name"
+                            label={translate('inventory.itemName')}
                             sortKey="item_name"
                             currentSort={sort}
                             onSort={() => toggleSort('item_name')}
@@ -468,7 +470,7 @@ function InventoryPage() {
                             width="40%"
                           />
                           <TableHeader
-                            label="Supply"
+                            label={translate('inventory.supply')}
                             sortKey="supply"
                             currentSort={sort}
                             onSort={() => toggleSort('supply')}
@@ -476,7 +478,7 @@ function InventoryPage() {
                             width="15%"
                           />
                           <TableHeader
-                            label="Unit"
+                            label={translate('inventory.unit')}
                             sortKey="unit"
                             currentSort={sort}
                             onSort={() => toggleSort('unit')}
@@ -484,7 +486,7 @@ function InventoryPage() {
                             width="15%"
                           />
                           <TableHeader
-                            label="Cost"
+                            label={translate('inventory.cost')}
                             sortKey="cost"
                             currentSort={sort}
                             onSort={() => toggleSort('cost')}
@@ -492,7 +494,7 @@ function InventoryPage() {
                             width="15%"
                           />
                           <th className="px-4 py-3 text-right text-xs font-medium uppercase tracking-wider text-muted-foreground">
-                            Actions
+                            {translate('inventory.actions')}
                           </th>
                         </tr>
                       </thead>
@@ -514,6 +516,7 @@ function InventoryPage() {
                             onFormChange={setForm}
                             formIsValid={formIsValid}
                             formIsDirty={formIsDirty}
+                            translate={translate}
                           />
                         ))}
                       </tbody>
@@ -524,17 +527,17 @@ function InventoryPage() {
                   {sorted.length > 0 && (
                     <div className="flex flex-col gap-3 border-t p-4 sm:flex-row sm:items-center sm:justify-between">
                       <p className="text-sm text-muted-foreground">
-                        Showing{' '}
+                        {translate('inventory.showing')}{' '}
                         <span className="font-medium text-foreground">
                           {(page - 1) * pageSize + 1}-{Math.min(page * pageSize, sorted.length)}
                         </span>{' '}
-                        of <span className="font-medium text-foreground">{sorted.length}</span> items
+                        {translate('inventory.of')} <span className="font-medium text-foreground">{sorted.length}</span> {translate('inventory.items')}
                       </p>
 
                       <div className="flex items-center gap-4">
                         <div className="flex items-center gap-2">
                           <label htmlFor="pageSize" className="text-sm font-medium text-muted-foreground">
-                            Rows:
+                            {translate('inventory.rows')}
                           </label>
                           
                           {/* ENHANCED DROPDOWN */}
@@ -564,11 +567,11 @@ function InventoryPage() {
                             onClick={() => setPage((p) => Math.max(1, p - 1))}
                           >
                             <ChevronLeft className="h-4 w-4" />
-                            <span className="sr-only">Previous</span>
+                            <span className="sr-only">{translate('inventory.previous')}</span>
                           </Button>
 
                           <div className="flex h-9 min-w-[100px] items-center justify-center rounded-md border bg-background px-3 text-sm">
-                            Page {page} of {pageCount}
+                            {translate('inventory.page')} {page} {translate('inventory.of')} {pageCount}
                           </div>
 
                           <Button
@@ -578,7 +581,7 @@ function InventoryPage() {
                             onClick={() => setPage((p) => Math.min(pageCount, p + 1))}
                           >
                             <ChevronRight className="h-4 w-4" />
-                            <span className="sr-only">Next</span>
+                            <span className="sr-only">{translate('inventory.next')}</span>
                           </Button>
                         </div>
                       </div>
@@ -595,19 +598,19 @@ function InventoryPage() {
               <CardHeader className="space-y-1 pb-4">
                 <CardTitle className="flex items-center gap-2">
                   <PlusCircle className="h-5 w-5" />
-                  Add New Item
+                  {translate('inventory.addNewItem')}
                 </CardTitle>
-                <CardDescription>Add a new item to your inventory</CardDescription>
+                <CardDescription>{translate('inventory.addNewItemDesc')}</CardDescription>
               </CardHeader>
               <CardContent>
                 <form onSubmit={addNewItem} className="space-y-4">
                   <div className="space-y-2">
                     <label htmlFor="item-name" className="text-sm font-medium">
-                      Item Name
+                      {translate('inventory.itemNameLabel')}
                     </label>
                     <Input
                       id="item-name"
-                      placeholder="e.g., Coffee Beans"
+                      placeholder={translate('inventory.itemNamePlaceholder')}
                       value={newItem.item_name}
                       onChange={(e) => setNewItem((s) => ({ ...s, item_name: e.target.value }))}
                       className="h-10"
@@ -617,7 +620,7 @@ function InventoryPage() {
                   <div className="grid grid-cols-2 gap-3">
                     <div className="space-y-2">
                       <label htmlFor="supply" className="text-sm font-medium">
-                        Initial Supply
+                        {translate('inventory.initialSupply')}
                       </label>
                       <Input
                         id="supply"
@@ -633,11 +636,11 @@ function InventoryPage() {
 
                     <div className="space-y-2">
                       <label htmlFor="unit" className="text-sm font-medium">
-                        Unit
+                        {translate('inventory.unitLabel')}
                       </label>
                       <Input
                         id="unit"
-                        placeholder="e.g., bags"
+                        placeholder={translate('inventory.unitPlaceholder')}
                         value={newItem.unit}
                         onChange={(e) => setNewItem((s) => ({ ...s, unit: e.target.value }))}
                         className="h-10"
@@ -654,21 +657,22 @@ function InventoryPage() {
                       const v = u.trim();
                       if (!v) return;
                       if (quickUnits.some((q) => q.toLowerCase() === v.toLowerCase())) {
-                        toast.error('This unit already exists');
+                        toast.error(translate('inventory.unitAlreadyExists'));
                         return;
                       }
                       setQuickUnits((prev) => [...prev, v]);
-                      toast.success(`Added "${v}" to quick units`);
+                      toast.success(translate('inventory.addedToQuickUnits', { unit: v }));
                     }}
                     onRemove={(u) => {
                       setQuickUnits((prev) => prev.filter((q) => q.toLowerCase() !== u.toLowerCase()));
                       setNewItem((s) => (s.unit.toLowerCase() === u.toLowerCase() ? { ...s, unit: '' } : s));
                     }}
+                    translate={translate}
                   />
 
                   <div className="space-y-2">
                     <label htmlFor="cost" className="text-sm font-medium">
-                      Unit Cost
+                      {translate('inventory.unitCost')}
                     </label>
                     <Input
                       id="cost"
@@ -682,14 +686,14 @@ function InventoryPage() {
                     />
                     {newItem.cost && parseFloat(newItem.cost) > 0 && (
                       <p className="text-sm text-muted-foreground">
-                        {formatCurrency(parseFloat(newItem.cost))} per {newItem.unit || 'unit'}
+                        {formatCurrency(parseFloat(newItem.cost))} {translate('inventory.perUnit')} {newItem.unit || translate('inventory.unit').toLowerCase()}
                       </p>
                     )}
                   </div>
 
                   <Button type="submit" className="w-full" size="lg">
                     <Plus className="mr-2 h-4 w-4" />
-                    Add Item to Inventory
+                    {translate('inventory.addToInventory')}
                   </Button>
                 </form>
               </CardContent>
@@ -701,15 +705,14 @@ function InventoryPage() {
         <Dialog open={!!deleteTarget} onOpenChange={(open) => !open && setDeleteTarget(null)}>
           <DialogContent>
             <DialogHeader>
-              <DialogTitle>Delete Item</DialogTitle>
+              <DialogTitle>{translate('inventory.deleteItem')}</DialogTitle>
               <DialogDescription>
-                Are you sure you want to delete <span className="font-semibold">{deleteTarget?.item_name}</span>? This
-                action cannot be undone.
+                {translate('inventory.deleteConfirm')} <span className="font-semibold">{deleteTarget?.item_name}</span>? {translate('inventory.cannotBeUndone')}
               </DialogDescription>
             </DialogHeader>
             <DialogFooter>
               <Button variant="outline" onClick={() => setDeleteTarget(null)}>
-                Cancel
+                {translate('inventory.cancel')}
               </Button>
               <Button
                 variant="destructive"
@@ -720,7 +723,7 @@ function InventoryPage() {
                   }
                 }}
               >
-                Delete Item
+                {translate('inventory.deleteItem')}
               </Button>
             </DialogFooter>
           </DialogContent>
@@ -840,6 +843,7 @@ function TableRow({
   onFormChange,
   formIsValid,
   formIsDirty,
+  translate,
 }: {
   index: number;
   row: InventoryRow;
@@ -855,6 +859,7 @@ function TableRow({
   onFormChange: (form: any) => void;
   formIsValid: boolean;
   formIsDirty: boolean;
+  translate: (key: string) => string;
 }) {
   const severity = getSeverity(row.supply, thresholds);
   const stockPercentage = thresholds.warn > 0 ? Math.min(100, (row.supply / thresholds.warn) * 100) : 100;
@@ -941,7 +946,7 @@ function TableRow({
                       : 'bg-amber-100 text-amber-700 hover:bg-amber-200 hover:text-amber-800 dark:bg-amber-900/20 dark:text-amber-300 dark:hover:bg-amber-900/40 border-amber-200 dark:border-amber-800'
                   )}
                 >
-                  {severity === 'crit' ? 'Critical' : 'Low'}
+                  {severity === 'crit' ? translate('inventory.critical') : translate('inventory.low')}
                 </Badge>
               )}
               <span className="font-medium tabular-nums">{row.supply}</span>
@@ -1003,7 +1008,7 @@ function TableRow({
                   </Button>
                 </TooltipTrigger>
                 <TooltipContent>
-                  <p>Save (Ctrl+Enter)</p>
+                  <p>{translate('inventory.saveCtrlEnter')}</p>
                 </TooltipContent>
               </Tooltip>
               <Tooltip>
@@ -1013,7 +1018,7 @@ function TableRow({
                   </Button>
                 </TooltipTrigger>
                 <TooltipContent>
-                  <p>Cancel (Esc)</p>
+                  <p>{translate('inventory.cancelEsc')}</p>
                 </TooltipContent>
               </Tooltip>
             </>
@@ -1021,17 +1026,17 @@ function TableRow({
             <>
               <Tooltip>
                 <TooltipTrigger asChild>
-                  <Button 
-                    size="sm" 
+                  <Button
+                    size="sm"
                     variant="outline"
-                    onClick={onEdit} 
+                    onClick={onEdit}
                     className="h-8 w-8 p-0"
                   >
                     <Pencil className="h-4 w-4" />
                   </Button>
                 </TooltipTrigger>
                 <TooltipContent>
-                  <p>Edit item</p>
+                  <p>{translate('inventory.editItem')}</p>
                 </TooltipContent>
               </Tooltip>
               <Tooltip>
@@ -1046,7 +1051,7 @@ function TableRow({
                   </Button>
                 </TooltipTrigger>
                 <TooltipContent>
-                  <p>Delete item</p>
+                  <p>{translate('inventory.deleteItem')}</p>
                 </TooltipContent>
               </Tooltip>
             </>
@@ -1064,6 +1069,7 @@ function QuickUnits({
   onSelect,
   onAdd,
   onRemove,
+  translate,
 }: {
   units: string[];
   builtins: string[];
@@ -1071,6 +1077,7 @@ function QuickUnits({
   onSelect: (u: string) => void;
   onAdd: (u: string) => void;
   onRemove: (u: string) => void;
+  translate: (key: string) => string;
 }) {
   const [newUnit, setNewUnit] = useState('');
   const [showAdd, setShowAdd] = useState(false);
@@ -1086,7 +1093,7 @@ function QuickUnits({
   return (
     <div className="space-y-3">
       <div className="flex items-center justify-between">
-        <label className="text-sm font-medium">Quick Units</label>
+        <label className="text-sm font-medium">{translate('inventory.quickUnits')}</label>
         {!showAdd && (
           <Button
             type="button"
@@ -1096,7 +1103,7 @@ function QuickUnits({
             className="h-7 gap-1 px-2 text-xs"
           >
             <Plus className="h-3 w-3" />
-            Add
+            {translate('inventory.add')}
           </Button>
         )}
       </div>
@@ -1132,7 +1139,7 @@ function QuickUnits({
       {showAdd && (
         <div className="flex gap-2">
           <Input
-            placeholder="New unit (e.g., kg)"
+            placeholder={translate('inventory.newUnitPlaceholder')}
             value={newUnit}
             onChange={(e) => setNewUnit(e.target.value)}
             onKeyDown={(e) => {
@@ -1148,7 +1155,7 @@ function QuickUnits({
             autoFocus
           />
           <Button type="button" size="sm" onClick={handleAdd} className="h-9">
-            Add
+            {translate('inventory.add')}
           </Button>
           <Button
             type="button"
@@ -1160,7 +1167,7 @@ function QuickUnits({
             }}
             className="h-9"
           >
-            Cancel
+            {translate('inventory.cancel')}
           </Button>
         </div>
       )}
@@ -1172,10 +1179,12 @@ function ThresholdsDialog({
   thresholds,
   onSave,
   children,
+  translate,
 }: {
   thresholds: Thresholds;
   onSave: (t: Thresholds) => void;
   children: React.ReactNode;
+  translate: (key: string) => string;
 }) {
   const [open, setOpen] = useState(false);
   const [local, setLocal] = useState<Thresholds>(thresholds);
@@ -1189,21 +1198,21 @@ function ThresholdsDialog({
     const crit = Number(local.crit);
 
     if (!Number.isFinite(warn) || warn < 0) {
-      toast.error('Warning threshold must be a positive number');
+      toast.error(translate('inventory.warningMustBePositive'));
       return;
     }
     if (!Number.isFinite(crit) || crit < 0) {
-      toast.error('Critical threshold must be a positive number');
+      toast.error(translate('inventory.criticalMustBePositive'));
       return;
     }
     if (crit > warn) {
-      toast.error('Critical threshold must be less than or equal to warning threshold');
+      toast.error(translate('inventory.criticalMustBeLess'));
       return;
     }
 
     onSave({ warn, crit });
     setOpen(false);
-    toast.success('Thresholds updated successfully');
+    toast.success(translate('inventory.thresholdsUpdated'));
   };
 
   return (
@@ -1211,9 +1220,9 @@ function ThresholdsDialog({
       <DialogTrigger asChild>{children}</DialogTrigger>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
-          <DialogTitle>Configure Stock Thresholds</DialogTitle>
+          <DialogTitle>{translate('inventory.configureStockThresholds')}</DialogTitle>
           <DialogDescription>
-            Set the supply levels that trigger low stock and critical stock warnings
+            {translate('inventory.thresholdsDescription')}
           </DialogDescription>
         </DialogHeader>
 
@@ -1221,7 +1230,7 @@ function ThresholdsDialog({
           <div className="space-y-2">
             <label htmlFor="warn" className="flex items-center gap-2 text-sm font-medium">
               <TrendingDown className="h-4 w-4 text-orange-500" />
-              Low Stock Warning Level
+              {translate('inventory.lowStockWarning')}
             </label>
             <Input
               id="warn"
@@ -1233,14 +1242,14 @@ function ThresholdsDialog({
               className="h-10"
             />
             <p className="text-xs text-muted-foreground">
-              Items with supply ≤ {local.warn} will be marked as low stock
+              {translate('inventory.itemsWithSupply')} {local.warn} {translate('inventory.willBeMarkedLow')}
             </p>
           </div>
 
           <div className="space-y-2">
             <label htmlFor="crit" className="flex items-center gap-2 text-sm font-medium">
               <AlertTriangle className="h-4 w-4 text-destructive" />
-              Critical Stock Level
+              {translate('inventory.criticalStockLevel')}
             </label>
             <Input
               id="crit"
@@ -1252,42 +1261,42 @@ function ThresholdsDialog({
               className="h-10"
             />
             <p className="text-xs text-muted-foreground">
-              Items with supply ≤ {local.crit} will be marked as critical
+              {translate('inventory.itemsWithSupply')} {local.crit} {translate('inventory.willBeMarkedCritical')}
             </p>
           </div>
         </div>
 
         <DialogFooter>
           <Button variant="outline" onClick={() => setOpen(false)}>
-            Cancel
+            {translate('inventory.cancel')}
           </Button>
-          <Button onClick={handleSave}>Save Changes</Button>
+          <Button onClick={handleSave}>{translate('inventory.saveChanges')}</Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>
   );
 }
 
-function TableSkeleton({ rows = 6 }: { rows?: number }) {
+function TableSkeleton({ rows = 6, translate }: { rows?: number; translate: (key: string) => string }) {
   return (
     <div className="overflow-x-auto">
       <table className="w-full">
         <thead className="border-y bg-muted/50">
           <tr>
             <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-muted-foreground">
-              Item Name
+              {translate('inventory.itemName')}
             </th>
             <th className="px-4 py-3 text-right text-xs font-medium uppercase tracking-wider text-muted-foreground">
-              Supply
+              {translate('inventory.supply')}
             </th>
             <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-muted-foreground">
-              Unit
+              {translate('inventory.unit')}
             </th>
             <th className="px-4 py-3 text-right text-xs font-medium uppercase tracking-wider text-muted-foreground">
-              Cost
+              {translate('inventory.cost')}
             </th>
             <th className="px-4 py-3 text-right text-xs font-medium uppercase tracking-wider text-muted-foreground">
-              Actions
+              {translate('inventory.actions')}
             </th>
           </tr>
         </thead>
