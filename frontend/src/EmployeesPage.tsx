@@ -20,6 +20,9 @@ import {
   DollarSign,
   Tag,
   Eye,
+  Plus,
+  Check,
+  Copy
 } from "lucide-react";
 import { toast } from "sonner";
 import {
@@ -28,7 +31,10 @@ import {
     DialogDescription,
     DialogHeader,
     DialogTitle,
+    DialogFooter,
 } from "@/components/ui/dialog";
+
+// --- TYPES ---
 
 type NewApiEmployee = {
   employee_id: number;
@@ -36,6 +42,8 @@ type NewApiEmployee = {
   job_title: string;
   hourly_rate: string;
   date_hired: string;
+  email?: string;
+  password?: string;
 };
 
 type Employee = {
@@ -68,22 +76,10 @@ const normalizeEmployee = (e: NewApiEmployee): Employee => {
   };
 };
 
-
 const formatDate = (date: Date) => 
     date.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
 
-type EmployeeFormValues = {
-  employee_name: string;
-  job_title: string;
-  hourly_rate: string;
-  date_hired: string;
-};
-
-interface EmployeeFormModalProps {
-    employeeToEdit?: Employee | null;
-    isOpen: boolean;
-    onClose: (didSave: boolean) => void;
-}
+// --- Modals ---
 
 interface EmployeeDetailModalProps {
     employee: Employee;
@@ -108,7 +104,6 @@ const EmployeeDetailModal: React.FC<EmployeeDetailModalProps> = ({ employee, isO
                     </DialogDescription>
                 </DialogHeader>
                 <div className="pt-4 space-y-4">
-
                     <div className="flex items-center justify-between border-b pb-2">
                         <span className="text-muted-foreground flex items-center gap-2">
                             <Tag className="h-4 w-4" /> {translate("employees.employeeId")}
@@ -117,7 +112,6 @@ const EmployeeDetailModal: React.FC<EmployeeDetailModalProps> = ({ employee, isO
                             {employee.id}
                         </Badge>
                     </div>
-
                     <div className="flex items-center justify-between">
                         <span className="text-muted-foreground flex items-center gap-2">
                             <DollarSign className="h-4 w-4" /> {translate("employees.hourlyRate")}
@@ -126,7 +120,6 @@ const EmployeeDetailModal: React.FC<EmployeeDetailModalProps> = ({ employee, isO
                             {formatCurrency(employee.hourlyRate)}
                         </span>
                     </div>
-
                     <div className="flex items-center justify-between">
                         <span className="text-muted-foreground flex items-center gap-2">
                             <Calendar className="h-4 w-4" /> {translate("employees.dateHired")}
@@ -135,17 +128,18 @@ const EmployeeDetailModal: React.FC<EmployeeDetailModalProps> = ({ employee, isO
                             {formatDate(employee.hireDate)}
                         </span>
                     </div>
-
                 </div>
+                {/* Note: Original code didn't have DialogFooter or Close button in the detail modal, 
+                    but I kept the Close button here for consistency with the new design */}
                 <div className="flex justify-end pt-4">
-                    <DialogClose asChild>
-                        <Button type="button" variant="outline">{translate("employees.close")}</Button>
-                    </DialogClose>
+                     <Button type="button" variant="outline" onClick={onClose}>{translate("employees.close")}</Button>
                 </div>
             </DialogContent>
         </Dialog>
     );
 };
+
+// --- Main Page Component ---
 
 export default function EmployeesPage() {
   const { t: translate } = useTranslation();
@@ -154,13 +148,25 @@ export default function EmployeesPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [hasMoreData, setHasMoreData] = useState(true);
-  const [selectedEmployee, setSelectedEmployee] = useState<Employee | null>(null); //modal
+  
+  // Modal States
+  const [selectedEmployee, setSelectedEmployee] = useState<Employee | null>(null);
+  const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+  const [newCredentials, setNewCredentials] = useState<{email: string, password: string} | null>(null);
 
+  // Search States
   const [searchTerm, setSearchTerm] = useState("");
   const [isSearching, setIsSearching] = useState(false);
 
-  const loadEmployees = async (targetPage = 1, search = "") => {
+  // Form State
+  const [formData, setFormData] = useState({
+    employee_name: "",
+    job_title: "",
+    hourly_rate: ""
+  });
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
+  const loadEmployees = async (targetPage = 1, search = "") => {
     const maxRetries = 3;
     let currentRetry = 0;
 
@@ -172,13 +178,11 @@ export default function EmployeesPage() {
         }
 
         let endpoint = `/api/employees?page=${targetPage}&limit=${PAGE_SIZE}`;
-
         if (search.trim()) {
           endpoint += `&search=${encodeURIComponent(search.trim())}`;
         }
 
         const data = await fetchApi<EmployeeApiResponse>(endpoint);
-
         const normalized = (data ?? []).map(normalizeEmployee);
 
         setEmployees((prev) => 
@@ -186,9 +190,7 @@ export default function EmployeesPage() {
         );
         
         setHasMoreData((data ?? []).length === PAGE_SIZE);
-        
         setIsSearching(!!search.trim());
-        
         setLoading(false);
         return;
         
@@ -199,9 +201,8 @@ export default function EmployeesPage() {
           setError(e?.message ?? translate("employees.unableToLoad"));
           toast.error(translate("employees.failedToLoad"));
           setLoading(false);
-          return; // Exit the loop on final failure
+          return;
         }
-        
         const delay = Math.pow(2, currentRetry) * 1000;
         await new Promise(resolve => setTimeout(resolve, delay));
       }
@@ -232,52 +233,64 @@ export default function EmployeesPage() {
     loadEmployees(1, "");
   };
   
-  // Handler to open modal
-  const openDetailsModal = (employee: Employee) => {
-      setSelectedEmployee(employee);
-  };
+  // --- Handlers for Add Employee ---
 
-  // Handler to close modal
-  const closeDetailsModal = () => {
-      setSelectedEmployee(null);
-  };
+  const handleCreateEmployee = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsSubmitting(true);
 
-  // Handler to open the form modal for adding
-const openAddEmployeeModal = () => {
-  setEmployeeToEdit(null); // Clear any previous edit context
-  setIsFormModalOpen(true);
-};
-
-// Handler to open the form modal for editing
-const openEditEmployeeModal = (employee: Employee) => {
-  setEmployeeToEdit(employee);
-  setIsFormModalOpen(true);
-};
-
-// Handler to close the form modal and potentially refresh the list
-const closeFormModal = (didSave: boolean) => {
-  setIsFormModalOpen(false);
-  setEmployeeToEdit(null);
-  if (didSave) {
-    // Force a full refresh after a successful Add/Edit
-    loadEmployees(1, searchTerm);
-  }
-};
-
-// Handler for deleting an employee
-const handleDeleteEmployee = async (employeeId: number) => {
-    if (!confirm("Are you sure you want to delete this employee?")) return;
+    if (!formData.employee_name || !formData.job_title || !formData.hourly_rate) {
+        toast.error("Please fill in all fields");
+        setIsSubmitting(false);
+        return;
+    }
 
     try {
-        // Placeholder: Replace with actual DELETE API call
-        // await fetchApi(`/api/employees/${employeeId}`, { method: 'DELETE' });
+        // Adjust this fetch call if you need to use your 'fetchApi' wrapper
+        const response = await fetch('/api/employees', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                employee_name: formData.employee_name,
+                job_title: formData.job_title,
+                hourly_rate: parseFloat(formData.hourly_rate)
+            })
+        });
 
-        toast.success("Employee deleted successfully!");
-        loadEmployees(1, searchTerm); // Refresh list
-    } catch (e) {
-        toast.error("Failed to delete employee.");
+        const result = await response.json();
+
+        if (!response.ok) {
+            throw new Error(result.message || 'Failed to create employee');
+        }
+
+        // Success logic
+        setIsAddModalOpen(false);
+        setNewCredentials({
+            email: result.data.email, 
+            password: result.data.password
+        });
+        
+        // Reset form
+        setFormData({ employee_name: "", job_title: "", hourly_rate: "" });
+        
+        // Refresh list
+        loadEmployees(1, searchTerm);
+        toast.success("Employee created successfully");
+
+    } catch (err: any) {
+        console.error(err);
+        toast.error(err.message || "Failed to create employee");
+    } finally {
+        setIsSubmitting(false);
     }
-};
+  };
+
+  const copyToClipboard = () => {
+    if (!newCredentials) return;
+    const text = `Email: ${newCredentials.email}\nPassword: ${newCredentials.password}`;
+    navigator.clipboard.writeText(text);
+    toast.success("Credentials copied to clipboard");
+  };
 
   return (
     <div className="flex h-full bg-background flex-col overflow-hidden">
@@ -290,14 +303,14 @@ const handleDeleteEmployee = async (employeeId: number) => {
             <h1 className="text-xl font-bold md:hidden">{translate("employees.titleShort")}</h1>
           </div>
 
-          {/* Search Bar */}
-          <form onSubmit={handleSearch} className="flex-1 max-w-lg flex items-center gap-2 ml-auto">
-            <div className="relative flex-1">
+          <div className="flex-1 max-w-lg flex items-center gap-2 ml-auto">
+             {/* Search Bar */}
+            <form onSubmit={handleSearch} className="flex-1 relative">
               <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
               <Input
                 type="text"
                 placeholder={translate("employees.searchPlaceholder")}
-                className="pl-9"
+                className="pl-9 w-full"
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
               />
@@ -310,23 +323,31 @@ const handleDeleteEmployee = async (employeeId: number) => {
                   <X className="h-4 w-4" />
                 </button>
               )}
-            </div>
-            <Button type="submit" disabled={loading}>
+            </form>
+            
+            <Button type="submit" disabled={loading} onClick={handleSearch} className="hidden sm:flex">
               {translate("employees.search")}
             </Button>
-          </form>
+
+            {/* NEW ADD BUTTON */}
+            <Button 
+                onClick={() => setIsAddModalOpen(true)} 
+                className="bg-green-600 hover:bg-green-700 text-white ml-2"
+            >
+                <Plus className="h-4 w-4 sm:mr-2" />
+                <span className="hidden sm:inline">Add Employee</span>
+            </Button>
+          </div>
         </div>
       </div>
 
       <div className="flex-1 overflow-auto p-6 bg-slate-50/50">
         {loading && page === 1 ? (
-          // Initial Loading State
           <div className="flex h-full items-center justify-center text-muted-foreground">
             <Loader2 className="h-6 w-6 animate-spin mr-2" />
             {translate("employees.loading")}
           </div>
         ) : error ? (
-          // Error State
           <div className="flex flex-col items-center justify-center gap-3 text-center h-full">
             <p className="text-sm text-destructive">{error}</p>
             <Button variant="outline" onClick={() => loadEmployees(1, searchTerm)}>
@@ -334,7 +355,6 @@ const handleDeleteEmployee = async (employeeId: number) => {
             </Button>
           </div>
         ) : employees.length === 0 ? (
-          // Empty/No Results State
           <div className="flex flex-col items-center justify-center h-full text-muted-foreground gap-2">
             <Users className="h-10 w-10 opacity-20" />
             <p>
@@ -347,9 +367,14 @@ const handleDeleteEmployee = async (employeeId: number) => {
                 {translate("employees.clearSearch")}
               </Button>
             )}
+            {/* Call to action for empty state */}
+            {!isSearching && (
+                 <Button onClick={() => setIsAddModalOpen(true)} variant="outline" className="mt-4">
+                    <Plus className="mr-2 h-4 w-4"/> Add your first employee
+                 </Button>
+            )}
           </div>
         ) : (
-          // Employee List Display
           <div className="space-y-4 max-w-5xl mx-auto pb-6">
             {employees.map((e) => {
               return (
@@ -377,7 +402,7 @@ const handleDeleteEmployee = async (employeeId: number) => {
                         <Button
                             variant="default"
                             size="sm"
-                            onClick={() => openDetailsModal(e)}
+                            onClick={() => setSelectedEmployee(e)}
                             className="bg-indigo-600 hover:bg-indigo-700 transition-colors"
                         >
                             <Eye className="h-4 w-4 mr-2" />
@@ -402,15 +427,113 @@ const handleDeleteEmployee = async (employeeId: number) => {
         )}
       </div>
 
-      {/* Employee Detail Modal */}
+      {/* --- DETAILS MODAL --- */}
       {selectedEmployee && (
         <EmployeeDetailModal
           employee={selectedEmployee}
           isOpen={!!selectedEmployee}
-          onClose={closeDetailsModal}
+          onClose={() => setSelectedEmployee(null)}
           translate={translate}
         />
       )}
+
+      {/* --- ADD EMPLOYEE MODAL --- */}
+      <Dialog open={isAddModalOpen} onOpenChange={setIsAddModalOpen}>
+        <DialogContent className="sm:max-w-[425px]">
+            <DialogHeader>
+                <DialogTitle>Add New Employee</DialogTitle>
+                <DialogDescription>
+                    Enter the details below. Login credentials will be generated automatically.
+                </DialogDescription>
+            </DialogHeader>
+            
+            <form onSubmit={handleCreateEmployee} className="grid gap-4 py-4">
+                <div className="grid grid-cols-4 items-center gap-4">
+                    <span className="text-right text-sm font-medium">Name</span>
+                    <Input
+                        id="name"
+                        value={formData.employee_name}
+                        onChange={(e) => setFormData({...formData, employee_name: e.target.value})}
+                        className="col-span-3"
+                        placeholder="e.g. John Doe"
+                        required
+                    />
+                </div>
+                <div className="grid grid-cols-4 items-center gap-4">
+                    <span className="text-right text-sm font-medium">Job Title</span>
+                    <Input
+                        id="job"
+                        value={formData.job_title}
+                        onChange={(e) => setFormData({...formData, job_title: e.target.value})}
+                        className="col-span-3"
+                        placeholder="e.g. Manager"
+                        required
+                    />
+                </div>
+                <div className="grid grid-cols-4 items-center gap-4">
+                    <span className="text-right text-sm font-medium">Rate ($)</span>
+                    <Input
+                        id="rate"
+                        type="number"
+                        step="0.01"
+                        value={formData.hourly_rate}
+                        onChange={(e) => setFormData({...formData, hourly_rate: e.target.value})}
+                        className="col-span-3"
+                        placeholder="0.00"
+                        required
+                    />
+                </div>
+                <DialogFooter>
+                    <Button type="button" variant="outline" onClick={() => setIsAddModalOpen(false)}>
+                        Cancel
+                    </Button>
+                    <Button type="submit" disabled={isSubmitting}>
+                        {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                        Create Employee
+                    </Button>
+                </DialogFooter>
+            </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* --- CREDENTIALS SUCCESS MODAL --- */}
+      <Dialog open={!!newCredentials} onOpenChange={() => setNewCredentials(null)}>
+        <DialogContent className="sm:max-w-md">
+            <DialogHeader>
+                <div className="flex items-center gap-2 text-green-600 mb-2">
+                    <Check className="h-6 w-6" />
+                    <DialogTitle>Employee Created Successfully</DialogTitle>
+                </div>
+                <DialogDescription>
+                    The system has generated the following credentials. Please copy them now as they cannot be retrieved later.
+                </DialogDescription>
+            </DialogHeader>
+            
+            {newCredentials && (
+                <div className="bg-slate-100 p-4 rounded-md space-y-3 border">
+                    <div>
+                        <span className="text-xs uppercase text-slate-500 font-bold">Email (Login)</span>
+                        <div className="font-mono text-lg font-semibold select-all">{newCredentials.email}</div>
+                    </div>
+                    <div className="border-t border-slate-200 pt-2">
+                        <span className="text-xs uppercase text-slate-500 font-bold">Temporary Password</span>
+                        <div className="font-mono text-lg font-semibold select-all">{newCredentials.password}</div>
+                    </div>
+                </div>
+            )}
+
+            <DialogFooter className="sm:justify-between">
+                <Button type="button" variant="secondary" onClick={() => setNewCredentials(null)}>
+                    Close
+                </Button>
+                <Button type="button" onClick={copyToClipboard} className="gap-2">
+                    <Copy className="h-4 w-4" />
+                    Copy Credentials
+                </Button>
+            </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
     </div>
   );
 }

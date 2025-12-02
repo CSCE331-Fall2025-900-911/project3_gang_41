@@ -27,17 +27,17 @@ router.post('/', async (req: Request, res: Response) => {
     return sendError(res, 'Missing input', 400);
   }
 
-  // employee naem verif
+  // employee name verification
   if (typeof employee_name !== "string" || employee_name.trim().length === 0) {
     return sendError(res, "employee_name must be a non-empty string", 400);
   }
 
-  // job_title verificaiton 
+  // job_title verification 
   if (typeof job_title !== "string" || job_title.trim().length === 0) {
     return sendError(res, "job_title must be a non-empty string", 400);
   }
 
-  // rate verif
+  // rate verification
   let rate: number;
   if (typeof hourly_rate === "number") {
     rate = hourly_rate;
@@ -50,14 +50,30 @@ router.post('/', async (req: Request, res: Response) => {
   const name = employee_name.trim();
   const job = job_title.trim();
 
+  // Logic to Auto-Generate Email and Password
+  // Email: lowercase, replace all spaces with dots + @gmail.com
+  const generatedEmail = name.toLowerCase().replace(/\s+/g, '.') + '@gmail.com';
+  
+  // Password: First word of the name + 123!
+  const generatedPassword = name.split(' ')[0] + '123!';
+
   try {
     const insertSql = `
-      INSERT INTO employees (employee_name, job_title, hourly_rate, date_hired) VALUES ($1, $2, $3, CURRENT_DATE)
+      INSERT INTO employees (employee_name, job_title, hourly_rate, email, password, date_hired) 
+      VALUES ($1, $2, $3, $4, $5, CURRENT_DATE)
       RETURNING employee_id
     `;
-    const result = await db.query(insertSql, [name, job, rate]);
+    // Pass the generated values into the query
+    const result = await db.query(insertSql, [name, job, rate, generatedEmail, generatedPassword]);
+    
     res.status(201);
-    sendSuccess(res, result.rows[0], 'Employee created');
+    // You might want to return the generated creds so the frontend can show them immediately
+    sendSuccess(res, { 
+        ...result.rows[0], 
+        email: generatedEmail, 
+        password: generatedPassword 
+    }, 'Employee created');
+
   } catch (error) {
     console.error('Error adding new employee:', error);
     sendError(res, 'Failed to add employee.');
@@ -68,13 +84,15 @@ router.post('/', async (req: Request, res: Response) => {
 // Refactored PUT using buildUpdateQuery
 router.put('/:id', async (req: Request, res: Response) => {
   const { id } = req.params;
-  const { employee_name, job_title, hourly_rate } = req.body;
+  
+  const { employee_name, job_title, hourly_rate, password } = req.body;
 
   // Helper automatically handles undefined/trimming/parameterization
   const query = buildUpdateQuery('employees', 'employee_id', parseInt(id), {
     employee_name,
     job_title,
-    hourly_rate
+    hourly_rate,
+    password // Included so manager can update password
   });
 
   if (!query) {
