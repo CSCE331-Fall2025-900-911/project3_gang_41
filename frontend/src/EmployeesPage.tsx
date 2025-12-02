@@ -28,7 +28,6 @@ import {
     DialogDescription,
     DialogHeader,
     DialogTitle,
-    DialogClose,
 } from "@/components/ui/dialog";
 
 type NewApiEmployee = {
@@ -73,6 +72,18 @@ const normalizeEmployee = (e: NewApiEmployee): Employee => {
 const formatDate = (date: Date) => 
     date.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
 
+type EmployeeFormValues = {
+  employee_name: string;
+  job_title: string;
+  hourly_rate: string;
+  date_hired: string;
+};
+
+interface EmployeeFormModalProps {
+    employeeToEdit?: Employee | null;
+    isOpen: boolean;
+    onClose: (didSave: boolean) => void;
+}
 
 interface EmployeeDetailModalProps {
     employee: Employee;
@@ -230,6 +241,43 @@ export default function EmployeesPage() {
   const closeDetailsModal = () => {
       setSelectedEmployee(null);
   };
+
+  // Handler to open the form modal for adding
+const openAddEmployeeModal = () => {
+  setEmployeeToEdit(null); // Clear any previous edit context
+  setIsFormModalOpen(true);
+};
+
+// Handler to open the form modal for editing
+const openEditEmployeeModal = (employee: Employee) => {
+  setEmployeeToEdit(employee);
+  setIsFormModalOpen(true);
+};
+
+// Handler to close the form modal and potentially refresh the list
+const closeFormModal = (didSave: boolean) => {
+  setIsFormModalOpen(false);
+  setEmployeeToEdit(null);
+  if (didSave) {
+    // Force a full refresh after a successful Add/Edit
+    loadEmployees(1, searchTerm);
+  }
+};
+
+// Handler for deleting an employee
+const handleDeleteEmployee = async (employeeId: number) => {
+    if (!confirm("Are you sure you want to delete this employee?")) return;
+
+    try {
+        // Placeholder: Replace with actual DELETE API call
+        // await fetchApi(`/api/employees/${employeeId}`, { method: 'DELETE' });
+
+        toast.success("Employee deleted successfully!");
+        loadEmployees(1, searchTerm); // Refresh list
+    } catch (e) {
+        toast.error("Failed to delete employee.");
+    }
+};
 
   return (
     <div className="flex h-full bg-background flex-col overflow-hidden">

@@ -1,0 +1,346 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Digital Menu Board - Dual Screen Rotation</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+
+        html { font-family: 'Inter', sans-serif; }
+        
+        /* Define the container styles for each screen */
+        .menu-board-container {
+            min-height: 100vh;
+            background-color: #ffffff;
+            color: #000000;
+            padding: 2rem;
+            display: flex;
+            flex-direction: column;
+            
+            /* Hidden by default, shown by JavaScript */
+            position: absolute; /* Ensures screens stack */
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            opacity: 0; /* Fade effect for transition */
+            transition: opacity 1s ease-in-out;
+            visibility: hidden;
+        }
+
+        .menu-board-container.active {
+            opacity: 1;
+            visibility: visible;
+        }
+
+        /* Layout for Screen 1 (2 columns) */
+        .screen-1-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr; /* Two columns for the first screen */
+            gap: 2rem;
+            flex-grow: 1;
+        }
+        /* Layout for Screen 2 (1 column) */
+        .screen-2-grid {
+            display: grid;
+            grid-template-columns: 1fr; /* One column for the second screen */
+            gap: 2rem;
+            flex-grow: 1;
+        }
+
+        .category-divider {
+            height: 3px;
+            background-color: #000000;
+            width: 100%;
+            margin: 0.5rem 0 1.25rem 0;
+            opacity: 0.7;
+        }
+
+        .menu-item-grid {
+            display: grid;
+            grid-template-columns: 2.5fr 1fr;
+            gap: 0.75rem;
+            align-items: center;
+        }
+
+        .item-separator {
+            border-bottom: 1px solid rgba(0, 0, 0, 0.2);
+        }
+        
+        body { margin: 0; background-color: #000000; }
+    </style>
+</head>
+<body class="bg-white text-white">
+
+    <!-- Screen 1: First Laptop Display -->
+    <!-- Initially hidden, will be managed by JS -->
+    <div id="screen-1" class="menu-board-container active"> 
+        <header class="text-center mb-8 border-b-4 border-black pb-4">
+            <h1 class="text-6xl sm:text-7xl font-white uppercase tracking-widest">
+                MILK & FRUIT TEAS
+            </h1>
+        </header>
+        <div class="screen-1-grid">
+            <!-- Content will be injected here -->
+        </div>
+    </div>
+
+    <!-- Screen 2: Second Laptop Display -->
+    <!-- Initially hidden, will be managed by JS -->
+    <div id="screen-2" class="menu-board-container">
+        <header class="text-center mb-8 border-b-4 border-black pb-4">
+            <h1 class="text-6xl sm:text-7xl font-white uppercase tracking-widest">
+                MATCHA & SEASONAL
+            </h1>
+        </header>
+        <div class="screen-2-grid">
+            <!-- Content will be injected here -->
+        </div>
+    </div>
+
+
+    <script>
+        const allDrinks = [
+            // --- Milk Tea (10) ---
+            { id: 0, name: 'Classic Milk Tea', price: 6.80, category: 'Milk Tea' },
+            { id: 1, name: 'Coffee Milk Tea', price: 6.25, category: 'Milk Tea' },
+            { id: 2, name: 'Hokkaido Milk Tea', price: 6.25, category: 'Milk Tea' },
+            { id: 3, name: 'Thai Milk Tea', price: 6.25, category: 'Milk Tea' },
+            { id: 4, name: 'Black Milk Tea', price: 6.25, category: 'Milk Tea' },
+            { id: 5, name: 'Coconut Pearl Milk Tea', price: 6.75, category: 'Milk Tea' },
+            { id: 6, name: 'Taro Milk Tea', price: 6.25, category: 'Milk Tea' },
+            { id: 7, name: 'Matcha Milk Tea', price: 6.50, category: 'Milk Tea' },
+            { id: 8, name: 'Honey Milk Tea', price: 6.25, category: 'Milk Tea' },
+            { id: 9, name: 'Oolong Milk Tea', price: 6.25, category: 'Milk Tea' },
+
+            // --- Fruit Tea (4) ---
+            { id: 17, name: 'Mango Green Tea', price: 5.80, category: 'Fruit Tea' },
+            { id: 18, name: 'Passion Fruit Green Tea', price: 5.80, category: 'Fruit Tea' },
+            { id: 19, name: 'Peach Green Tea', price: 5.80, category: 'Fruit Tea' },
+            { id: 22, name: 'Honey Tea', price: 4.25, category: 'Fruit Tea' },
+
+            // --- Matcha (5) ---
+            { id: 53, name: 'Oliver Milk Tea', price: 4.99, category: 'Matcha' },
+            { id: 11, name: 'Strawberry Matcha Cream', price: 6.50, category: 'Matcha' },
+            { id: 12, name: 'Mango Matcha Cream', price: 6.50, category: 'Matcha' },
+            { id: 13, name: 'Peach Matcha Cream', price: 6.50, category: 'Matcha' },
+            { id: 14, name: 'Matcha Lemonade', price: 5.25, category: 'Matcha' },
+
+            // --- Slush (2) ---
+            { id: 15, name: 'Taro Slush', price: 6.00, category: 'Slush' },
+            { id: 16, name: 'Strawberry Milk Slush', price: 6.00, category: 'Slush' },
+
+            // --- Seasonal (2) ---
+            { id: 20, name: 'The Joe Biden Special', price: 91.00, category: 'Seasonal' },
+            { id: 21, name: "Joe's Milk", price: 100.00, category: 'Seasonal' },
+        ];
+
+        /**
+         * @typedef {Object} ImageConfig
+         * @property {string} text
+         * @property {string} size
+         */
+        
+        /**
+         * @typedef {Object} ColumnData
+         * @property {string} title
+         * @property {Drink[]} drinks
+         * @property {ImageConfig} image
+         */
+
+        /** @type {ColumnData[]} */
+        const allColumns = [
+            // Column 1: Milk Tea (10 items)
+            { 
+                title: 'Column 1', 
+                drinks: allDrinks.slice(0, 10),
+                image: { text: 'MILK TEA SPECIAL', size: '200x200' }
+            },
+            // Column 2: Fruit Tea & Slush (6 items)
+            { 
+                title: 'Column 2', 
+                drinks: [
+                    ...allDrinks.slice(10, 14),
+                    ...allDrinks.slice(19, 21),
+                ],
+                image: { text: 'FRUIT TEA FAVORITE', size: '350x250' }
+            },
+            // Column 3: Matcha & Seasonal (7 items)
+            { 
+                title: 'Column 3', 
+                drinks: [
+                    ...allDrinks.slice(14, 19),
+                    ...allDrinks.slice(21),
+                ],
+                image: { text: 'MATCHA PICKS', size: '200x200' }
+            },
+        ];
+
+        // --- Split Columns into Screens ---
+        /** @type {ColumnData[]} */
+        const screen1Columns = [allColumns[0], allColumns[1]]; // Columns 1 and 2
+        /** @type {ColumnData[]} */
+        const screen2Columns = [allColumns[2]];             // Column 3
+
+
+        /**
+         * Groups a list of drinks by their category.
+         * @param {Drink[]} drinkList 
+         * @returns {Object.<string, Drink[]>}
+         */
+        const getCategoryGroups = (drinkList) => {
+            const order = ['Milk Tea', 'Fruit Tea', 'Slush', 'Matcha', 'Seasonal'];
+            /** @type {Object.<string, Drink[]>} */
+            const groups = {};
+
+            order.forEach(cat => groups[cat] = []);
+
+            drinkList.forEach((drink) => {
+                if (groups[drink.category]) {
+                    groups[drink.category].push(drink);
+                }
+            });
+
+            return groups;
+        };
+
+        /**
+         * Renders an image placeholder HTML block.
+         * @param {ImageConfig} imageConfig
+         * @returns {string} HTML string
+         */
+        const renderImagePlaceholder = (imageConfig) => {
+            const { text, size } = imageConfig;
+            const cleanText = text.toUpperCase().replace(/\s/g, '+');
+
+            const imageUrl = `https://placehold.co/${size}/000/fff?text=${cleanText}&font=arial&bold=true`;
+            return `
+                <div class="flex justify-center mb-6 mt-4">
+                    <img src="${imageUrl}" alt="${text} Placeholder" 
+                         class="object-cover rounded-xl border-4 border-black shadow-xl w-full max-w-xs sm:max-w-md"/>
+                </div>
+                <p class="text-center text-xl font-medium text-black/70 mb-8">Featured Item Placeholder</p>
+            `;
+        };
+
+        /**
+         * Renders the HTML content for a single menu column.
+         * @param {ColumnData} columnData
+         * @returns {string} HTML string
+         */
+        const renderMenuColumn = (columnData) => {
+            const groups = getCategoryGroups(columnData.drinks);
+            let content = '';
+
+            // Render Image Placeholder
+            content += renderImagePlaceholder(columnData.image);
+
+            for (const category of Object.keys(groups)) {
+                const categoryItems = groups[category];
+                if (categoryItems.length === 0) continue;
+
+                // Category Title
+                content += `
+                    <div class="mb-6 mt-4">
+                        <h2 class="text-5xl font-extrabold text-black uppercase tracking-widest">${category}</h2>
+                        <div class="category-divider"></div>
+                    </div>
+                `;
+
+                // Drink Items
+                categoryItems.forEach(drink => {
+                    const price = drink.price.toFixed(2);
+                    content += `
+                        <div class="menu-item-grid py-3 item-separator last:border-b-0">
+                            <!-- Drink Name -->
+                            <div class="text-4xl font-normal tracking-wide text-black">
+                                ${drink.name}
+                            </div>
+                            <!-- Price -->
+                            <div class="text-4xl font-black text-right text-black">
+                                $${price}
+                            </div>
+                        </div>
+                    `;
+                });
+            }
+
+            return `
+                <div class="p-4 rounded-xl">
+                    ${content}
+                </div>
+            `;
+        };
+
+        // --- Screen Rotation Logic (The new part) ---
+
+        /** @type {HTMLElement[]} */
+        let screens = [];
+        let currentScreenIndex = 0;
+        const rotationInterval = 10000; // Rotate every 10 seconds (10000 ms)
+
+
+        /**
+         * Displays the next screen in the sequence.
+         * @returns {void}
+         */
+        const showNextScreen = () => {
+            // Hide the current active screen
+            screens.forEach(screen => screen.classList.remove('active'));
+
+            // Calculate the index of the next screen
+            currentScreenIndex = (currentScreenIndex + 1) % screens.length;
+
+            // Show the next screen
+            screens[currentScreenIndex].classList.add('active');
+        };
+
+        /**
+         * Initializes the content and starts the screen rotation loop.
+         * @returns {void}
+         */
+        const initialize = () => {
+            // 1. Initial Content Rendering
+            const screen1Grid = document.querySelector('#screen-1 .screen-1-grid');
+            let html1 = '';
+            screen1Columns.forEach(column => {
+                html1 += renderMenuColumn(column);
+            });
+            if (screen1Grid) screen1Grid.innerHTML = html1;
+
+            const screen2Grid = document.querySelector('#screen-2 .screen-2-grid');
+            let html2 = '';
+            screen2Columns.forEach(column => {
+                html2 += renderMenuColumn(column);
+            });
+            if (screen2Grid) screen2Grid.innerHTML = html2;
+
+
+            // 2. Setup Rotation
+            screens = Array.from(document.querySelectorAll('.menu-board-container'));
+            
+            if (screens.length <= 1) {
+                console.error("Not enough screens found for rotation.");
+                return;
+            }
+
+            // Ensure only the first screen is visible initially
+            screens.forEach((screen, index) => {
+                if (index === 0) {
+                    screen.classList.add('active');
+                } else {
+                    screen.classList.remove('active');
+                }
+            });
+
+            // Start the rotation loop
+            setInterval(showNextScreen, rotationInterval);
+            console.log(`Screen rotation started. Interval: ${rotationInterval / 1000} seconds.`);
+        };
+
+
+        window.onload = initialize;
+    </script>
+</body>
+</html>
