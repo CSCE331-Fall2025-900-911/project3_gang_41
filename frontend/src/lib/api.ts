@@ -1,8 +1,8 @@
 import { ApiResponse } from "@project3/shared";
 
 export const API_URL =
-  (import.meta.env.VITE_API_URL as string) ||
-  (import.meta.env.VITE_BACKEND_URL as string) ||
+  import.meta.env.VITE_API_URL ||
+  import.meta.env.VITE_BACKEND_URL ||
   "http://localhost:3000";
 
 /**
