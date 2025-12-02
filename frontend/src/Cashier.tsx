@@ -1,20 +1,38 @@
 import { useState, useEffect } from "react";
+import { useTranslation } from "react-i18next";
 import { fetchApi } from "@/lib/api";
 import type { MenuItem, CartItem, DrinkCustomization } from "@project3/shared";
 import { TAX_RATE } from "@project3/shared";
 import { useNavigate } from "react-router-dom";
 
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardFooter,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { WeatherDisplay } from "@/components/WeatherDisplay";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { useAuth } from "@/contexts/AuthContext";
-import { Minus, Plus, ShoppingCart, Trash2, LogOut, Settings, Edit, Loader2 } from "lucide-react";
+import {
+  Minus,
+  Plus,
+  ShoppingCart,
+  Trash2,
+  LogOut,
+  Edit,
+  Loader2,
+  CreditCard,
+  Banknote,
+} from "lucide-react";
 import { DrinkCustomizationDialog } from "@/components/DrinkCustomizationDialog";
 import { useCart } from "@/hooks/useCart";
-
+import { ModeToggle } from "@/components/ModeToggle";
+import { LanguageToggle } from "@/components/LanguageToggle";
 
 const categories = [
   "All Items",
@@ -25,13 +43,34 @@ const categories = [
   "Seasonal",
 ];
 
+const categoryTranslationKeys: Record<string, string> = {
+  "All Items": "categories.allItems",
+  "Milk Tea": "categories.milkTea",
+  "Matcha": "categories.matcha",
+  "Fruit Tea": "categories.fruitTea",
+  "Slush": "categories.slush",
+  "Seasonal": "categories.seasonal",
+};
+
 function Cashier() {
+  const { t: translate } = useTranslation();
   const navigate = useNavigate();
   const { logout, user } = useAuth();
   const [menu, setMenu] = useState<MenuItem[]>([]);
-  const { cart, addToCart, removeFromCart, updateQuantity, updateCartItem, checkout, isSubmitting } = useCart();
+  const {
+    cart,
+    addToCart,
+    removeFromCart,
+    updateQuantity,
+    updateCartItem,
+    checkout,
+    isSubmitting,
+  } = useCart();
   const [activeCategory, setActiveCategory] = useState("All Items");
-  const [weather, setWeather] = useState<{ temperature: number; icon: string } | null>(null);
+  const [weather, setWeather] = useState<{
+    temperature: number;
+    icon: string;
+  } | null>(null);
   const [customizationDialog, setCustomizationDialog] = useState<{
     open: boolean;
     item: MenuItem | null;
@@ -41,6 +80,7 @@ function Cashier() {
     item: null,
     editingCartItem: null,
   });
+  const [paymentMethod, setPaymentMethod] = useState<'cash' | 'card'>('card');
 
   const handleLogout = async () => {
     await logout();
@@ -49,7 +89,7 @@ function Cashier() {
 
   useEffect(() => {
     // 1. Menu Fetch - use fetchApi which unwraps { success, data }
-    fetchApi<MenuItem[]>('/api/menu')
+    fetchApi<MenuItem[]>("/api/menu")
       .then((data) => {
         const menuWithNumbers = data.map((item) => ({
           ...item,
@@ -89,7 +129,9 @@ function Cashier() {
 
     if (customizationDialog.editingCartItem) {
       // Editing existing cart item
-      updateCartItem(customizationDialog.editingCartItem.uniqueId, { customization });
+      updateCartItem(customizationDialog.editingCartItem.uniqueId, {
+        customization,
+      });
     } else {
       // Adding new item to cart
       const newCartItem: CartItem = {
@@ -98,7 +140,9 @@ function Cashier() {
         cost: customizationDialog.item.cost,
         quantity: 1,
         customization,
-        uniqueId: `${customizationDialog.item.item_id}-${Date.now()}-${Math.random()}`,
+        uniqueId: `${
+          customizationDialog.item.item_id
+        }-${Date.now()}-${Math.random()}`,
       };
       addToCart(newCartItem);
     }
@@ -109,7 +153,7 @@ function Cashier() {
   const total = cart.reduce((sum, item) => sum + item.cost * item.quantity, 0);
 
   const handleCheckout = () => {
-    checkout();
+    checkout(paymentMethod);
   };
 
   return (
@@ -119,40 +163,47 @@ function Cashier() {
         {/* Header */}
         <div className="border-b">
           <div className="flex h-16 items-center px-6 justify-between">
-            <h1 className="text-2xl font-bold">Cashier</h1>
+            <h1 className="text-2xl font-bold">BobaPOS</h1>
+            <div className="flex items-center gap-4">
+              <ModeToggle currentMode="cashier" />
+              <LanguageToggle />
+            </div>
             <div className="flex items-center gap-3">
-              {weather && <WeatherDisplay temperature={weather.temperature} icon={weather.icon} />}
+              {weather && (
+                <WeatherDisplay
+                  temperature={weather.temperature}
+                  icon={weather.icon}
+                />
+              )}
               {user && (
                 <div className="flex items-center gap-3">
                   <Avatar className="h-9 w-9">
                     <AvatarImage src={user.picture} alt={user.name} />
                     <AvatarFallback className="bg-primary text-primary-foreground">
-                      {user.name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2)}
+                      {user.name
+                        .split(" ")
+                        .map((n) => n[0])
+                        .join("")
+                        .toUpperCase()
+                        .slice(0, 2)}
                     </AvatarFallback>
                   </Avatar>
                   <div className="text-sm">
                     <div className="font-medium">{user.name}</div>
-                    <div className="text-xs text-muted-foreground">{user.email}</div>
+                    <div className="text-xs text-muted-foreground">
+                      {user.email}
+                    </div>
                   </div>
                 </div>
               )}
               <Button
                 variant="outline"
                 size="sm"
-                onClick={() => navigate('/manager')}
-                className="gap-2"
-              >
-                <Settings className="h-4 w-4" />
-                Manager
-              </Button>
-              <Button
-                variant="outline"
-                size="sm"
                 onClick={handleLogout}
                 className="gap-2"
               >
-                <LogOut className="h-4 w-4" />
-                Logout
+                <LogOut className="h-4 w-4" aria-hidden="true" />
+                {translate("common.logout")}
               </Button>
             </div>
           </div>
@@ -171,7 +222,7 @@ function Cashier() {
                     : "text-muted-foreground"
                 }`}
               >
-                {category}
+                {translate(categoryTranslationKeys[category])}
               </button>
             ))}
           </div>
@@ -181,26 +232,30 @@ function Cashier() {
         <div className="flex-1 overflow-auto p-6">
           <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
             {menu
-              .filter((item) => activeCategory === "All Items" || item.category === activeCategory)
+              .filter(
+                (item) =>
+                  activeCategory === "All Items" ||
+                  item.category === activeCategory
+              )
               .map((item) => (
-              <Card
-                key={item.item_id}
-                className="cursor-pointer transition-all hover:shadow-lg hover:scale-105"
-                onClick={() => openCustomizationDialog(item)}
-              >
-                <CardHeader className="p-4">
-                  <CardTitle className="text-lg line-clamp-2">
-                    {item.item_name}
-                  </CardTitle>
-                </CardHeader>
-                <CardFooter className="p-4 pt-0 flex justify-between items-center">
-                  <span className="text-2xl font-bold text-primary">
-                    ${item.cost.toFixed(2)}
-                  </span>
-                  <Plus className="h-5 w-5 text-muted-foreground" />
-                </CardFooter>
-              </Card>
-            ))}
+                <Card
+                  key={item.item_id}
+                  className="cursor-pointer transition-all hover:shadow-lg hover:scale-105"
+                  onClick={() => openCustomizationDialog(item)}
+                >
+                  <CardHeader className="p-4">
+                    <CardTitle className="text-lg line-clamp-2">
+                      {item.item_name}
+                    </CardTitle>
+                  </CardHeader>
+                  <CardFooter className="p-4 pt-0 flex justify-between items-center">
+                    <span className="text-2xl font-bold text-primary">
+                      ${item.cost.toFixed(2)}
+                    </span>
+                    <Plus className="h-5 w-5 text-muted-foreground" />
+                  </CardFooter>
+                </Card>
+              ))}
           </div>
         </div>
       </div>
@@ -210,11 +265,15 @@ function Cashier() {
         {/* Cart Header */}
         <div className="border-b p-6">
           <div className="flex items-center gap-2">
-            <ShoppingCart className="h-5 w-5" />
-            <h2 className="text-xl font-semibold">Current Order</h2>
+            <ShoppingCart className="h-5 w-5" aria-hidden="true" />
+            <h2 className="text-xl font-semibold">{translate("cashier.currentOrder")}</h2>
             {cart.length > 0 && (
               <Badge variant="secondary" className="ml-auto">
-                {cart.reduce((sum: number, item: CartItem) => sum + item.quantity, 0)} items
+                {cart.reduce(
+                  (sum: number, item: CartItem) => sum + item.quantity,
+                  0
+                )}{" "}
+                {translate("common.items")}
               </Badge>
             )}
           </div>
@@ -224,9 +283,9 @@ function Cashier() {
         <div className="flex-1 overflow-auto p-6 space-y-4">
           {cart.length === 0 ? (
             <div className="flex flex-col items-center justify-center h-full text-center text-muted-foreground">
-              <ShoppingCart className="h-16 w-16 mb-4 opacity-20" />
-              <p className="text-lg font-medium">Cart is empty</p>
-              <p className="text-sm">Add items from the menu to get started</p>
+              <ShoppingCart className="h-16 w-16 mb-4 opacity-20" aria-hidden="true" />
+              <p className="text-lg font-medium">{translate("cashier.cartEmpty")}</p>
+              <p className="text-sm">{translate("cashier.addItemsToStart")}</p>
             </div>
           ) : (
             cart.map((item) => (
@@ -239,24 +298,30 @@ function Cashier() {
                           {item.item_name}
                         </h3>
                         <p className="text-sm text-muted-foreground mt-1">
-                          ${item.cost.toFixed(2)} each
+                          ${item.cost.toFixed(2)} {translate("common.each")}
                         </p>
                         {item.customization && (
                           <div className="flex flex-wrap gap-1 mt-2">
                             {/* Size - always show, display as single letter uppercase */}
-                            <Badge variant="secondary" className="text-xs uppercase">
+                            <Badge
+                              variant="secondary"
+                              className="text-xs uppercase"
+                            >
                               {item.customization.size.charAt(0)}
                             </Badge>
                             {/* Sweetness - only show if not default (100) */}
                             {item.customization.sweetness !== 100 && (
                               <Badge variant="secondary" className="text-xs">
-                                {item.customization.sweetness}% Sweet
+                                {item.customization.sweetness}% {translate("common.sweet")}
                               </Badge>
                             )}
                             {/* Ice - only show if not default (regular) */}
-                            {item.customization.ice !== 'regular' && (
-                              <Badge variant="secondary" className="text-xs capitalize">
-                                {item.customization.ice} ice
+                            {item.customization.ice !== "regular" && (
+                              <Badge
+                                variant="secondary"
+                                className="text-xs capitalize"
+                              >
+                                {item.customization.ice} {translate("common.ice")}
                               </Badge>
                             )}
                           </div>
@@ -268,16 +333,18 @@ function Cashier() {
                           size="icon"
                           className="h-8 w-8"
                           onClick={() => openEditDialog(item)}
+                          aria-label={translate("aria.editItem", { item: item.item_name })}
                         >
-                          <Edit className="h-4 w-4" />
+                          <Edit className="h-4 w-4" aria-hidden="true" />
                         </Button>
                         <Button
                           variant="ghost"
                           size="icon"
                           className="h-8 w-8 text-destructive"
                           onClick={() => removeFromCart(item.uniqueId)}
+                          aria-label={translate("aria.removeFromCart", { item: item.item_name })}
                         >
-                          <Trash2 className="h-4 w-4" />
+                          <Trash2 className="h-4 w-4" aria-hidden="true" />
                         </Button>
                       </div>
                     </div>
@@ -293,10 +360,11 @@ function Cashier() {
                           onClick={() =>
                             updateQuantity(item.uniqueId, item.quantity - 1)
                           }
+                          aria-label={translate("aria.decreaseQuantity", { item: item.item_name })}
                         >
-                          <Minus className="h-4 w-4" />
+                          <Minus className="h-4 w-4" aria-hidden="true" />
                         </Button>
-                        <span className="w-8 text-center font-medium">
+                        <span className="w-8 text-center font-medium" aria-live="polite">
                           {item.quantity}
                         </span>
                         <Button
@@ -306,8 +374,9 @@ function Cashier() {
                           onClick={() =>
                             updateQuantity(item.uniqueId, item.quantity + 1)
                           }
+                          aria-label={translate("aria.increaseQuantity", { item: item.item_name })}
                         >
-                          <Plus className="h-4 w-4" />
+                          <Plus className="h-4 w-4" aria-hidden="true" />
                         </Button>
                       </div>
                       <div className="text-right">
@@ -328,22 +397,50 @@ function Cashier() {
           <div className="border-t p-6 space-y-4 bg-background">
             <div className="space-y-2">
               <div className="flex justify-between text-sm">
-                <span className="text-muted-foreground">Subtotal</span>
+                <span className="text-muted-foreground">{translate("common.subtotal")}</span>
                 <span className="font-medium">${total.toFixed(2)}</span>
               </div>
               <div className="flex justify-between text-sm">
-                <span className="text-muted-foreground">Tax ({(TAX_RATE * 100).toFixed(2)}%)</span>
-                <span className="font-medium">{(total * TAX_RATE).toFixed(2)}</span>
+                <span className="text-muted-foreground">
+                  {translate("common.tax")} ({(TAX_RATE * 100).toFixed(2)}%)
+                </span>
+                <span className="font-medium">
+                  {(total * TAX_RATE).toFixed(2)}
+                </span>
               </div>
               <Separator />
               <div className="flex justify-between text-lg font-bold">
-                <span>Total</span>
+                <span>{translate("common.total")}</span>
                 <span>${(total * (1 + TAX_RATE)).toFixed(2)}</span>
               </div>
             </div>
 
-            <Button size="lg" className="w-full text-lg h-12" onClick={handleCheckout} disabled={isSubmitting}>
-              {isSubmitting ? <Loader2 className="animate-spin" /> : "Checkout"}
+            <div className="flex gap-2">
+              <Button
+                variant={paymentMethod === 'card' ? 'default' : 'outline'}
+                className="flex-1"
+                onClick={() => setPaymentMethod('card')}
+              >
+                <CreditCard className="mr-2 h-4 w-4" />
+                {translate("checkout.card")}
+              </Button>
+              <Button
+                variant={paymentMethod === 'cash' ? 'default' : 'outline'}
+                className="flex-1"
+                onClick={() => setPaymentMethod('cash')}
+              >
+                <Banknote className="mr-2 h-4 w-4" />
+                {translate("checkout.cash")}
+              </Button>
+            </div>
+
+            <Button
+              size="lg"
+              className="w-full text-lg h-12"
+              onClick={handleCheckout}
+              disabled={isSubmitting}
+            >
+              {isSubmitting ? <Loader2 className="animate-spin" aria-label="Processing" /> : translate("common.checkout")}
             </Button>
           </div>
         )}
@@ -354,11 +451,17 @@ function Cashier() {
         open={customizationDialog.open}
         onOpenChange={(open) => {
           if (!open) {
-            setCustomizationDialog({ open: false, item: null, editingCartItem: null });
+            setCustomizationDialog({
+              open: false,
+              item: null,
+              editingCartItem: null,
+            });
           }
         }}
         itemName={customizationDialog.item?.item_name || ""}
-        defaultCustomization={customizationDialog.editingCartItem?.customization}
+        defaultCustomization={
+          customizationDialog.editingCartItem?.customization
+        }
         onConfirm={handleCustomizationConfirm}
       />
     </div>

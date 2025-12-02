@@ -7,6 +7,7 @@ export interface BaseItem {
 
 export interface MenuItem extends BaseItem {
   category: string;
+  image_url?: string | null;
 }
 
 export interface InventoryItem extends Omit<BaseItem, 'cost'> {

@@ -9,7 +9,7 @@ const router = express.Router();
 router.get('/', async (_req: Request, res: Response) => {
   try {
     const sql = `
-      SELECT item_id, item_name, cost, category
+      SELECT item_id, item_name, cost, category, image_url
       FROM menuitems
       ORDER BY item_id ASC
     `;

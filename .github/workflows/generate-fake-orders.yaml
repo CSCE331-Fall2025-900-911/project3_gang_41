@@ -1,0 +1,17 @@
+name: Generate fake orders
+
+on:
+  schedule:
+    # Every 8 minutes (UTC). Adjust if you want.
+    - cron: '*/8 * * * *'
+  # Allow manual runs from the Actions tab as well
+  workflow_dispatch: {}
+
+jobs:
+  fake-orders:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Call backend fake orders endpoint
+        run: |
+          curl -X POST \
+            https://project3-gang-41-backend.onrender.com/internal/generate-fake-orders

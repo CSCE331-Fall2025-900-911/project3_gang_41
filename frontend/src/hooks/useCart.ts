@@ -1,9 +1,11 @@
 import { useState, useRef } from 'react';
+import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
 import { fetchApi } from '@/lib/api';
 import type { CartItem } from '@project3/shared';
 
 export function useCart() {
+  const { t: translate } = useTranslation();
   const [cart, setCart] = useState<CartItem[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
   // Synchronous lock to prevent double-processing before React re-renders
@@ -35,7 +37,7 @@ export function useCart() {
 
   const clearCart = () => setCart([]);
 
-  const checkout = async (onSuccess?: () => void) => {
+  const checkout = async (paymentMethod: 'cash' | 'card' = 'card', onSuccess?: () => void) => {
     if (processingRef.current) return;
     if (cart.length === 0) return;
 
@@ -51,7 +53,8 @@ export function useCart() {
             item_name: item.item_name,
             quantity: item.quantity,
             cost: item.cost
-          }))
+          })),
+          paymentmethod: paymentMethod
         };
 
         await fetchApi('/api/order-history', {
@@ -67,9 +70,9 @@ export function useCart() {
 
       // Attach toast
       toast.promise(checkoutPromise, {
-        loading: "Processing order...",
-        success: "Order created successfully",
-        error: "Failed to create order",
+        loading: translate("checkout.processing"),
+        success: translate("checkout.success"),
+        error: translate("checkout.error"),
       });
 
       await checkoutPromise;

@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import { fetchApi } from '@/lib/api';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -11,7 +12,7 @@ import {
   DrawerTitle,
   DrawerTrigger,
 } from '@/components/ui/drawer';
-import { Minus, Plus, ShoppingCart, Trash2, Edit, Loader2, FlaskConical, ChevronDown } from 'lucide-react';
+import { Minus, Plus, ShoppingCart, Trash2, Edit, Loader2, FlaskConical, ChevronDown, CreditCard, Banknote, LogIn } from 'lucide-react';
 import { WeatherDisplay } from '@/components/WeatherDisplay';
 import { DrinkCustomizationDialog } from "@/components/DrinkCustomizationDialog";
 import { useCart } from "@/hooks/useCart";
@@ -22,6 +23,8 @@ import {
 } from "@/components/ui/collapsible";
 import { Switch } from "@/components/ui/switch";
 import { SmoothCursor } from "@/components/ui/smooth-cursor";
+import { LanguageToggle } from "@/components/LanguageToggle";
+import { useNavigate } from "react-router-dom";
 
 import type { MenuItem, CartItem, DrinkCustomization } from "@project3/shared";
 import { TAX_RATE } from "@project3/shared";
@@ -36,7 +39,18 @@ const categories = [
   'Seasonal',
 ];
 
+const categoryTranslationKeys: Record<string, string> = {
+  "All Items": "categories.allItems",
+  "Milk Tea": "categories.milkTea",
+  "Matcha": "categories.matcha",
+  "Fruit Tea": "categories.fruitTea",
+  "Slush": "categories.slush",
+  "Seasonal": "categories.seasonal",
+};
+
 function Kiosk() {
+  const { t: translate } = useTranslation();
+  const navigate = useNavigate();
   const [menu, setMenu] = useState<MenuItem[]>([]);
   const { cart, addToCart, removeFromCart, updateQuantity, updateCartItem, checkout, isSubmitting } = useCart();
   const [activeCategory, setActiveCategory] = useState('All Items');
@@ -53,6 +67,7 @@ function Kiosk() {
       item: null,
       editingCartItem: null,
     });
+  const [paymentMethod, setPaymentMethod] = useState<'cash' | 'card'>('card');
 
   useEffect(() => {
     // 1. Menu Fetch
@@ -122,7 +137,7 @@ function Kiosk() {
   const finalTotal = total + tax;
 
   const handleCheckout = () => {
-    checkout(() => {
+    checkout(paymentMethod, () => {
       setDrawerOpen(false);
     });
   };
@@ -138,7 +153,7 @@ function Kiosk() {
             className="w-full justify-start text-left"
             onClick={() => setActiveCategory(category)}
           >
-            {category}
+            {translate(categoryTranslationKeys[category])}
           </Button>
         ))}
         {weather && (
@@ -147,6 +162,11 @@ function Kiosk() {
           </div>
         )}
 
+        {/* Language Toggle */}
+        <div className="px-2 py-2">
+          <LanguageToggle />
+        </div>
+
         {/* Experimental Mode Toggle */}
         <div className="mt-auto pt-4 border-t border-gray-300 dark:border-gray-700">
           <Collapsible>
@@ -154,7 +174,7 @@ function Kiosk() {
               <Button variant="ghost" className="w-full justify-between">
                 <div className="flex items-center gap-2">
                   <FlaskConical className="h-4 w-4" />
-                  <span className="text-sm">Experimental</span>
+                  <span className="text-sm">{translate('kiosk.experimental')}</span>
                 </div>
                 <ChevronDown className="h-4 w-4 transition-transform duration-200 group-data-[state=open]:rotate-180" />
               </Button>
@@ -162,7 +182,7 @@ function Kiosk() {
             <CollapsibleContent className="px-2 py-3">
               <div className="flex items-center justify-between">
                 <label htmlFor="smooth-cursor" className="text-sm text-muted-foreground">
-                  Smooth Cursor
+                  {translate('kiosk.smoothCursor')}
                 </label>
                 <Switch
                   id="smooth-cursor"
@@ -172,6 +192,16 @@ function Kiosk() {
               </div>
             </CollapsibleContent>
           </Collapsible>
+
+          {/* Staff Login */}
+          <Button
+            variant="ghost"
+            className="w-full justify-start text-left"
+            onClick={() => navigate('/login')}
+          >
+            <LogIn className="h-4 w-4 mr-2" />
+            {translate('common.login')}
+          </Button>
         </div>
       </div>
 
@@ -188,6 +218,10 @@ function Kiosk() {
                   key={item.item_id}
                   className="cursor-pointer transition-all duration-150 hover:shadow-xl hover:scale-105 active:scale-95 active:shadow-md h-72"
                   onClick={() => openCustomizationDialog(item)}
+                  role="button"
+                  tabIndex={0}
+                  aria-label={translate('aria.addToCart', { item: item.item_name })}
+                  onKeyDown={(e) => e.key === 'Enter' && openCustomizationDialog(item)}
                 >
                   <CardHeader className="p-4 pb-1">
                     <CardTitle className="text-lg text-center line-clamp-2 min-h-[3rem]">
@@ -196,7 +230,7 @@ function Kiosk() {
                   </CardHeader>
                   <CardContent className="p-4 pt-1 flex flex-col items-center justify-between h-[calc(100%-5rem)]">
                     <img
-                      src="/brownsugarboba.jpg"
+                      src={item.image_url || "/brownsugarboba.jpg"}
                       alt={item.item_name}
                       className="w-36 h-36 object-cover rounded-lg shadow-md"
                     />
@@ -220,9 +254,10 @@ function Kiosk() {
                   buttonPulse ? 'scale-110' : 'scale-100'
                 }`}
                 variant={cart.length > 0 ? "default" : "outline"}
+                aria-label={translate('aria.cartButton', { count: cart.reduce((sum: number, item: CartItem) => sum + item.quantity, 0) })}
               >
-                <ShoppingCart className="h-5 w-5" />
-                Checkout
+                <ShoppingCart className="h-5 w-5" aria-hidden="true" />
+                {translate('common.checkout')}
                 {cart.length > 0 && (
                   <Badge variant="secondary" className="ml-2">
                     {cart.reduce((sum: number, item: CartItem) => sum + item.quantity, 0)}
@@ -233,9 +268,9 @@ function Kiosk() {
 
             <DrawerContent className="max-h-[80vh]">
               <DrawerHeader>
-                <DrawerTitle>Your Order</DrawerTitle>
+                <DrawerTitle>{translate('kiosk.yourOrder')}</DrawerTitle>
                 <DrawerDescription>
-                  Review your items and proceed to payment
+                  {translate('kiosk.reviewItems')}
                 </DrawerDescription>
               </DrawerHeader>
 
@@ -244,9 +279,9 @@ function Kiosk() {
                 <div className="flex-1 overflow-auto max-h-[50vh] pr-4">
                   {cart.length === 0 ? (
                     <div className="py-8 text-center text-muted-foreground">
-                      <ShoppingCart className="h-12 w-12 mx-auto mb-4 opacity-30" />
-                      <p>Your cart is empty</p>
-                      <p className="text-sm mt-1">Add items to get started</p>
+                      <ShoppingCart className="h-12 w-12 mx-auto mb-4 opacity-30" aria-hidden="true" />
+                      <p>{translate('kiosk.cartEmpty')}</p>
+                      <p className="text-sm mt-1">{translate('kiosk.addItemsToStart')}</p>
                     </div>
                   ) : (
                     <div className="space-y-3">
@@ -254,7 +289,7 @@ function Kiosk() {
                         <div key={item.uniqueId} className="border rounded-lg p-3">
                           <div className="flex gap-3 mb-2">
                             <img
-                              src="/brownsugarboba.jpg"
+                              src={menu.find(m => m.item_id === item.item_id)?.image_url || "/brownsugarboba.jpg"}
                               alt={item.item_name}
                               className="w-16 h-16 object-cover rounded-lg flex-shrink-0"
                             />
@@ -262,7 +297,7 @@ function Kiosk() {
                               <div className="flex-1">
                                 <h4 className="font-medium text-sm">{item.item_name}</h4>
                                 <p className="text-xs text-muted-foreground">
-                                  ${item.cost.toFixed(2)} each
+                                  ${item.cost.toFixed(2)} {translate('common.each')}
                                 </p>
                                 {item.customization && (
                                   <div className="flex flex-wrap gap-1 mt-2">
@@ -273,13 +308,13 @@ function Kiosk() {
                                     {/* Sweetness - only show if not default (100) */}
                                     {item.customization.sweetness !== 100 && (
                                       <Badge variant="secondary" className="text-xs">
-                                        {item.customization.sweetness}% sweet
+                                        {item.customization.sweetness}% {translate('common.sweet')}
                                       </Badge>
                                     )}
                                     {/* Ice - only show if not default (regular) */}
                                     {item.customization.ice !== 'regular' && (
                                       <Badge variant="secondary" className="text-xs capitalize">
-                                        {item.customization.ice} ice
+                                        {item.customization.ice} {translate('common.ice')}
                                       </Badge>
                                     )}
                                   </div>
@@ -292,16 +327,18 @@ function Kiosk() {
                                   size="icon"
                                   className="h-6 w-6"
                                   onClick={() => openEditDialog(item)}
+                                  aria-label={translate('aria.editItem', { item: item.item_name })}
                                 >
-                                  <Edit className="h-3 w-3" />
+                                  <Edit className="h-3 w-3" aria-hidden="true" />
                                 </Button>
                                 <Button
                                   variant="ghost"
                                   size="icon"
                                   className="h-6 w-6 text-destructive"
                                   onClick={() => removeFromCart(item.uniqueId)}
+                                  aria-label={translate('aria.removeFromCart', { item: item.item_name })}
                                 >
-                                  <Trash2 className="h-3 w-3" />
+                                  <Trash2 className="h-3 w-3" aria-hidden="true" />
                                 </Button>
                               </div>
                             </div>
@@ -314,10 +351,11 @@ function Kiosk() {
                                 size="icon"
                                 className="h-7 w-7"
                                 onClick={() => updateQuantity(item.uniqueId, item.quantity - 1)}
+                                aria-label={translate('aria.decreaseQuantity', { item: item.item_name })}
                               >
-                                <Minus className="h-3 w-3" />
+                                <Minus className="h-3 w-3" aria-hidden="true" />
                               </Button>
-                              <span className="w-10 text-center text-sm font-medium">
+                              <span className="w-10 text-center text-sm font-medium" aria-live="polite">
                                 {item.quantity}
                               </span>
                               <Button
@@ -325,8 +363,9 @@ function Kiosk() {
                                 size="icon"
                                 className="h-7 w-7"
                                 onClick={() => updateQuantity(item.uniqueId, item.quantity + 1)}
+                                aria-label={translate('aria.increaseQuantity', { item: item.item_name })}
                               >
-                                <Plus className="h-3 w-3" />
+                                <Plus className="h-3 w-3" aria-hidden="true" />
                               </Button>
                             </div>
                             <span className="font-semibold">
@@ -344,16 +383,35 @@ function Kiosk() {
                   <div className="w-[450px] flex flex-col justify-end pl-4">
                     <div className="space-y-5">
                       <div className="text-center">
-                        <div className="text-6xl font-bold">
+                        <div className="text-6xl font-bold" aria-live="polite">
                           ${finalTotal.toFixed(2)}
                         </div>
                         <div className="text-sm text-muted-foreground mt-3 space-y-1">
-                          <div>Subtotal: ${total.toFixed(2)}</div>
-                          <div>Tax: (${tax.toFixed(2)})</div>
+                          <div>{translate('common.subtotal')}: ${total.toFixed(2)}</div>
+                          <div>{translate('common.tax')}: (${tax.toFixed(2)})</div>
                         </div>
                       </div>
+                      <div className="flex gap-3">
+                        <Button
+                          variant={paymentMethod === 'card' ? 'default' : 'outline'}
+                          className="flex-1 h-14 text-lg"
+                          onClick={() => setPaymentMethod('card')}
+                        >
+                          <CreditCard className="mr-2 h-5 w-5" />
+                          {translate('checkout.card')}
+                        </Button>
+                        <Button
+                          variant={paymentMethod === 'cash' ? 'default' : 'outline'}
+                          className="flex-1 h-14 text-lg"
+                          onClick={() => setPaymentMethod('cash')}
+                        >
+                          <Banknote className="mr-2 h-5 w-5" />
+                          {translate('checkout.cash')}
+                        </Button>
+                      </div>
+
                       <Button size="lg" className="w-full h-16 text-xl" onClick={handleCheckout} disabled={isSubmitting}>
-                        {isSubmitting ? <Loader2 className="animate-spin" /> : "Pay Now"}
+                        {isSubmitting ? <Loader2 className="animate-spin" aria-label="Processing" /> : translate('common.payNow')}
                       </Button>
                     </div>
                   </div>
