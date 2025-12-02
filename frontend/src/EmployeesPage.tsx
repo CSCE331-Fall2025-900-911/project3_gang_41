@@ -27,7 +27,6 @@ import {
     DialogDescription,
     DialogHeader,
     DialogTitle,
-    DialogClose,
 } from "@/components/ui/dialog";
 
 type NewApiEmployee = {
@@ -72,12 +71,53 @@ const normalizeEmployee = (e: NewApiEmployee): Employee => {
 const formatDate = (date: Date) => 
     date.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
 
+type EmployeeFormValues = {
+  employee_name: string;
+  job_title: string;
+  hourly_rate: string;
+  date_hired: string;
+};
+
+interface EmployeeFormModalProps {
+    employeeToEdit?: Employee | null;
+    isOpen: boolean;
+    onClose: (didSave: boolean) => void;
+}
 
 interface EmployeeDetailModalProps {
     employee: Employee;
     isOpen: boolean;
     onClose: () => void;
 }
+
+const EmployeeFormModal: React.FC<EmployeeFormModalProps> = ({ employeeToEdit, isOpen, onClose }) => {
+    // 1. Setup form state (using React Hook Form or simple useState for fields)
+    // 2. useEffect to populate form if employeeToEdit is present
+    // 3. handleFormSubmit function to call fetchApi:
+    //    - If employeeToEdit: PUT to `/api/employees/${employeeToEdit.id}`
+    //    - If not: POST to `/api/employees`
+    // 4. Close modal on success: onClose(true);
+    
+    // NOTE: This implementation requires additional form components (e.g., from shadcn/ui)
+    // and form handling logic. For brevity, I'll keep the body as a placeholder.
+    
+    return (
+        <Dialog open={isOpen} onOpenChange={() => onClose(false)}>
+            <DialogContent className="sm:max-w-[425px]">
+                <DialogHeader>
+                    <DialogTitle>{employeeToEdit ? "Edit Employee" : "Add New Employee"}</DialogTitle>
+                    <DialogDescription>
+                        {employeeToEdit ? "Update the employee details." : "Enter the details for the new employee."}
+                    </DialogDescription>
+                </DialogHeader>
+                {/* Form elements will go here (Name, Title, Rate, Hire Date) */}
+                <div className="py-4">
+                  <p>-- Form Implementation Placeholder --</p>
+                </div>
+            </DialogContent>
+        </Dialog>
+    );
+};
 
 const EmployeeDetailModal: React.FC<EmployeeDetailModalProps> = ({ employee, isOpen, onClose }) => {
     return (
@@ -124,17 +164,14 @@ const EmployeeDetailModal: React.FC<EmployeeDetailModalProps> = ({ employee, isO
                     </div>
 
                 </div>
-                <div className="flex justify-end pt-4">
-                    <DialogClose asChild>
-                        <Button type="button" variant="outline">Close</Button>
-                    </DialogClose>
-                </div>
             </DialogContent>
         </Dialog>
     );
 };
 
 export default function EmployeesPage() {
+  const [employeeToEdit, setEmployeeToEdit] = useState<Employee | null>(null);
+  const [isFormModalOpen, setIsFormModalOpen] = useState(false);
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [page, setPage] = useState(1);
   const [loading, setLoading] = useState(false);
@@ -227,6 +264,43 @@ export default function EmployeesPage() {
   const closeDetailsModal = () => {
       setSelectedEmployee(null);
   };
+
+  // Handler to open the form modal for adding
+const openAddEmployeeModal = () => {
+  setEmployeeToEdit(null); // Clear any previous edit context
+  setIsFormModalOpen(true);
+};
+
+// Handler to open the form modal for editing
+const openEditEmployeeModal = (employee: Employee) => {
+  setEmployeeToEdit(employee);
+  setIsFormModalOpen(true);
+};
+
+// Handler to close the form modal and potentially refresh the list
+const closeFormModal = (didSave: boolean) => {
+  setIsFormModalOpen(false);
+  setEmployeeToEdit(null);
+  if (didSave) {
+    // Force a full refresh after a successful Add/Edit
+    loadEmployees(1, searchTerm);
+  }
+};
+
+// Handler for deleting an employee
+const handleDeleteEmployee = async (employeeId: number) => {
+    if (!confirm("Are you sure you want to delete this employee?")) return;
+
+    try {
+        // Placeholder: Replace with actual DELETE API call
+        // await fetchApi(`/api/employees/${employeeId}`, { method: 'DELETE' });
+
+        toast.success("Employee deleted successfully!");
+        loadEmployees(1, searchTerm); // Refresh list
+    } catch (e) {
+        toast.error("Failed to delete employee.");
+    }
+};
 
   return (
     <div className="flex h-full bg-background flex-col overflow-hidden">
