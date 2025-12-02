@@ -12,6 +12,13 @@ import {
 } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
   Loader2,
   Search,
   X,
@@ -22,7 +29,11 @@ import {
   Eye,
   Plus,
   Check,
-  Copy
+  Copy,
+  Trash2,
+  Lock,
+  Mail,
+  Pencil
 } from "lucide-react";
 import { toast } from "sonner";
 import {
@@ -33,6 +44,17 @@ import {
     DialogTitle,
     DialogFooter,
 } from "@/components/ui/dialog";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import { Label } from "@/components/ui/label";
 
 // --- TYPES ---
 
@@ -52,11 +74,11 @@ type Employee = {
   hireDate: Date;
   title: string;
   hourlyRate: string;
+  email?: string;
+  password?: string; // Added password to type
 };
 
-type EmployeeApiResponse = NewApiEmployee[];
-
-const PAGE_SIZE = 20;
+const PAGE_SIZE = 50;
 
 const parsePgTimestamp = (ts: string): Date => {
   const date = new Date(ts);
@@ -73,66 +95,131 @@ const normalizeEmployee = (e: NewApiEmployee): Employee => {
     hireDate: parsePgTimestamp(e.date_hired),
     title: e.job_title,
     hourlyRate: e.hourly_rate,
+    email: e.email,
+    password: e.password
   };
 };
 
 const formatDate = (date: Date) => 
     date.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
 
-// --- Modals ---
+// --- Detail Modal Component ---
 
 interface EmployeeDetailModalProps {
     employee: Employee;
     isOpen: boolean;
     onClose: () => void;
-    translate: (key: string, options?: Record<string, string | number>) => string;
+    onUpdatePassword: (id: number, newPass: string) => Promise<void>;
+    translate: (key: string, options?: any) => string;
 }
 
-const EmployeeDetailModal: React.FC<EmployeeDetailModalProps> = ({ employee, isOpen, onClose, translate }) => {
+const EmployeeDetailModal: React.FC<EmployeeDetailModalProps> = ({ employee, isOpen, onClose, onUpdatePassword, translate }) => {
+    const [isEditingPass, setIsEditingPass] = useState(false);
+    const [newPass, setNewPass] = useState(employee.password || "");
+    const [loading, setLoading] = useState(false);
+
+    const handleSavePass = async () => {
+        setLoading(true);
+        await onUpdatePassword(employee.id, newPass);
+        setLoading(false);
+        setIsEditingPass(false);
+    };
+
     return (
         <Dialog open={isOpen} onOpenChange={onClose}>
             <DialogContent className="sm:max-w-[425px]">
                 <DialogHeader>
                     <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 bg-indigo-100 rounded-full flex items-center justify-center text-indigo-600 font-bold text-lg flex-none">
+                        <div className="w-12 h-12 bg-indigo-100 rounded-full flex items-center justify-center text-indigo-600 font-bold text-xl flex-none">
                             {employee.fullName.charAt(0)}
                         </div>
-                        <DialogTitle className="text-2xl">{employee.fullName}</DialogTitle>
+                        <div>
+                            <DialogTitle className="text-xl">{employee.fullName}</DialogTitle>
+                            <DialogDescription className="mt-1">
+                                {employee.title}
+                            </DialogDescription>
+                        </div>
                     </div>
-                    <DialogDescription className="flex items-center gap-1 mt-1">
-                        {employee.title}
-                    </DialogDescription>
                 </DialogHeader>
                 <div className="pt-4 space-y-4">
-                    <div className="flex items-center justify-between border-b pb-2">
-                        <span className="text-muted-foreground flex items-center gap-2">
-                            <Tag className="h-4 w-4" /> {translate("employees.employeeId")}
-                        </span>
-                        <Badge className="text-lg bg-indigo-500 hover:bg-indigo-600">
-                            {employee.id}
-                        </Badge>
+                    {/* Public Info */}
+                    <div className="grid grid-cols-2 gap-4">
+                        <div className="space-y-1">
+                            <span className="text-xs text-muted-foreground uppercase font-bold flex items-center gap-1">
+                                <Tag className="h-3 w-3" /> {translate("employees.employeeId")}
+                            </span>
+                            <div className="font-mono">#{employee.id}</div>
+                        </div>
+                        <div className="space-y-1">
+                            <span className="text-xs text-muted-foreground uppercase font-bold flex items-center gap-1">
+                                <DollarSign className="h-3 w-3" /> {translate("employees.hourlyRate")}
+                            </span>
+                            <div className="font-semibold text-green-600">{formatCurrency(employee.hourlyRate)}</div>
+                        </div>
+                        <div className="space-y-1 col-span-2">
+                             <span className="text-xs text-muted-foreground uppercase font-bold flex items-center gap-1">
+                                <Calendar className="h-3 w-3" /> {translate("employees.dateHired")}
+                            </span>
+                            <div>{formatDate(employee.hireDate)}</div>
+                        </div>
                     </div>
-                    <div className="flex items-center justify-between">
-                        <span className="text-muted-foreground flex items-center gap-2">
-                            <DollarSign className="h-4 w-4" /> {translate("employees.hourlyRate")}
-                        </span>
-                        <span className="text-xl font-semibold text-green-600">
-                            {formatCurrency(employee.hourlyRate)}
-                        </span>
-                    </div>
-                    <div className="flex items-center justify-between">
-                        <span className="text-muted-foreground flex items-center gap-2">
-                            <Calendar className="h-4 w-4" /> {translate("employees.dateHired")}
-                        </span>
-                        <span className="text-base font-medium">
-                            {formatDate(employee.hireDate)}
-                        </span>
+
+                    <div className="border-t my-2"></div>
+
+                    {/* Credentials Section */}
+                    <div className="space-y-3 bg-slate-50 p-3 rounded-md border">
+                        <h4 className="text-sm font-semibold text-slate-700 mb-2">{translate("employees.credentialsTitle", "Login Credentials")}</h4>
+                        
+                        {/* Email Field - Completely static look */}
+                        <div className="space-y-1">
+                            <Label className="text-xs text-muted-foreground flex items-center gap-1">
+                                <Mail className="h-3 w-3" /> {translate("employees.emailLoginLabel")}
+                            </Label>
+                            <Input 
+                                readOnly 
+                                value={employee.email || "No email generated"} 
+                                className="bg-muted border-transparent shadow-none focus-visible:ring-0 pointer-events-none text-muted-foreground" 
+                                tabIndex={-1}
+                            />
+                        </div>
+
+                        {/* Password Field */}
+                        <div className="space-y-1">
+                            <Label className="text-xs text-muted-foreground flex items-center gap-1">
+                                <Lock className="h-3 w-3" /> {translate("employees.passwordLabel", "Password")}
+                            </Label>
+                            <div className="flex gap-2">
+                                <Input 
+                                    readOnly={!isEditingPass} 
+                                    value={isEditingPass ? newPass : (employee.password || "********")} 
+                                    onChange={(e) => setNewPass(e.target.value)}
+                                    type={isEditingPass ? "text" : "password"}
+                                    // 1. Remove from tab order when not editing
+                                    tabIndex={isEditingPass ? 0 : -1}
+                                    className={
+                                        isEditingPass 
+                                        ? "bg-white border-indigo-400" 
+                                        // 2. Add 'pointer-events-none' and 'select-none' to stop highlighting/clicking
+                                        : "bg-muted border-transparent shadow-none focus-visible:ring-0 text-muted-foreground pointer-events-none select-none"
+                                    }
+                                />
+                                {isEditingPass ? (
+                                    <Button size="sm" onClick={handleSavePass} disabled={loading}>
+                                        {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />}
+                                    </Button>
+                                ) : (
+                                    <Button size="sm" variant="outline" onClick={() => setIsEditingPass(true)}>
+                                        <Pencil className="h-4 w-4" />
+                                    </Button>
+                                )}
+                            </div>
+                        </div>
                     </div>
                 </div>
-                {/* Note: Original code didn't have DialogFooter or Close button in the detail modal, 
-                    but I kept the Close button here for consistency with the new design */}
-                <div className="flex justify-end pt-4">
-                     <Button type="button" variant="outline" onClick={onClose}>{translate("employees.close")}</Button>
+                <div className="flex justify-end pt-2">
+                    <Button type="button" variant="outline" onClick={onClose}>
+                        {translate("employees.close")}
+                    </Button>
                 </div>
             </DialogContent>
         </Dialog>
@@ -144,96 +231,64 @@ const EmployeeDetailModal: React.FC<EmployeeDetailModalProps> = ({ employee, isO
 export default function EmployeesPage() {
   const { t: translate } = useTranslation();
   const [employees, setEmployees] = useState<Employee[]>([]);
-  const [page, setPage] = useState(1);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [hasMoreData, setHasMoreData] = useState(true);
   
   // Modal States
   const [selectedEmployee, setSelectedEmployee] = useState<Employee | null>(null);
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+  
+  // Credentials State
   const [newCredentials, setNewCredentials] = useState<{email: string, password: string} | null>(null);
+
+  // Delete State
+  const [deleteOpen, setDeleteOpen] = useState(false);
+  const [employeeToDelete, setEmployeeToDelete] = useState<Employee | null>(null);
 
   // Search States
   const [searchTerm, setSearchTerm] = useState("");
-  const [isSearching, setIsSearching] = useState(false);
-
+  
   // Form State
   const [formData, setFormData] = useState({
     employee_name: "",
-    job_title: "",
+    job_title: "Staff Member", // Default value
     hourly_rate: ""
   });
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const loadEmployees = async (targetPage = 1, search = "") => {
-    const maxRetries = 3;
-    let currentRetry = 0;
-
-    while (currentRetry < maxRetries) {
+  // Load Data
+  const loadEmployees = async () => {
+      setLoading(true);
+      setError(null);
       try {
-        if (targetPage === 1 && currentRetry === 0) {
-          setLoading(true);
-          setError(null);
-        }
-
-        let endpoint = `/api/employees?page=${targetPage}&limit=${PAGE_SIZE}`;
-        if (search.trim()) {
-          endpoint += `&search=${encodeURIComponent(search.trim())}`;
-        }
-
-        const data = await fetchApi<EmployeeApiResponse>(endpoint);
+        const endpoint = `/api/employees?limit=${PAGE_SIZE}`;
+        const data = await fetchApi<NewApiEmployee[]>(endpoint);
         const normalized = (data ?? []).map(normalizeEmployee);
-
-        setEmployees((prev) => 
-          targetPage === 1 ? normalized : [...prev, ...normalized]
-        );
-        
-        setHasMoreData((data ?? []).length === PAGE_SIZE);
-        setIsSearching(!!search.trim());
-        setLoading(false);
-        return;
-        
+        setEmployees(normalized);
       } catch (e: any) {
-        currentRetry++;
-        if (currentRetry >= maxRetries) {
-          console.error("Load error after retries:", e);
-          setError(e?.message ?? translate("employees.unableToLoad"));
-          toast.error(translate("employees.failedToLoad"));
-          setLoading(false);
-          return;
-        }
-        const delay = Math.pow(2, currentRetry) * 1000;
-        await new Promise(resolve => setTimeout(resolve, delay));
+        console.error("Load error:", e);
+        setError(e?.message ?? "Unable to load data");
+        toast.error(translate("employees.failedToLoad"));
+      } finally {
+        setLoading(false);
       }
-    }
   };
 
   useEffect(() => {
-    loadEmployees(1, "");
+    loadEmployees();
   }, []);
 
-  const loadMore = async () => {
-    const next = page + 1;
-    setPage(next);
-    await loadEmployees(next, searchTerm);
-  };
-
-  const handleSearch = (e: React.FormEvent) => {
-    e.preventDefault();
-    setPage(1);
-    setEmployees([]);
-    loadEmployees(1, searchTerm);
-  };
+  // Filter Logic
+  const filteredEmployees = employees.filter(e => 
+    e.fullName.toLowerCase().includes(searchTerm.toLowerCase()) || 
+    e.title.toLowerCase().includes(searchTerm.toLowerCase())
+  );
 
   const clearSearch = () => {
     setSearchTerm("");
-    setPage(1);
-    setEmployees([]);
-    loadEmployees(1, "");
   };
   
-  // --- Handlers for Add Employee ---
+  // --- Handlers ---
 
   const handleCreateEmployee = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -246,8 +301,7 @@ export default function EmployeesPage() {
     }
 
     try {
-        // Adjust this fetch call if you need to use your 'fetchApi' wrapper
-        const response = await fetch('/api/employees', {
+        const result = await fetchApi<NewApiEmployee>('/api/employees', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
@@ -257,31 +311,64 @@ export default function EmployeesPage() {
             })
         });
 
-        const result = await response.json();
-
-        if (!response.ok) {
-            throw new Error(result.message || 'Failed to create employee');
-        }
-
-        // Success logic
         setIsAddModalOpen(false);
-        setNewCredentials({
-            email: result.data.email, 
-            password: result.data.password
-        });
         
+        const email = result.email || "generated@boba.com"; 
+        const password = result.password || "password123";
+
+        setNewCredentials({ email, password });
         // Reset form
-        setFormData({ employee_name: "", job_title: "", hourly_rate: "" });
-        
-        // Refresh list
-        loadEmployees(1, searchTerm);
-        toast.success("Employee created successfully");
+        setFormData({ employee_name: "", job_title: "Staff Member", hourly_rate: "" });
+        loadEmployees();
+        toast.success(translate("employees.createSuccess"));
 
     } catch (err: any) {
         console.error(err);
-        toast.error(err.message || "Failed to create employee");
+        toast.error(err.message || translate("employees.createError"));
     } finally {
         setIsSubmitting(false);
+    }
+  };
+
+  const handleUpdatePassword = async (id: number, newPass: string) => {
+      try {
+          await fetchApi(`/api/employees/${id}`, {
+              method: 'PUT',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ password: newPass })
+          });
+          toast.success(translate("employees.passwordUpdated"));
+          
+          // Update local state so UI reflects change without reload
+          setEmployees(prev => prev.map(e => e.id === id ? { ...e, password: newPass } : e));
+          
+          // Update selected employee too if open
+          if(selectedEmployee && selectedEmployee.id === id) {
+              setSelectedEmployee(prev => prev ? { ...prev, password: newPass } : null);
+          }
+      } catch (e: any) {
+          toast.error(translate("employees.updateError"));
+      }
+  };
+
+  const confirmDelete = (employee: Employee) => {
+    setEmployeeToDelete(employee);
+    setDeleteOpen(true);
+  };
+
+  const handleDeleteEmployee = async () => {
+    if (!employeeToDelete) return;
+
+    try {
+        await fetchApi<null>(`/api/employees/${employeeToDelete.id}`, { method: 'DELETE' });
+        toast.success(translate("employees.deleteSuccess", { name: employeeToDelete.fullName }));
+        
+        loadEmployees();
+        setDeleteOpen(false);
+        setEmployeeToDelete(null);
+    } catch (e: any) {
+        console.error("Delete error:", e);
+        toast.error(e?.message ?? translate("employees.deleteError"));
     }
   };
 
@@ -295,6 +382,7 @@ export default function EmployeesPage() {
   return (
     <div className="flex h-full bg-background flex-col overflow-hidden">
       
+      {/* Header Section */}
       <div className="border-b bg-white flex-none">
         <div className="flex h-16 items-center px-6 justify-between gap-4">
           <div className="flex items-center gap-2 min-w-fit">
@@ -304,8 +392,7 @@ export default function EmployeesPage() {
           </div>
 
           <div className="flex-1 max-w-lg flex items-center gap-2 ml-auto">
-             {/* Search Bar */}
-            <form onSubmit={handleSearch} className="flex-1 relative">
+            <div className="relative flex-1">
               <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
               <Input
                 type="text"
@@ -323,26 +410,22 @@ export default function EmployeesPage() {
                   <X className="h-4 w-4" />
                 </button>
               )}
-            </form>
-            
-            <Button type="submit" disabled={loading} onClick={handleSearch} className="hidden sm:flex">
-              {translate("employees.search")}
-            </Button>
+            </div>
 
-            {/* NEW ADD BUTTON */}
             <Button 
                 onClick={() => setIsAddModalOpen(true)} 
-                className="bg-green-600 hover:bg-green-700 text-white ml-2"
+                className="bg-green-600 hover:bg-green-700 text-white ml-2 whitespace-nowrap"
             >
                 <Plus className="h-4 w-4 sm:mr-2" />
-                <span className="hidden sm:inline">Add Employee</span>
+                <span className="hidden sm:inline">{translate("employees.addEmployee")}</span>
             </Button>
           </div>
         </div>
       </div>
 
+      {/* Main Content - LIST VIEW */}
       <div className="flex-1 overflow-auto p-6 bg-slate-50/50">
-        {loading && page === 1 ? (
+        {loading && employees.length === 0 ? (
           <div className="flex h-full items-center justify-center text-muted-foreground">
             <Loader2 className="h-6 w-6 animate-spin mr-2" />
             {translate("employees.loading")}
@@ -350,189 +433,223 @@ export default function EmployeesPage() {
         ) : error ? (
           <div className="flex flex-col items-center justify-center gap-3 text-center h-full">
             <p className="text-sm text-destructive">{error}</p>
-            <Button variant="outline" onClick={() => loadEmployees(1, searchTerm)}>
+            <Button variant="outline" onClick={() => loadEmployees()}>
               {translate("employees.retry")}
             </Button>
           </div>
-        ) : employees.length === 0 ? (
+        ) : filteredEmployees.length === 0 ? (
           <div className="flex flex-col items-center justify-center h-full text-muted-foreground gap-2">
             <Users className="h-10 w-10 opacity-20" />
             <p>
-              {isSearching
+              {searchTerm
                 ? translate("employees.noResults", { term: searchTerm })
                 : translate("employees.noData")}
             </p>
-            {isSearching && (
-              <Button variant="link" onClick={clearSearch}>
-                {translate("employees.clearSearch")}
-              </Button>
-            )}
-            {/* Call to action for empty state */}
-            {!isSearching && (
-                 <Button onClick={() => setIsAddModalOpen(true)} variant="outline" className="mt-4">
-                    <Plus className="mr-2 h-4 w-4"/> Add your first employee
-                 </Button>
-            )}
           </div>
         ) : (
           <div className="space-y-4 max-w-5xl mx-auto pb-6">
-            {employees.map((e) => {
-              return (
-                <Card key={e.id} className="overflow-hidden flex-none">
-                  <CardHeader className="p-4 bg-white">
-                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                      
-                      <div className="flex items-center gap-4">
-                        <div className="w-12 h-12 bg-indigo-100 rounded-full flex items-center justify-center text-indigo-600 font-bold text-lg flex-none">
-                          {e.fullName.charAt(0)}
-                        </div>
-                        <div>
-                          <CardTitle className="text-xl font-semibold">{e.fullName}</CardTitle>
-                          <CardDescription className="text-sm text-muted-foreground flex items-center gap-1 mt-0.5">
-                            {e.title}
-                          </CardDescription>
-                        </div>
+            {filteredEmployees.map((e) => (
+              <Card key={e.id} className="overflow-hidden flex-none hover:shadow-md transition-shadow">
+                <CardHeader className="p-4 bg-white">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                    <div className="flex items-center gap-4 cursor-pointer flex-1" onClick={() => setSelectedEmployee(e)}>
+                      <div className="w-12 h-12 bg-indigo-100 rounded-full flex items-center justify-center text-indigo-600 font-bold text-lg flex-none">
+                        {e.fullName.charAt(0)}
                       </div>
-
-                      <div className="flex items-center gap-4 sm:text-right">
-                        <Badge className="bg-green-100 text-green-700 hover:bg-green-200 mr-2">
-                          ID: {e.id}
-                        </Badge>
-                        
-                        <Button
-                            variant="default"
-                            size="sm"
-                            onClick={() => setSelectedEmployee(e)}
-                            className="bg-indigo-600 hover:bg-indigo-700 transition-colors"
-                        >
-                            <Eye className="h-4 w-4 mr-2" />
-                            {translate("employees.viewDetails")}
-                        </Button>
+                      <div>
+                        <CardTitle className="text-xl font-semibold hover:text-indigo-600 transition-colors">
+                            {e.fullName}
+                        </CardTitle>
+                        <CardDescription className="text-sm text-muted-foreground flex items-center gap-1 mt-0.5">
+                          {e.title}
+                        </CardDescription>
                       </div>
                     </div>
-                  </CardHeader>
-                </Card>
-              );
-            })}
 
-            {hasMoreData && (
-              <div className="flex justify-center pt-4 pb-8">
-                <Button variant="secondary" onClick={loadMore} disabled={loading} className="min-w-[150px]">
-                  {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                  {translate("employees.loadMore")}
-                </Button>
-              </div>
-            )}
+                    <div className="flex items-center gap-4 sm:text-right">
+                      <Badge className="bg-green-100 text-green-700 hover:bg-green-200 mr-2 border-green-200 text-sm py-1 px-3">
+                        ID: {e.id}
+                      </Badge>
+                      
+                      <Button
+                          variant="default"
+                          size="sm"
+                          onClick={() => setSelectedEmployee(e)}
+                          className="bg-indigo-600 hover:bg-indigo-700 transition-colors gap-2"
+                      >
+                          <Eye className="h-4 w-4" />
+                          {translate("employees.viewDetails")}
+                      </Button>
+
+                      <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => confirmDelete(e)}
+                          className="text-red-500 hover:text-red-700 hover:bg-red-50 h-9 w-9"
+                          title="Delete"
+                      >
+                          <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  </div>
+                </CardHeader>
+              </Card>
+            ))}
           </div>
         )}
       </div>
 
-      {/* --- DETAILS MODAL --- */}
+      {/* --- DETAILS MODAL (Now includes Credential View/Edit) --- */}
       {selectedEmployee && (
         <EmployeeDetailModal
           employee={selectedEmployee}
           isOpen={!!selectedEmployee}
           onClose={() => setSelectedEmployee(null)}
+          onUpdatePassword={handleUpdatePassword}
           translate={translate}
         />
       )}
 
-      {/* --- ADD EMPLOYEE MODAL --- */}
+      {/* --- ADD EMPLOYEE MODAL (Now with Dropdown) --- */}
       <Dialog open={isAddModalOpen} onOpenChange={setIsAddModalOpen}>
         <DialogContent className="sm:max-w-[425px]">
             <DialogHeader>
-                <DialogTitle>Add New Employee</DialogTitle>
+                <DialogTitle>{translate("employees.addDialogTitle")}</DialogTitle>
                 <DialogDescription>
-                    Enter the details below. Login credentials will be generated automatically.
+                    {translate("employees.addDialogDesc")}
                 </DialogDescription>
             </DialogHeader>
             
             <form onSubmit={handleCreateEmployee} className="grid gap-4 py-4">
-                <div className="grid grid-cols-4 items-center gap-4">
-                    <span className="text-right text-sm font-medium">Name</span>
+                <div className="grid gap-2">
+                    <Label htmlFor="name">{translate("employees.nameLabel")}</Label>
                     <Input
                         id="name"
                         value={formData.employee_name}
-                        onChange={(e) => setFormData({...formData, employee_name: e.target.value})}
+                        onChange={(e: any) => setFormData({...formData, employee_name: e.target.value})}
                         className="col-span-3"
-                        placeholder="e.g. John Doe"
+                        placeholder={translate("employees.namePlaceholder")}
                         required
                     />
                 </div>
-                <div className="grid grid-cols-4 items-center gap-4">
-                    <span className="text-right text-sm font-medium">Job Title</span>
-                    <Input
-                        id="job"
-                        value={formData.job_title}
-                        onChange={(e) => setFormData({...formData, job_title: e.target.value})}
-                        className="col-span-3"
-                        placeholder="e.g. Manager"
-                        required
-                    />
+                
+                {/* NEW: Dropdown for Job Title */}
+                <div className="grid gap-2">
+                    <Label htmlFor="job">{translate("employees.jobTitleLabel")}</Label>
+                    <Select 
+                        value={formData.job_title} 
+                        onValueChange={(val) => setFormData({...formData, job_title: val})}
+                    >
+                        <SelectTrigger className="w-full">
+                            <SelectValue placeholder={translate("employees.jobTitlePlaceholder")} />
+                        </SelectTrigger>
+                        <SelectContent>
+                            <SelectItem value="Staff Member">
+                                {translate("employees.roleStaff")}
+                            </SelectItem>
+                            <SelectItem value="Manager">
+                                {translate("employees.roleManager")}
+                            </SelectItem>
+                        </SelectContent>
+                    </Select>
                 </div>
-                <div className="grid grid-cols-4 items-center gap-4">
-                    <span className="text-right text-sm font-medium">Rate ($)</span>
+
+                <div className="grid gap-2">
+                    <Label htmlFor="rate">{translate("employees.rateLabel")}</Label>
                     <Input
                         id="rate"
                         type="number"
                         step="0.01"
                         value={formData.hourly_rate}
-                        onChange={(e) => setFormData({...formData, hourly_rate: e.target.value})}
+                        onChange={(e: any) => setFormData({...formData, hourly_rate: e.target.value})}
                         className="col-span-3"
-                        placeholder="0.00"
+                        placeholder={translate("employees.ratePlaceholder")}
                         required
                     />
                 </div>
                 <DialogFooter>
                     <Button type="button" variant="outline" onClick={() => setIsAddModalOpen(false)}>
-                        Cancel
+                        {translate("employees.cancel")}
                     </Button>
                     <Button type="submit" disabled={isSubmitting}>
                         {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                        Create Employee
+                        {translate("employees.createButton")}
                     </Button>
                 </DialogFooter>
             </form>
         </DialogContent>
       </Dialog>
 
-      {/* --- CREDENTIALS SUCCESS MODAL --- */}
+      {/* --- CREDENTIALS SUCCESS MODAL (Updated Wording) --- */}
       <Dialog open={!!newCredentials} onOpenChange={() => setNewCredentials(null)}>
         <DialogContent className="sm:max-w-md">
             <DialogHeader>
                 <div className="flex items-center gap-2 text-green-600 mb-2">
                     <Check className="h-6 w-6" />
-                    <DialogTitle>Employee Created Successfully</DialogTitle>
+                    <DialogTitle>{translate("employees.successDialogTitle")}</DialogTitle>
                 </div>
                 <DialogDescription>
-                    The system has generated the following credentials. Please copy them now as they cannot be retrieved later.
+                    {/* Changed wording here to reflect they can view it later */}
+                    {translate("employees.successDialogDescUpdated")}
                 </DialogDescription>
             </DialogHeader>
             
             {newCredentials && (
                 <div className="bg-slate-100 p-4 rounded-md space-y-3 border">
                     <div>
-                        <span className="text-xs uppercase text-slate-500 font-bold">Email (Login)</span>
-                        <div className="font-mono text-lg font-semibold select-all">{newCredentials.email}</div>
+                        <span className="text-xs uppercase text-slate-500 font-bold">
+                            {translate("employees.emailLoginLabel")}
+                        </span>
+                        <div className="font-mono text-lg font-semibold select-all text-slate-800">
+                            {newCredentials.email}
+                        </div>
                     </div>
                     <div className="border-t border-slate-200 pt-2">
-                        <span className="text-xs uppercase text-slate-500 font-bold">Temporary Password</span>
-                        <div className="font-mono text-lg font-semibold select-all">{newCredentials.password}</div>
+                        <span className="text-xs uppercase text-slate-500 font-bold">
+                            {translate("employees.tempPasswordLabel")}
+                        </span>
+                        <div className="font-mono text-lg font-semibold select-all text-slate-800">
+                            {newCredentials.password}
+                        </div>
                     </div>
                 </div>
             )}
 
             <DialogFooter className="sm:justify-between">
                 <Button type="button" variant="secondary" onClick={() => setNewCredentials(null)}>
-                    Close
+                    {translate("employees.close")}
                 </Button>
                 <Button type="button" onClick={copyToClipboard} className="gap-2">
                     <Copy className="h-4 w-4" />
-                    Copy Credentials
+                    {translate("employees.copyCredentials")}
                 </Button>
             </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* --- DELETE CONFIRMATION DIALOG --- */}
+      <AlertDialog open={deleteOpen} onOpenChange={setDeleteOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>
+                {translate("employees.deleteConfirmTitle")}
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+                {translate("employees.deleteConfirmDescWithArg", { 
+                    name: employeeToDelete?.fullName 
+                })}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => setDeleteOpen(false)}>
+                {translate("employees.cancel")}
+            </AlertDialogCancel>
+            <AlertDialogAction onClick={handleDeleteEmployee} className="bg-red-600 hover:bg-red-700 focus:ring-red-600">
+                {translate("employees.delete")}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
     </div>
   );
