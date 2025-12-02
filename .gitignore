@@ -5,6 +5,8 @@ build
 *.log
 .vite
 .DS_Store
+*.md
+*.txt
 
 # IDEs
 .vscode/

@@ -1,0 +1,42 @@
+# --- The Speed Killers (CRITICAL) ---
+package-lock.json
+yarn.lock
+pnpm-lock.yaml
+bun.lockb
+node_modules/
+
+# --- Build & Output Folders ---
+dist/
+build/
+out/
+coverage/
+
+# --- Secrets & Environment ---
+.env
+.env.local
+.env.*
+
+# --- System & Logs ---
+.DS_Store
+.git/
+*.log
+
+# --- Assets (Images/Binaries waste tokens) ---
+frontend/public/
+*.jpg
+*.jpeg
+*.png
+*.gif
+*.ico
+*.svg
+
+# --- Optional: Dev Scripts ---
+# These look like python scrapers. Unless you are actively asking the AI 
+# to rewrite these scrapers, ignoring them keeps the focus on your App code.
+zMiscDevUtils/
+
+# --- Optional: UI Library Boilerplate ---
+# You are using Shadcn/UI (components/ui). These files are verbose and generic.
+# If you rarely modify the base button/input logic, uncomment the line below 
+# to significantly speed up indexing.
+# frontend/src/components/ui/

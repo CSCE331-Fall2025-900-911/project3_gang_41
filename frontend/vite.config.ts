@@ -14,6 +14,9 @@ export default defineConfig({
     alias: {
       // Maps the '@' alias to the absolute path of the 'src' directory
       "@": path.resolve(__dirname, "./src"), 
+      // Allow resolving the shared package which lives outside the frontend folder
+      // Point to the source so Vite/TS can compile it on-the-fly in CI/environments without `shared/dist`.
+      "@project3/shared": path.resolve(__dirname, "../shared/src/index.ts"),
     },
   },
 });

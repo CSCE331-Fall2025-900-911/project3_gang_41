@@ -1,13 +1,9 @@
-import db from '../db';
+import db, { runTransaction } from '../db';
 
 export const deductInventory = async (items: { item_id: number; quantity: number }[]) => {
   if (!Array.isArray(items) || items.length === 0) return;
 
-  // Using a client for transaction safety is best here
-  const client = await db.connect();
-  
-  try {
-    await client.query('BEGIN');
+  return runTransaction(async (client) => {
     const deductions = [];
 
     for (const item of items) {
@@ -29,12 +25,6 @@ export const deductInventory = async (items: { item_id: number; quantity: number
         deductions.push({ inventory_id: recipe.inventory_id, amount: totalNeeded });
       }
     }
-    await client.query('COMMIT');
     return deductions;
-  } catch (error) {
-    await client.query('ROLLBACK');
-    throw error; // Re-throw so the caller knows it failed
-  } finally {
-    client.release();
-  }
+  });
 };
