@@ -18,7 +18,9 @@
   "checkout": {
     "processing": "Processing order...",
     "success": "Order created successfully",
-    "error": "Failed to create order"
+    "error": "Failed to create order",
+    "card": "Card",
+    "cash": "Cash"
   },
   "categories": {
     "allItems": "All Items",

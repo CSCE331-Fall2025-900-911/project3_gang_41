@@ -12,7 +12,7 @@ import {
   DrawerTitle,
   DrawerTrigger,
 } from '@/components/ui/drawer';
-import { Minus, Plus, ShoppingCart, Trash2, Edit, Loader2, FlaskConical, ChevronDown } from 'lucide-react';
+import { Minus, Plus, ShoppingCart, Trash2, Edit, Loader2, FlaskConical, ChevronDown, CreditCard, Banknote, LogIn } from 'lucide-react';
 import { WeatherDisplay } from '@/components/WeatherDisplay';
 import { DrinkCustomizationDialog } from "@/components/DrinkCustomizationDialog";
 import { useCart } from "@/hooks/useCart";
@@ -24,6 +24,7 @@ import {
 import { Switch } from "@/components/ui/switch";
 import { SmoothCursor } from "@/components/ui/smooth-cursor";
 import { LanguageToggle } from "@/components/LanguageToggle";
+import { useNavigate } from "react-router-dom";
 
 import type { MenuItem, CartItem, DrinkCustomization } from "@project3/shared";
 import { TAX_RATE } from "@project3/shared";
@@ -49,6 +50,7 @@ const categoryTranslationKeys: Record<string, string> = {
 
 function Kiosk() {
   const { t: translate } = useTranslation();
+  const navigate = useNavigate();
   const [menu, setMenu] = useState<MenuItem[]>([]);
   const { cart, addToCart, removeFromCart, updateQuantity, updateCartItem, checkout, isSubmitting } = useCart();
   const [activeCategory, setActiveCategory] = useState('All Items');
@@ -65,6 +67,7 @@ function Kiosk() {
       item: null,
       editingCartItem: null,
     });
+  const [paymentMethod, setPaymentMethod] = useState<'cash' | 'card'>('card');
 
   useEffect(() => {
     // 1. Menu Fetch
@@ -134,7 +137,7 @@ function Kiosk() {
   const finalTotal = total + tax;
 
   const handleCheckout = () => {
-    checkout(() => {
+    checkout(paymentMethod, () => {
       setDrawerOpen(false);
     });
   };
@@ -189,6 +192,16 @@ function Kiosk() {
               </div>
             </CollapsibleContent>
           </Collapsible>
+
+          {/* Staff Login */}
+          <Button
+            variant="ghost"
+            className="w-full justify-start text-left"
+            onClick={() => navigate('/login')}
+          >
+            <LogIn className="h-4 w-4 mr-2" />
+            {translate('common.login')}
+          </Button>
         </div>
       </div>
 
@@ -217,7 +230,7 @@ function Kiosk() {
                   </CardHeader>
                   <CardContent className="p-4 pt-1 flex flex-col items-center justify-between h-[calc(100%-5rem)]">
                     <img
-                      src="/brownsugarboba.jpg"
+                      src={item.image_url || "/brownsugarboba.jpg"}
                       alt={item.item_name}
                       className="w-36 h-36 object-cover rounded-lg shadow-md"
                     />
@@ -276,7 +289,7 @@ function Kiosk() {
                         <div key={item.uniqueId} className="border rounded-lg p-3">
                           <div className="flex gap-3 mb-2">
                             <img
-                              src="/brownsugarboba.jpg"
+                              src={menu.find(m => m.item_id === item.item_id)?.image_url || "/brownsugarboba.jpg"}
                               alt={item.item_name}
                               className="w-16 h-16 object-cover rounded-lg flex-shrink-0"
                             />
@@ -378,6 +391,25 @@ function Kiosk() {
                           <div>{translate('common.tax')}: (${tax.toFixed(2)})</div>
                         </div>
                       </div>
+                      <div className="flex gap-3">
+                        <Button
+                          variant={paymentMethod === 'card' ? 'default' : 'outline'}
+                          className="flex-1 h-14 text-lg"
+                          onClick={() => setPaymentMethod('card')}
+                        >
+                          <CreditCard className="mr-2 h-5 w-5" />
+                          {translate('checkout.card')}
+                        </Button>
+                        <Button
+                          variant={paymentMethod === 'cash' ? 'default' : 'outline'}
+                          className="flex-1 h-14 text-lg"
+                          onClick={() => setPaymentMethod('cash')}
+                        >
+                          <Banknote className="mr-2 h-5 w-5" />
+                          {translate('checkout.cash')}
+                        </Button>
+                      </div>
+
                       <Button size="lg" className="w-full h-16 text-xl" onClick={handleCheckout} disabled={isSubmitting}>
                         {isSubmitting ? <Loader2 className="animate-spin" aria-label="Processing" /> : translate('common.payNow')}
                       </Button>

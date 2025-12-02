@@ -37,7 +37,7 @@ export function useCart() {
 
   const clearCart = () => setCart([]);
 
-  const checkout = async (onSuccess?: () => void) => {
+  const checkout = async (paymentMethod: 'cash' | 'card' = 'card', onSuccess?: () => void) => {
     if (processingRef.current) return;
     if (cart.length === 0) return;
 
@@ -53,7 +53,8 @@ export function useCart() {
             item_name: item.item_name,
             quantity: item.quantity,
             cost: item.cost
-          }))
+          })),
+          paymentmethod: paymentMethod
         };
 
         await fetchApi('/api/order-history', {

@@ -26,6 +26,8 @@ import {
   LogOut,
   Edit,
   Loader2,
+  CreditCard,
+  Banknote,
 } from "lucide-react";
 import { DrinkCustomizationDialog } from "@/components/DrinkCustomizationDialog";
 import { useCart } from "@/hooks/useCart";
@@ -78,6 +80,7 @@ function Cashier() {
     item: null,
     editingCartItem: null,
   });
+  const [paymentMethod, setPaymentMethod] = useState<'cash' | 'card'>('card');
 
   const handleLogout = async () => {
     await logout();
@@ -150,7 +153,7 @@ function Cashier() {
   const total = cart.reduce((sum, item) => sum + item.cost * item.quantity, 0);
 
   const handleCheckout = () => {
-    checkout();
+    checkout(paymentMethod);
   };
 
   return (
@@ -410,6 +413,25 @@ function Cashier() {
                 <span>{translate("common.total")}</span>
                 <span>${(total * (1 + TAX_RATE)).toFixed(2)}</span>
               </div>
+            </div>
+
+            <div className="flex gap-2">
+              <Button
+                variant={paymentMethod === 'card' ? 'default' : 'outline'}
+                className="flex-1"
+                onClick={() => setPaymentMethod('card')}
+              >
+                <CreditCard className="mr-2 h-4 w-4" />
+                {translate("checkout.card")}
+              </Button>
+              <Button
+                variant={paymentMethod === 'cash' ? 'default' : 'outline'}
+                className="flex-1"
+                onClick={() => setPaymentMethod('cash')}
+              >
+                <Banknote className="mr-2 h-4 w-4" />
+                {translate("checkout.cash")}
+              </Button>
             </div>
 
             <Button

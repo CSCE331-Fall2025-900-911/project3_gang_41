@@ -18,7 +18,9 @@
   "checkout": {
     "processing": "Procesando pedido...",
     "success": "Pedido creado exitosamente",
-    "error": "Error al crear pedido"
+    "error": "Error al crear pedido",
+    "card": "Tarjeta",
+    "cash": "Efectivo"
   },
   "categories": {
     "allItems": "Todos",
