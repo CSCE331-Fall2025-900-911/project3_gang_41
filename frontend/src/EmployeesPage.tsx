@@ -75,7 +75,7 @@ type Employee = {
   title: string;
   hourlyRate: string;
   email?: string;
-  password?: string; // Added password to type
+  password?: string;
 };
 
 const PAGE_SIZE = 50;
@@ -103,44 +103,156 @@ const normalizeEmployee = (e: NewApiEmployee): Employee => {
 const formatDate = (date: Date) => 
     date.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
 
-// --- Detail Modal Component ---
+// --- INTERNAL COMPONENT: Employee Detail Modal ---
 
 interface EmployeeDetailModalProps {
     employee: Employee;
     isOpen: boolean;
     onClose: () => void;
-    onUpdatePassword: (id: number, newPass: string) => Promise<void>;
+    onUpdateEmployee: (id: number, data: Partial<Employee>) => Promise<void>;
     translate: (key: string, options?: any) => string;
 }
 
-const EmployeeDetailModal: React.FC<EmployeeDetailModalProps> = ({ employee, isOpen, onClose, onUpdatePassword, translate }) => {
+const EmployeeDetailModal: React.FC<EmployeeDetailModalProps> = ({ employee, isOpen, onClose, onUpdateEmployee, translate }) => {
+    // Editing States
     const [isEditingPass, setIsEditingPass] = useState(false);
     const [newPass, setNewPass] = useState(employee.password || "");
+    
+    const [isEditingTitle, setIsEditingTitle] = useState(false);
+    const [newTitle, setNewTitle] = useState(employee.title || "Cashier");
+
+    const [isEditingName, setIsEditingName] = useState(false);
+    const [newName, setNewName] = useState(employee.fullName);
+
+    const [isEditingRate, setIsEditingRate] = useState(false);
+    const [newRate, setNewRate] = useState(employee.hourlyRate || "0");
+
     const [loading, setLoading] = useState(false);
 
     const handleSavePass = async () => {
         setLoading(true);
-        await onUpdatePassword(employee.id, newPass);
+        await onUpdateEmployee(employee.id, { password: newPass });
         setLoading(false);
         setIsEditingPass(false);
+    };
+
+    const handleSaveTitle = async () => {
+        setLoading(true);
+        await onUpdateEmployee(employee.id, { title: newTitle });
+        setLoading(false);
+        setIsEditingTitle(false);
+    };
+
+    const handleSaveName = async () => {
+        if (!newName.trim()) return;
+        setLoading(true);
+        await onUpdateEmployee(employee.id, { fullName: newName });
+        setLoading(false);
+        setIsEditingName(false);
+    };
+
+    const handleSaveRate = async () => {
+        if (!newRate || isNaN(parseFloat(newRate))) return;
+        setLoading(true);
+        await onUpdateEmployee(employee.id, { hourlyRate: newRate });
+        setLoading(false);
+        setIsEditingRate(false);
     };
 
     return (
         <Dialog open={isOpen} onOpenChange={onClose}>
             <DialogContent className="sm:max-w-[425px]">
                 <DialogHeader>
-                    <div className="flex items-center gap-3">
-                        <div className="w-12 h-12 bg-indigo-100 rounded-full flex items-center justify-center text-indigo-600 font-bold text-xl flex-none">
+                    <div className="flex items-start gap-3">
+                        <div className="w-12 h-12 bg-indigo-100 rounded-full flex items-center justify-center text-indigo-600 font-bold text-xl flex-none mt-1">
                             {employee.fullName.charAt(0)}
                         </div>
-                        <div>
-                            <DialogTitle className="text-xl">{employee.fullName}</DialogTitle>
-                            <DialogDescription className="mt-1">
-                                {employee.title}
-                            </DialogDescription>
+                        
+                        <div className="flex-1 space-y-1">
+                            
+                            {/* Editable Name */}
+                            <div className="min-h-[28px] flex items-center">
+                                {isEditingName ? (
+                                    <div className="flex items-center gap-2 w-full">
+                                        <Input 
+                                            value={newName} 
+                                            onChange={(e) => setNewName(e.target.value)}
+                                            className="h-8 text-lg font-semibold px-2"
+                                            autoFocus
+                                        />
+                                        <Button 
+                                            size="sm" 
+                                            className="h-8 w-8 p-0 bg-green-600 hover:bg-green-700 text-white" 
+                                            onClick={handleSaveName} 
+                                            disabled={loading}
+                                        >
+                                            {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />}
+                                        </Button>
+                                        <Button 
+                                            size="sm" 
+                                            variant="ghost" 
+                                            className="h-8 w-8 p-0 text-muted-foreground" 
+                                            onClick={() => { setIsEditingName(false); setNewName(employee.fullName); }}
+                                        >
+                                            <X className="h-4 w-4" />
+                                        </Button>
+                                    </div>
+                                ) : (
+                                    <DialogTitle 
+                                        className="text-xl hover:bg-slate-100 hover:text-indigo-700 cursor-pointer rounded px-1 -ml-1 transition-colors decoration-slate-300 hover:underline decoration-dashed underline-offset-4"
+                                        onClick={() => setIsEditingName(true)}
+                                        title="Click to edit name"
+                                    >
+                                        {employee.fullName}
+                                    </DialogTitle>
+                                )}
+                            </div>
+                            
+                            {/* Editable Title */}
+                            <div className="flex items-center h-7">
+                                {isEditingTitle ? (
+                                    <div className="flex items-center gap-2">
+                                        <Select value={newTitle} onValueChange={setNewTitle}>
+                                            <SelectTrigger className="h-7 w-[140px] text-xs">
+                                                <SelectValue />
+                                            </SelectTrigger>
+                                            <SelectContent>
+                                                <SelectItem value="Cashier">{translate("employees.roleCashier", "Cashier")}</SelectItem>
+                                                <SelectItem value="Manager">{translate("employees.roleManager", "Manager")}</SelectItem>
+                                            </SelectContent>
+                                        </Select>
+                                        <Button 
+                                            size="sm" 
+                                            className="h-7 w-7 p-0 bg-green-600 hover:bg-green-700 text-white" 
+                                            onClick={handleSaveTitle} 
+                                            disabled={loading}
+                                        >
+                                            {loading ? <Loader2 className="h-3 w-3 animate-spin" /> : <Check className="h-3 w-3" />}
+                                        </Button>
+                                        <Button 
+                                            size="sm" 
+                                            variant="ghost" 
+                                            className="h-7 w-7 p-0 text-muted-foreground" 
+                                            onClick={() => { setIsEditingTitle(false); setNewTitle(employee.title); }}
+                                        >
+                                            <X className="h-3 w-3" />
+                                        </Button>
+                                    </div>
+                                ) : (
+                                    <DialogDescription 
+                                        className="text-sm cursor-pointer hover:bg-slate-100 hover:text-indigo-600 rounded px-1 -ml-1 transition-colors inline-flex items-center gap-2"
+                                        onClick={() => setIsEditingTitle(true)}
+                                        title="Click to change role"
+                                    >
+                                        {employee.title}
+                                        <Pencil className="h-3 w-3 opacity-30" />
+                                    </DialogDescription>
+                                )}
+                            </div>
                         </div>
                     </div>
                 </DialogHeader>
+                
                 <div className="pt-4 space-y-4">
                     {/* Public Info */}
                     <div className="grid grid-cols-2 gap-4">
@@ -150,12 +262,53 @@ const EmployeeDetailModal: React.FC<EmployeeDetailModalProps> = ({ employee, isO
                             </span>
                             <div className="font-mono">#{employee.id}</div>
                         </div>
+
+                        {/* Editable Hourly Rate */}
                         <div className="space-y-1">
                             <span className="text-xs text-muted-foreground uppercase font-bold flex items-center gap-1">
                                 <DollarSign className="h-3 w-3" /> {translate("employees.hourlyRate")}
                             </span>
-                            <div className="font-semibold text-green-600">{formatCurrency(employee.hourlyRate)}</div>
+                            <div className="h-8 flex items-center">
+                                {isEditingRate ? (
+                                    <div className="flex items-center gap-2">
+                                        <Input 
+                                            type="number"
+                                            step="0.01"
+                                            value={newRate} 
+                                            onChange={(e) => setNewRate(e.target.value)}
+                                            className="h-7 w-24 px-2 text-sm"
+                                            autoFocus
+                                        />
+                                        <Button 
+                                            size="sm" 
+                                            className="h-7 w-7 p-0 bg-green-600 hover:bg-green-700 text-white" 
+                                            onClick={handleSaveRate} 
+                                            disabled={loading}
+                                        >
+                                            {loading ? <Loader2 className="h-3 w-3 animate-spin" /> : <Check className="h-3 w-3" />}
+                                        </Button>
+                                        <Button 
+                                            size="sm" 
+                                            variant="ghost" 
+                                            className="h-7 w-7 p-0 text-muted-foreground" 
+                                            onClick={() => { setIsEditingRate(false); setNewRate(employee.hourlyRate); }}
+                                        >
+                                            <X className="h-3 w-3" />
+                                        </Button>
+                                    </div>
+                                ) : (
+                                    <div 
+                                        className="font-semibold text-green-600 cursor-pointer hover:bg-slate-100 rounded px-1 -ml-1 transition-colors flex items-center gap-2"
+                                        onClick={() => setIsEditingRate(true)}
+                                        title="Click to edit rate"
+                                    >
+                                        {formatCurrency(employee.hourlyRate)}
+                                        <Pencil className="h-3 w-3 opacity-30 text-black" />
+                                    </div>
+                                )}
+                            </div>
                         </div>
+
                         <div className="space-y-1 col-span-2">
                              <span className="text-xs text-muted-foreground uppercase font-bold flex items-center gap-1">
                                 <Calendar className="h-3 w-3" /> {translate("employees.dateHired")}
@@ -168,9 +321,9 @@ const EmployeeDetailModal: React.FC<EmployeeDetailModalProps> = ({ employee, isO
 
                     {/* Credentials Section */}
                     <div className="space-y-3 bg-slate-50 p-3 rounded-md border">
-                        <h4 className="text-sm font-semibold text-slate-700 mb-2">{translate("employees.credentialsTitle", "Login Credentials")}</h4>
+                        <h4 className="text-sm font-semibold text-slate-700 mb-2">{translate("employees.credentialsTitle")}</h4>
                         
-                        {/* Email Field - Completely static look */}
+                        {/* Email Field */}
                         <div className="space-y-1">
                             <Label className="text-xs text-muted-foreground flex items-center gap-1">
                                 <Mail className="h-3 w-3" /> {translate("employees.emailLoginLabel")}
@@ -186,7 +339,7 @@ const EmployeeDetailModal: React.FC<EmployeeDetailModalProps> = ({ employee, isO
                         {/* Password Field */}
                         <div className="space-y-1">
                             <Label className="text-xs text-muted-foreground flex items-center gap-1">
-                                <Lock className="h-3 w-3" /> {translate("employees.passwordLabel", "Password")}
+                                <Lock className="h-3 w-3" /> {translate("employees.passwordLabel")}
                             </Label>
                             <div className="flex gap-2">
                                 <Input 
@@ -194,12 +347,10 @@ const EmployeeDetailModal: React.FC<EmployeeDetailModalProps> = ({ employee, isO
                                     value={isEditingPass ? newPass : (employee.password || "********")} 
                                     onChange={(e) => setNewPass(e.target.value)}
                                     type={isEditingPass ? "text" : "password"}
-                                    // 1. Remove from tab order when not editing
                                     tabIndex={isEditingPass ? 0 : -1}
                                     className={
                                         isEditingPass 
                                         ? "bg-white border-indigo-400" 
-                                        // 2. Add 'pointer-events-none' and 'select-none' to stop highlighting/clicking
                                         : "bg-muted border-transparent shadow-none focus-visible:ring-0 text-muted-foreground pointer-events-none select-none"
                                     }
                                 />
@@ -251,7 +402,7 @@ export default function EmployeesPage() {
   // Form State
   const [formData, setFormData] = useState({
     employee_name: "",
-    job_title: "Staff Member", // Default value
+    job_title: "Cashier", 
     hourly_rate: ""
   });
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -317,8 +468,7 @@ export default function EmployeesPage() {
         const password = result.password || "password123";
 
         setNewCredentials({ email, password });
-        // Reset form
-        setFormData({ employee_name: "", job_title: "Staff Member", hourly_rate: "" });
+        setFormData({ employee_name: "", job_title: "Cashier", hourly_rate: "" });
         loadEmployees();
         toast.success(translate("employees.createSuccess"));
 
@@ -330,23 +480,30 @@ export default function EmployeesPage() {
     }
   };
 
-  const handleUpdatePassword = async (id: number, newPass: string) => {
+  const handleUpdateEmployee = async (id: number, data: Partial<Employee>) => {
+      const payload: any = {};
+      
+      if (data.password) payload.password = data.password;
+      if (data.title) payload.job_title = data.title; 
+      if (data.fullName) payload.employee_name = data.fullName;
+      if (data.hourlyRate) payload.hourly_rate = parseFloat(data.hourlyRate);
+
       try {
           await fetchApi(`/api/employees/${id}`, {
               method: 'PUT',
               headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ password: newPass })
+              body: JSON.stringify(payload)
           });
-          toast.success(translate("employees.passwordUpdated"));
           
-          // Update local state so UI reflects change without reload
-          setEmployees(prev => prev.map(e => e.id === id ? { ...e, password: newPass } : e));
+          toast.success(translate("employees.updateSuccess", "Info updated"));
           
-          // Update selected employee too if open
+          setEmployees(prev => prev.map(e => e.id === id ? { ...e, ...data } : e));
+          
           if(selectedEmployee && selectedEmployee.id === id) {
-              setSelectedEmployee(prev => prev ? { ...prev, password: newPass } : null);
+              setSelectedEmployee(prev => prev ? { ...prev, ...data } : null);
           }
       } catch (e: any) {
+          console.error(e);
           toast.error(translate("employees.updateError"));
       }
   };
@@ -499,18 +656,18 @@ export default function EmployeesPage() {
         )}
       </div>
 
-      {/* --- DETAILS MODAL (Now includes Credential View/Edit) --- */}
+      {/* --- DETAILS MODAL --- */}
       {selectedEmployee && (
         <EmployeeDetailModal
           employee={selectedEmployee}
           isOpen={!!selectedEmployee}
           onClose={() => setSelectedEmployee(null)}
-          onUpdatePassword={handleUpdatePassword}
+          onUpdateEmployee={handleUpdateEmployee}
           translate={translate}
         />
       )}
 
-      {/* --- ADD EMPLOYEE MODAL (Now with Dropdown) --- */}
+      {/* --- ADD EMPLOYEE MODAL --- */}
       <Dialog open={isAddModalOpen} onOpenChange={setIsAddModalOpen}>
         <DialogContent className="sm:max-w-[425px]">
             <DialogHeader>
@@ -533,7 +690,6 @@ export default function EmployeesPage() {
                     />
                 </div>
                 
-                {/* NEW: Dropdown for Job Title */}
                 <div className="grid gap-2">
                     <Label htmlFor="job">{translate("employees.jobTitleLabel")}</Label>
                     <Select 
@@ -544,11 +700,11 @@ export default function EmployeesPage() {
                             <SelectValue placeholder={translate("employees.jobTitlePlaceholder")} />
                         </SelectTrigger>
                         <SelectContent>
-                            <SelectItem value="Staff Member">
-                                {translate("employees.roleStaff")}
+                            <SelectItem value="Cashier">
+                                {translate("employees.roleCashier", "Cashier")}
                             </SelectItem>
                             <SelectItem value="Manager">
-                                {translate("employees.roleManager")}
+                                {translate("employees.roleManager", "Manager")}
                             </SelectItem>
                         </SelectContent>
                     </Select>
@@ -580,7 +736,7 @@ export default function EmployeesPage() {
         </DialogContent>
       </Dialog>
 
-      {/* --- CREDENTIALS SUCCESS MODAL (Updated Wording) --- */}
+      {/* --- CREDENTIALS SUCCESS MODAL --- */}
       <Dialog open={!!newCredentials} onOpenChange={() => setNewCredentials(null)}>
         <DialogContent className="sm:max-w-md">
             <DialogHeader>
@@ -589,7 +745,6 @@ export default function EmployeesPage() {
                     <DialogTitle>{translate("employees.successDialogTitle")}</DialogTitle>
                 </div>
                 <DialogDescription>
-                    {/* Changed wording here to reflect they can view it later */}
                     {translate("employees.successDialogDescUpdated")}
                 </DialogDescription>
             </DialogHeader>

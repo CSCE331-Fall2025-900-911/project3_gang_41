@@ -251,7 +251,7 @@
     "copyCredentials": "Copy Credentials",
     "credentialsTitle": "Login Credentials",
     "passwordLabel": "Password",
-    "roleStaff": "Staff Member",
+    "roleStaff": "Cashier",
     "roleManager": "Manager",
     "successDialogDescUpdated": "The system has generated the following credentials. You can view or reset the password later in the employee details.",
     "createSuccess": "Employee created successfully",

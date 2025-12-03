@@ -251,7 +251,7 @@
     "copyCredentials": "Copiar Credenciales",
     "credentialsTitle": "Credenciales de Acceso",
     "passwordLabel": "Contraseña",
-    "roleStaff": "Miembro del Personal",
+    "roleStaff": "Cajero",
     "roleManager": "Gerente",
     "successDialogDescUpdated": "El sistema ha generado las siguientes credenciales. Puedes verlas o restablecer la contraseña más tarde en los detalles del empleado.",
     "createSuccess": "Empleado creado exitosamente",
