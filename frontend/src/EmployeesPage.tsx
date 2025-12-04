@@ -164,7 +164,7 @@ const EmployeeDetailModal: React.FC<EmployeeDetailModalProps> = ({ employee, isO
             <DialogContent className="sm:max-w-[425px]">
                 <DialogHeader>
                     <div className="flex items-start gap-3">
-                        <div className="w-12 h-12 bg-indigo-100 rounded-full flex items-center justify-center text-indigo-600 font-bold text-xl flex-none mt-1">
+                        <div className="w-12 h-12 bg-black-100 rounded-full flex items-center justify-center text-black-600 font-bold text-xl flex-none mt-1">
                             {employee.fullName.charAt(0)}
                         </div>
                         
@@ -182,7 +182,7 @@ const EmployeeDetailModal: React.FC<EmployeeDetailModalProps> = ({ employee, isO
                                         />
                                         <Button 
                                             size="sm" 
-                                            className="h-8 w-8 p-0 bg-green-600 hover:bg-green-700 text-white" 
+                                            className="h-8 w-8 p-0 bg-black-600 hover:bg-black-700 text-white" 
                                             onClick={handleSaveName} 
                                             disabled={loading}
                                         >
@@ -199,7 +199,7 @@ const EmployeeDetailModal: React.FC<EmployeeDetailModalProps> = ({ employee, isO
                                     </div>
                                 ) : (
                                     <DialogTitle 
-                                        className="text-xl hover:bg-slate-100 hover:text-indigo-700 cursor-pointer rounded px-1 -ml-1 transition-colors decoration-slate-300 hover:underline decoration-dashed underline-offset-4"
+                                        className="text-xl hover:bg-slate-100 hover:text-black-700 cursor-pointer rounded px-1 -ml-1 transition-colors decoration-slate-300 hover:underline decoration-dashed underline-offset-4"
                                         onClick={() => setIsEditingName(true)}
                                         title="Click to edit name"
                                     >
@@ -223,7 +223,7 @@ const EmployeeDetailModal: React.FC<EmployeeDetailModalProps> = ({ employee, isO
                                         </Select>
                                         <Button 
                                             size="sm" 
-                                            className="h-7 w-7 p-0 bg-green-600 hover:bg-green-700 text-white" 
+                                            className="h-7 w-7 p-0 bg-black-600 hover:bg-black-700 text-white" 
                                             onClick={handleSaveTitle} 
                                             disabled={loading}
                                         >
@@ -240,7 +240,7 @@ const EmployeeDetailModal: React.FC<EmployeeDetailModalProps> = ({ employee, isO
                                     </div>
                                 ) : (
                                     <DialogDescription 
-                                        className="text-sm cursor-pointer hover:bg-slate-100 hover:text-indigo-600 rounded px-1 -ml-1 transition-colors inline-flex items-center gap-2"
+                                        className="text-sm cursor-pointer hover:bg-slate-100 hover:text-black-600 rounded px-1 -ml-1 transition-colors inline-flex items-center gap-2"
                                         onClick={() => setIsEditingTitle(true)}
                                         title="Click to change role"
                                     >
@@ -281,7 +281,7 @@ const EmployeeDetailModal: React.FC<EmployeeDetailModalProps> = ({ employee, isO
                                         />
                                         <Button 
                                             size="sm" 
-                                            className="h-7 w-7 p-0 bg-green-600 hover:bg-green-700 text-white" 
+                                            className="h-7 w-7 p-0 bg-black-600 hover:bg-black-700 text-white" 
                                             onClick={handleSaveRate} 
                                             disabled={loading}
                                         >
@@ -298,7 +298,7 @@ const EmployeeDetailModal: React.FC<EmployeeDetailModalProps> = ({ employee, isO
                                     </div>
                                 ) : (
                                     <div 
-                                        className="font-semibold text-green-600 cursor-pointer hover:bg-slate-100 rounded px-1 -ml-1 transition-colors flex items-center gap-2"
+                                        className="font-semibold text-black-600 cursor-pointer hover:bg-slate-100 rounded px-1 -ml-1 transition-colors flex items-center gap-2"
                                         onClick={() => setIsEditingRate(true)}
                                         title="Click to edit rate"
                                     >
@@ -350,7 +350,7 @@ const EmployeeDetailModal: React.FC<EmployeeDetailModalProps> = ({ employee, isO
                                     tabIndex={isEditingPass ? 0 : -1}
                                     className={
                                         isEditingPass 
-                                        ? "bg-white border-indigo-400" 
+                                        ? "bg-white border-black-400" 
                                         : "bg-muted border-transparent shadow-none focus-visible:ring-0 text-muted-foreground pointer-events-none select-none"
                                     }
                                 />
@@ -571,7 +571,7 @@ export default function EmployeesPage() {
 
             <Button 
                 onClick={() => setIsAddModalOpen(true)} 
-                className="bg-green-600 hover:bg-green-700 text-white ml-2 whitespace-nowrap"
+                className="bg-black text-white ml-2 whitespace-nowrap"
             >
                 <Plus className="h-4 w-4 sm:mr-2" />
                 <span className="hidden sm:inline">{translate("employees.addEmployee")}</span>
@@ -610,11 +610,11 @@ export default function EmployeesPage() {
                 <CardHeader className="p-4 bg-white">
                   <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                     <div className="flex items-center gap-4 cursor-pointer flex-1" onClick={() => setSelectedEmployee(e)}>
-                      <div className="w-12 h-12 bg-indigo-100 rounded-full flex items-center justify-center text-indigo-600 font-bold text-lg flex-none">
+                      <div className="w-12 h-12 bg-black-100 rounded-full flex items-center justify-center text-black-600 font-bold text-lg flex-none">
                         {e.fullName.charAt(0)}
                       </div>
                       <div>
-                        <CardTitle className="text-xl font-semibold hover:text-indigo-600 transition-colors">
+                        <CardTitle className="text-xl font-semibold hover:text-black-600 transition-colors">
                             {e.fullName}
                         </CardTitle>
                         <CardDescription className="text-sm text-muted-foreground flex items-center gap-1 mt-0.5">
@@ -624,7 +624,7 @@ export default function EmployeesPage() {
                     </div>
 
                     <div className="flex items-center gap-4 sm:text-right">
-                      <Badge className="bg-green-100 text-green-700 hover:bg-green-200 mr-2 border-green-200 text-sm py-1 px-3">
+                      <Badge className="bg-black-100 text-black-700 hover:bg-black-200 mr-2 border-black-200 text-sm py-1 px-3">
                         ID: {e.id}
                       </Badge>
                       
@@ -632,7 +632,7 @@ export default function EmployeesPage() {
                           variant="default"
                           size="sm"
                           onClick={() => setSelectedEmployee(e)}
-                          className="bg-indigo-600 hover:bg-indigo-700 transition-colors gap-2"
+                          className="bg-black transition-colors gap-2"
                       >
                           <Eye className="h-4 w-4" />
                           {translate("employees.viewDetails")}
@@ -740,7 +740,7 @@ export default function EmployeesPage() {
       <Dialog open={!!newCredentials} onOpenChange={() => setNewCredentials(null)}>
         <DialogContent className="sm:max-w-md">
             <DialogHeader>
-                <div className="flex items-center gap-2 text-green-600 mb-2">
+                <div className="flex items-center gap-2 text-black-600 mb-2">
                     <Check className="h-6 w-6" />
                     <DialogTitle>{translate("employees.successDialogTitle")}</DialogTitle>
                 </div>
