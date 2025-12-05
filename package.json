@@ -13,6 +13,7 @@
     "typecheck": "npm run -ws build --dry-run"
   },
   "devDependencies": {
+    "@types/canvas-confetti": "^1.9.0",
     "@types/express": "^4.17.21",
     "@types/node": "^24.10.0",
     "concurrently": "^8.2.2",
