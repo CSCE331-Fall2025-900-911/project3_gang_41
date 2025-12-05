@@ -36,7 +36,8 @@
     "cartEmpty": "Tu carrito está vacío",
     "addItemsToStart": "Agrega artículos para comenzar",
     "experimental": "Experimental",
-    "smoothCursor": "Cursor Suave"
+    "smoothCursor": "Cursor Suave",
+    "tts": "TTS"
   },
   "cashier": {
     "title": "Cajero",

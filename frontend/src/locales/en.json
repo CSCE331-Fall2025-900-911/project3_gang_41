@@ -36,7 +36,8 @@
     "cartEmpty": "Your cart is empty",
     "addItemsToStart": "Add items to get started",
     "experimental": "Experimental",
-    "smoothCursor": "Smooth Cursor"
+    "smoothCursor": "Smooth Cursor",
+    "tts": "TTS"
   },
   "cashier": {
     "title": "Cashier",

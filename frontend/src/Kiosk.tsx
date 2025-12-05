@@ -16,6 +16,7 @@ import { Minus, Plus, ShoppingCart, Trash2, Edit, Loader2, FlaskConical, Chevron
 import { WeatherDisplay } from '@/components/WeatherDisplay';
 import { DrinkCustomizationDialog } from "@/components/DrinkCustomizationDialog";
 import { useCart } from "@/hooks/useCart";
+import { useAudio } from "@/hooks/useAudio";
 import {
   Collapsible,
   CollapsibleContent,
@@ -58,6 +59,8 @@ function Kiosk() {
   const [buttonPulse, setButtonPulse] = useState(false);
   const [weather, setWeather] = useState<{ temperature: number; icon: string } | null>(null);
   const [experimentalMode, setExperimentalMode] = useState(false);
+  const [ttsEnabled, setTtsEnabled] = useState(false);
+  const { play } = useAudio();
   const [customizationDialog, setCustomizationDialog] = useState<{
       open: boolean;
       item: MenuItem | null;
@@ -88,6 +91,7 @@ function Kiosk() {
   }, []);
 
   const openCustomizationDialog = (item: MenuItem) => {
+    if (ttsEnabled) play('options');
     setCustomizationDialog({
       open: true,
       item,
@@ -123,6 +127,7 @@ function Kiosk() {
         uniqueId: `${customizationDialog.item.item_id}-${Date.now()}-${Math.random()}`,
       };
       addToCart(newCartItem);
+      if (ttsEnabled) play('drink');
 
       // Trigger button pulse animation
       setButtonPulse(true);
@@ -138,6 +143,7 @@ function Kiosk() {
 
   const handleCheckout = () => {
     checkout(paymentMethod, () => {
+      if (ttsEnabled) play('confirmed');
       setDrawerOpen(false);
     });
   };
@@ -179,7 +185,7 @@ function Kiosk() {
                 <ChevronDown className="h-4 w-4 transition-transform duration-200 group-data-[state=open]:rotate-180" />
               </Button>
             </CollapsibleTrigger>
-            <CollapsibleContent className="px-2 py-3">
+            <CollapsibleContent className="px-2 py-3 space-y-3">
               <div className="flex items-center justify-between">
                 <label htmlFor="smooth-cursor" className="text-sm text-muted-foreground">
                   {translate('kiosk.smoothCursor')}
@@ -188,6 +194,19 @@ function Kiosk() {
                   id="smooth-cursor"
                   checked={experimentalMode}
                   onCheckedChange={setExperimentalMode}
+                />
+              </div>
+              <div className="flex items-center justify-between">
+                <label htmlFor="tts-toggle" className="text-sm text-muted-foreground">
+                  {translate('kiosk.tts')}
+                </label>
+                <Switch
+                  id="tts-toggle"
+                  checked={ttsEnabled}
+                  onCheckedChange={(checked) => {
+                    setTtsEnabled(checked);
+                    if (checked) play('intro');
+                  }}
                 />
               </div>
             </CollapsibleContent>
@@ -403,7 +422,10 @@ function Kiosk() {
                         <Button
                           variant={paymentMethod === 'cash' ? 'default' : 'outline'}
                           className="flex-1 h-14 text-lg"
-                          onClick={() => setPaymentMethod('cash')}
+                          onClick={() => {
+                            setPaymentMethod('cash');
+                            if (ttsEnabled) play('cash');
+                          }}
                         >
                           <Banknote className="mr-2 h-5 w-5" />
                           {translate('checkout.cash')}
