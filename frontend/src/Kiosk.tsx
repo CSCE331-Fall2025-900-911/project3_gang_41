@@ -62,6 +62,9 @@ const categoryTranslationKeys: Record<string, string> = {
   "Seasonal": "categories.seasonal",
 };
 
+// FIX: Define options outside component to prevent re-creation on re-renders
+const CONFETTI_GLOBAL_OPTIONS = { resize: true, useWorker: true };
+
 export default function Kiosk() {
   const { t: translate } = useTranslation();
   const navigate = useNavigate();
@@ -258,6 +261,7 @@ export default function Kiosk() {
       <Confetti 
         ref={confettiRef} 
         manualstart={true}
+        globalOptions={CONFETTI_GLOBAL_OPTIONS} // FIX: Pass stable options
         className="fixed inset-0 z-[200] w-screen h-screen pointer-events-none" 
       />
 

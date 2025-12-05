@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useCustomer } from "@/contexts/CustomerContext";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -20,6 +20,19 @@ export function MemberLoginDialog({ open, onOpenChange }: MemberLoginDialogProps
   const [newName, setNewName] = useState("");
   const [activeTab, setActiveTab] = useState("phone");
 
+  // PRIVACY FIX: Reset state when dialog closes
+  useEffect(() => {
+    if (!open) {
+      const timer = setTimeout(() => {
+        setPhoneNumber("");
+        setNewName("");
+        setIsRegistering(false);
+        setActiveTab("phone");
+      }, 200);
+      return () => clearTimeout(timer);
+    }
+  }, [open]);
+
   const handleKeyPress = (key: string) => {
     if (phoneNumber.length < 10) {
       setPhoneNumber(prev => prev + key);
@@ -30,6 +43,53 @@ export function MemberLoginDialog({ open, onOpenChange }: MemberLoginDialogProps
     setPhoneNumber(prev => prev.slice(0, -1));
   };
 
+  const handleSubmitPhone = async () => {
+    if (phoneNumber.length !== 10) return;
+    
+    if (isRegistering) {
+       await registerCustomer(phoneNumber, newName);
+       onOpenChange(false);
+    } else {
+       const found = await loginPhone(phoneNumber);
+       if (found) {
+         onOpenChange(false);
+       } else {
+         setIsRegistering(true);
+       }
+    }
+  };
+
+  // KEYBOARD SUPPORT
+  useEffect(() => {
+    if (!open || activeTab !== "phone") return;
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // If we are in registration mode (entering name), don't hijack number keys
+      if (isRegistering) {
+        if (e.key === "Enter") {
+          e.preventDefault();
+          handleSubmitPhone();
+        }
+        return;
+      }
+
+      // Normal Phone Entry Mode
+      if (e.key === "Enter") {
+        e.preventDefault();
+        handleSubmitPhone();
+      } else if (e.key === "Backspace") {
+        // Prevent browser back navigation if focus is weird
+        // But mainly just delete the digit
+        handleDelete();
+      } else if (/^[0-9]$/.test(e.key)) {
+        handleKeyPress(e.key);
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [open, activeTab, isRegistering, phoneNumber, newName]); // Dep array ensures we have latest state
+
   const formatPhone = (val: string) => {
     if (!val) return "";
     const cleaned = val.replace(/\D/g, '');
@@ -38,29 +98,6 @@ export function MemberLoginDialog({ open, onOpenChange }: MemberLoginDialogProps
       return !match[2] ? match[1] : `(${match[1]}) ${match[2]}${match[3] ? '-' + match[3] : ''}`;
     }
     return val;
-  };
-
-  const handleSubmitPhone = async () => {
-    if (phoneNumber.length !== 10) return;
-    
-    if (isRegistering) {
-       await registerCustomer(phoneNumber, newName);
-       resetAndClose();
-    } else {
-       const found = await loginPhone(phoneNumber);
-       if (found) {
-         resetAndClose();
-       } else {
-         setIsRegistering(true); // Switch to registration mode
-       }
-    }
-  };
-
-  const resetAndClose = () => {
-    setPhoneNumber("");
-    setNewName("");
-    setIsRegistering(false);
-    onOpenChange(false);
   };
 
   return (
@@ -109,7 +146,10 @@ export function MemberLoginDialog({ open, onOpenChange }: MemberLoginDialogProps
                </div>
              )}
 
-             <NumericKeypad onKeyPress={handleKeyPress} onDelete={handleDelete} />
+             {/* Only show keypad if not typing a name, to avoid clutter */}
+             <div className={isRegistering ? "opacity-50 pointer-events-none blur-[1px] transition-all" : "transition-all"}>
+                <NumericKeypad onKeyPress={handleKeyPress} onDelete={handleDelete} />
+             </div>
 
              <Button 
                 className="w-full h-12 text-lg mt-4" 
@@ -125,7 +165,7 @@ export function MemberLoginDialog({ open, onOpenChange }: MemberLoginDialogProps
                <GoogleLogin
                   onSuccess={(res) => {
                     if (res.credential) {
-                      loginGoogleCustomer(res.credential).then(resetAndClose);
+                      loginGoogleCustomer(res.credential).then(() => onOpenChange(false));
                     }
                   }}
                   onError={() => console.log('Login Failed')}
