@@ -5,6 +5,7 @@ import { sendSuccess, sendError } from './utils/response';
 const router = express.Router();
 const BUSINESS_TZ = 'America/Chicago';
 
+// --- DASHBOARD ROUTE ---
 router.get('/dashboard', async (req: Request, res: Response) => {
   try {
     const { range } = req.query;
@@ -36,8 +37,6 @@ router.get('/dashboard', async (req: Request, res: Response) => {
     }
 
     // --- 1. KPI Query with PACING Logic ---
-    // We determine if a row is in the "Paced" window of the previous period
-    // by checking if (RowTime - StartOfPeriod) < (Now - StartOfCurrentPeriod)
     const kpiQuery = `
       WITH metrics AS (
         SELECT
@@ -73,7 +72,6 @@ router.get('/dashboard', async (req: Request, res: Response) => {
     `;
 
     // --- 2. Peak Time Query ---
-    // Get top time slot for Current Period and Previous Period separately
     const peakQuery = `
       WITH buckets AS (
         SELECT
@@ -205,6 +203,130 @@ router.get('/dashboard', async (req: Request, res: Response) => {
   } catch (error) {
     console.error('Dashboard Error:', error);
     sendError(res, 'Failed to fetch dashboard');
+  }
+});
+
+// --- HELPER: Find the "Start Line" (Last Z-Report Time) ---
+const getShiftStartTime = async () => {
+  // 1. Get the timestamp of the very last Z-Report
+  const lastCloseRes = await db.query('SELECT end_time FROM z_reports ORDER BY date_created DESC LIMIT 1');
+  
+  // 2. If we found one, that's our start time. 
+  //    If NOT (first time running), start from the beginning of today.
+  const prevEndTimeRaw = lastCloseRes.rows[0]?.end_time;
+  
+  return prevEndTimeRaw 
+    ? `'${prevEndTimeRaw.toISOString()}'` 
+    : "DATE_TRUNC('day', NOW())"; 
+};
+
+// --- X-REPORT (Live Snapshot) ---
+router.get('/x-report', async (req: Request, res: Response) => {
+  try {
+    const startTimeSQL = await getShiftStartTime();
+
+    // FIXED: Changed total_order_price -> totalprice
+    const query = `
+      SELECT 
+        COUNT(DISTINCT orderid)::int as transactions,
+        COALESCE(SUM(totalprice), 0)::float as grossSales,
+        COALESCE(SUM(CASE WHEN paymentmethod = 'cash' THEN totalprice ELSE 0 END), 0)::float as cashSales,
+        COALESCE(SUM(CASE WHEN paymentmethod = 'card' THEN totalprice ELSE 0 END), 0)::float as cardSales,
+        -- Calculate Tax (Assuming ~8.25% included in total)
+        (COALESCE(SUM(totalprice), 0) - (COALESCE(SUM(totalprice), 0) / 1.0825))::float as tax
+      FROM order_history 
+      WHERE orderdate > ${startTimeSQL}
+    `;
+
+    const result = await db.query(query);
+    const row = result.rows[0];
+
+    sendSuccess(res, {
+      transactions: row.transactions,
+      grossSales: row.grosssales, 
+      cashSales: row.cashsales,
+      cardSales: row.cardsales,
+      netSales: row.grosssales - row.tax,
+      tax: row.tax,
+      discounts: 0 
+    });
+
+  } catch (error) {
+    console.error('X-Report Error:', error);
+    sendError(res, 'Failed to generate X-Report');
+  }
+});
+
+// --- Z-REPORT (Close Shift) ---
+router.post('/z-report', async (req: Request, res: Response) => {
+  try {
+    const { countedCash, openingFloat = 150.00 } = req.body;
+    const startTimeSQL = await getShiftStartTime();
+
+    // FIXED: Changed total_order_price -> totalprice
+    const aggQuery = `
+      SELECT 
+        COUNT(DISTINCT orderid)::int as transactions,
+        COALESCE(SUM(totalprice), 0)::float as grossSales,
+        COALESCE(SUM(CASE WHEN paymentmethod = 'cash' THEN totalprice ELSE 0 END), 0)::float as cashSales,
+        COALESCE(SUM(CASE WHEN paymentmethod = 'card' THEN totalprice ELSE 0 END), 0)::float as cardSales,
+        (COALESCE(SUM(totalprice), 0) - (COALESCE(SUM(totalprice), 0) / 1.0825))::float as tax
+      FROM order_history 
+      WHERE orderdate > ${startTimeSQL}
+    `;
+
+    const aggRes = await db.query(aggQuery);
+    const totals = aggRes.rows[0];
+
+    // 2. Calculate Variance
+    const expectedCash = Number(openingFloat) + Number(totals.cashsales);
+    const variance = Number(countedCash) - expectedCash;
+
+    // 3. Save the snapshot
+    const insertQuery = `
+      INSERT INTO z_reports (
+        start_time, end_time, total_sales, cash_sales, card_sales, 
+        tax_total, transaction_count, opening_float, counted_cash, 
+        variance
+      ) VALUES (
+        ${startTimeSQL}, NOW(), $1, $2, $3, $4, $5, $6, $7, $8
+      ) RETURNING report_id
+    `;
+
+    const insertValues = [
+      totals.grosssales,
+      totals.cashsales,
+      totals.cardsales,
+      totals.tax,
+      totals.transactions,
+      openingFloat,
+      countedCash,
+      variance
+    ];
+
+    const insertRes = await db.query(insertQuery, insertValues);
+
+    sendSuccess(res, {
+      message: 'Shift closed successfully',
+      reportId: insertRes.rows[0].report_id,
+      variance: variance
+    });
+
+  } catch (error) {
+    console.error('Z-Report Error:', error);
+    sendError(res, 'Failed to close shift');
+  }
+});
+
+// --- HISTORY ---
+router.get('/history', async (req: Request, res: Response) => {
+  try {
+    const query = `SELECT * FROM z_reports ORDER BY date_created DESC LIMIT 50`;
+    const result = await db.query(query);
+    sendSuccess(res, result.rows);
+  } catch (error) {
+    console.error('Reports History Error:', error);
+    sendError(res, 'Failed to fetch report history');
   }
 });
 

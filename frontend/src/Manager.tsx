@@ -11,6 +11,7 @@ import {
   LogOut,
   LayoutDashboard,
   SquareMenu,
+  FileText,
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { WeatherDisplay } from "@/components/WeatherDisplay";
@@ -22,19 +23,24 @@ import MenuPage from "./MenuPage";
 import EmployeesPage from "./EmployeesPage";
 import InventoryPage from "./InventoryPage";
 import HistoryPage from "./HistoryPage";
-import DashboardPage from "./DashboardPage"; // <--- NEW IMPORT
+import DashboardPage from "./DashboardPage";
+import ReportsPage from "./ReportsPage";
 
 type Category =
   | "Dashboard"
   | "Inventory"
   | "Employees"
   | "History"
+  | "Reports"
   | "Menu Items";
+
+
 const categories: Category[] = [
   "Dashboard",
   "Inventory",
   "Employees",
   "History",
+  "Reports", 
   "Menu Items",
 ];
 
@@ -43,6 +49,7 @@ const categoryTranslationKeys: Record<Category, string> = {
   Inventory: "manager.categories.inventory",
   Employees: "manager.categories.employees",
   History: "manager.categories.history",
+  Reports: "manager.categories.reports",
   "Menu Items": "manager.categories.menuItems",
 };
 
@@ -79,13 +86,15 @@ function Manager() {
   const renderContent = (currentCategory: Category): ReactNode => {
     switch (currentCategory) {
       case "Dashboard":
-        return <DashboardPage />; // <--- Use the new page here
+        return <DashboardPage />;
       case "Inventory":
         return <InventoryPage />;
       case "Employees":
         return <EmployeesPage />;
       case "History":
         return <HistoryPage />;
+      case "Reports":
+        return <ReportsPage />;
       case "Menu Items":
         return <MenuPage />;
       default:
@@ -99,6 +108,7 @@ function Manager() {
     Inventory: <Package className="h-4 w-4 mr-2" />,
     Employees: <Users className="h-4 w-4 mr-2" />,
     History: <History className="h-4 w-4 mr-2" />,
+    Reports: <FileText className="h-4 w-4 mr-2" />,
   };
 
   return (
