@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { GoogleLogin } from "@react-oauth/google";
 import { NumericKeypad } from "./NumericKeypad";
-import { Phone, CheckCircle, UserPlus } from "lucide-react";
+import { UserPlus } from "lucide-react";
 
 interface MemberLoginDialogProps {
   open: boolean;
