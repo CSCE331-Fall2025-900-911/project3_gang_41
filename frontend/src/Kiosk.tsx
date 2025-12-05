@@ -9,8 +9,7 @@ import {
   DrawerContent,
   DrawerDescription,
   DrawerHeader,
-  DrawerTitle,
-  DrawerTrigger,
+  DrawerTitle
 } from '@/components/ui/drawer';
 import { 
   Minus, Plus, ShoppingCart, Trash2, Edit, Loader2, FlaskConical, ChevronDown, 
