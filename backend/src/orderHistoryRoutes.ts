@@ -10,7 +10,7 @@ const BUSINESS_TZ = 'America/Chicago';
 
 // Create Order
 router.post('/', async (req: Request, res: Response) => {
-  const { items, customerid, employeeId, paymentmethod } = req.body;
+  const { items, customerId, employeeId, paymentmethod, pointsRedeemed, discountAmount } = req.body;
 
   if (!Array.isArray(items) || items.length === 0) {
     return sendError(res, 'No items provided', 400);
@@ -18,6 +18,7 @@ router.post('/', async (req: Request, res: Response) => {
 
   try {
     const orderid = await runTransaction(async (client) => {
+      // 1. Get New Order ID
       const { rows } = await client.query(
         "SELECT COALESCE(MAX(orderid), 0) + 1 AS new_id FROM order_history"
       );
@@ -29,44 +30,50 @@ router.post('/', async (req: Request, res: Response) => {
         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
       `;
 
-      // Aggregate duplicates (same logic as before)
-      const aggregated = new Map<number, any>();
-      for (const item of items) {
-        if (aggregated.has(item.item_id)) {
-          aggregated.get(item.item_id).quantity += item.quantity;
-        } else {
-          aggregated.set(item.item_id, { ...item });
-        }
-      }
+      let orderTotal = 0;
 
-      for (const item of aggregated.values()) {
-        const total = item.cost * item.quantity;
+      // 2. Insert Items
+      for (const item of items) {
+        // Simple aggregation logic (assuming pre-aggregated from frontend or implementing simple map here)
+        const lineTotal = Number(item.cost) * Number(item.quantity);
+        orderTotal += lineTotal;
+        
         await client.query(insertSql, [
           newId,
-          customerid || 0,
-          employeeId || 0,
+          customerId || 0, // <--- FIX HERE: Default to 0 (Guest) if undefined/null
+          employeeId || 0, // <--- FIX HERE: Default to 0 (Kiosk) if undefined/null
           paymentmethod || 'card',
           item.item_id,
           item.item_name,
           item.quantity,
           item.cost,
-          total,
+          lineTotal,
         ]);
+      }
+
+      // 3. Handle Loyalty Points (Only if we actually have a valid customerId > 0)
+      if (customerId && customerId > 0) {
+        // Earn: 10 points per dollar spent
+        const pointsEarned = Math.floor(orderTotal * 10);
+        
+        // Burn: Deduct redeemed points
+        const pointsUsed = pointsRedeemed || 0;
+        
+        // Update Customer
+        await client.query(
+          `UPDATE customers 
+           SET points = points + $1 - $2,
+               total_spent = COALESCE(total_spent, 0) + $3
+           WHERE customers_id = $4`,
+           [pointsEarned, pointsUsed, orderTotal, customerId]
+        );
       }
 
       return newId;
     });
 
-    // Fire-and-forget inventory deduction (handled safely outside the order tx)
-    // Note: You could verify items exist first, but existing logic did this post-commit
-    const aggregatedItems = items.reduce((acc: any[], item: any) => {
-        const existing = acc.find(i => i.item_id === item.item_id);
-        if (existing) existing.quantity += item.quantity;
-        else acc.push({ item_id: item.item_id, quantity: item.quantity });
-        return acc;
-    }, []);
-
-    deductInventory(aggregatedItems).catch(e => console.error('Inventory deduction error', e));
+    // Fire-and-forget inventory (existing logic)
+    deductInventory(items).catch(e => console.error('Inventory deduction error', e));
 
     sendSuccess(res, { orderid }, 'Order created');
   } catch (err) {

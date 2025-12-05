@@ -8,7 +8,6 @@ export function useCart() {
   const { t: translate } = useTranslation();
   const [cart, setCart] = useState<CartItem[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  // Synchronous lock to prevent double-processing before React re-renders
   const processingRef = useRef(false);
 
   const addToCart = (item: CartItem) => {
@@ -37,7 +36,14 @@ export function useCart() {
 
   const clearCart = () => setCart([]);
 
-  const checkout = async (paymentMethod: 'cash' | 'card' = 'card', onSuccess?: () => void) => {
+  const checkout = async (
+    paymentMethod: 'cash' | 'card' = 'card', 
+    // UPDATED: onSuccess now accepts an orderId (number)
+    onSuccess?: (orderId: number) => void,
+    customerId?: number,
+    pointsRedeemed?: number,
+    discountAmount?: number
+  ) => {
     if (processingRef.current) return;
     if (cart.length === 0) return;
 
@@ -54,21 +60,26 @@ export function useCart() {
             quantity: item.quantity,
             cost: item.cost
           })),
-          paymentmethod: paymentMethod
+          paymentmethod: paymentMethod,
+          customerId,
+          pointsRedeemed,
+          discountAmount
         };
 
-        await fetchApi('/api/order-history', {
+        // UPDATED: fetchApi automatically unwraps 'data', so we expect { orderid: number }
+        const response = await fetchApi<{ orderid: number }>('/api/order-history', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(orderData),
         });
 
         clearCart();
-        if (onSuccess) onSuccess();
+        // UPDATED: Pass the ID back
+        if (onSuccess) onSuccess(response.orderid);
+        
         return { success: true };
       })();
 
-      // Attach toast
       toast.promise(checkoutPromise, {
         loading: translate("checkout.processing"),
         success: translate("checkout.success"),

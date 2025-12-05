@@ -15,6 +15,7 @@ import orderHistoryRoutes from "./orderHistoryRoutes";
 import salesReportRoutes from "./salesReportRoutes";
 import employeeRoutes from "./employeeRoutes";
 import reportsRoutes from "./reportsRoutes";
+import customerRoutes from "./customerRoutes";
 import { generateFakeOrdersForRun } from "./services/fakeOrderService";
 import { sendSuccess, sendError } from './utils/response';
 
@@ -98,6 +99,7 @@ app.use('/api/employees', employeeRoutes)
 // Only mount employeeRoutes at the base path; the router handles `/:id` internally.
 app.use('/api/employees', employeeRoutes)
 app.use('/api/reports', reportsRoutes);
+app.use('/api/customers', customerRoutes);
 
 // Weather Proxy
 app.get('/api/weather/current', async (req: Request, res: Response) => {

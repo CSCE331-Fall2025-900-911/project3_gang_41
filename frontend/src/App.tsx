@@ -1,5 +1,6 @@
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import { AuthProvider } from './contexts/AuthContext';
+import { CustomerProvider } from './contexts/CustomerContext';
 import { ProtectedRoute } from './components/ProtectedRoute';
 import Cashier from './Cashier';
 import LoginPage from './Login';
@@ -10,7 +11,8 @@ function App() {
   return (
     <BrowserRouter>
       <AuthProvider>
-        <Routes>
+        <CustomerProvider>
+          <Routes>
           {/* Public routes */}
           <Route path="/" element={<LoginPage />} />
           <Route path="/login" element={<LoginPage />} />
@@ -34,7 +36,8 @@ function App() {
               </ProtectedRoute>
             }
           />
-        </Routes>
+          </Routes>
+        </CustomerProvider>
       </AuthProvider>
     </BrowserRouter>
   );
