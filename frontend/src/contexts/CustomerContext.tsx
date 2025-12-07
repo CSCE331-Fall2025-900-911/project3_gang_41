@@ -1,14 +1,10 @@
 import { createContext, useContext, useState, ReactNode } from 'react';
 import { fetchApi } from '@/lib/api';
 import { toast } from 'sonner';
+import type { Customer } from '@project3/shared';
 
-export interface Customer {
-  customers_id: number;
-  customer_name: string;
-  points: number;
-  email?: string;
-  phone_number?: string;
-}
+// Re-export for components to use
+export type { Customer };
 
 interface CustomerContextType {
   customer: Customer | null;
@@ -45,7 +41,6 @@ export function CustomerProvider({ children }: { children: ReactNode }) {
     }
   };
 
-  // NEW: Login via Email
   const loginEmail = async (email: string) => {
     try {
       const res = await fetchApi<{ found: boolean; customer?: Customer }>('/api/customers/lookup', {
@@ -66,7 +61,6 @@ export function CustomerProvider({ children }: { children: ReactNode }) {
     }
   };
 
-  // UPDATED: Register accepts object
   const registerCustomer = async ({ phone, email, name }: { phone?: string; email?: string; name: string }) => {
     try {
       const newCustomer = await fetchApi<Customer>('/api/customers/register', {
@@ -103,7 +97,7 @@ export function CustomerProvider({ children }: { children: ReactNode }) {
   };
 
   const refreshCustomer = async () => {
-      // Placeholder
+      // Placeholder for re-fetching customer data
   };
 
   return (

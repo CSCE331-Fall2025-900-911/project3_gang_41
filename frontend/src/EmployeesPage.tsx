@@ -302,7 +302,7 @@ const EmployeeDetailModal: React.FC<EmployeeDetailModalProps> = ({ employee, isO
                                         onClick={() => setIsEditingRate(true)}
                                         title="Click to edit rate"
                                     >
-                                        {formatCurrency(employee.hourlyRate)}
+                                        {formatCurrency(parseFloat(employee.hourlyRate))}
                                         <Pencil className="h-3 w-3 opacity-30 text-black" />
                                     </div>
                                 )}

@@ -170,8 +170,18 @@ export interface DashboardData {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Employee Types
+// Person Types (Database Schema Aligned)
 // ─────────────────────────────────────────────────────────────────────────────
+
+export interface Customer {
+  customers_id: number;
+  customer_name: string;
+  points: number;
+  email?: string;
+  phone_number?: string;
+  sign_up_date?: string | Date;
+  google_sub?: string;
+}
 
 export type EmployeeRole = 'manager' | 'cashier' | 'staff';
 

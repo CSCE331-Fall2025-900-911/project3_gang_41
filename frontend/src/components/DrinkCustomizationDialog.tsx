@@ -1,6 +1,12 @@
 import { useState, useEffect } from "react";
 import { useTranslation } from "react-i18next";
-import type { DrinkCustomization } from "@project3/shared";
+import { 
+  type DrinkCustomization, 
+  DEFAULT_CUSTOMIZATION,
+  SWEETNESS_OPTIONS,
+  ICE_OPTIONS,
+  SIZE_OPTIONS
+} from "@project3/shared";
 import {
   Dialog,
   DialogContent,
@@ -12,7 +18,6 @@ import {
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 
-
 interface DrinkCustomizationDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -20,12 +25,6 @@ interface DrinkCustomizationDialogProps {
   defaultCustomization?: DrinkCustomization;
   onConfirm: (customization: DrinkCustomization) => void;
 }
-
-const defaultCustomizationValues: DrinkCustomization = {
-  sweetness: 100,
-  ice: 'regular',
-  size: 'medium',
-};
 
 export function DrinkCustomizationDialog({
   open,
@@ -36,14 +35,14 @@ export function DrinkCustomizationDialog({
 }: DrinkCustomizationDialogProps) {
   const { t: translate } = useTranslation();
   const [customization, setCustomization] = useState<DrinkCustomization>(
-    defaultCustomization || defaultCustomizationValues
+    defaultCustomization || DEFAULT_CUSTOMIZATION
   );
 
   useEffect(() => {
     if (defaultCustomization) {
       setCustomization(defaultCustomization);
     } else {
-      setCustomization(defaultCustomizationValues);
+      setCustomization(DEFAULT_CUSTOMIZATION);
     }
   }, [defaultCustomization, open]);
 
@@ -51,10 +50,6 @@ export function DrinkCustomizationDialog({
     onConfirm(customization);
     onOpenChange(false);
   };
-
-  const sweetnessOptions: Array<100 | 50 | 25> = [100, 50, 25];
-  const iceOptions: Array<'regular' | 'light' | 'none'> = ['regular', 'light', 'none'];
-  const sizeOptions: Array<'small' | 'medium' | 'large'> = ['small', 'medium', 'large'];
 
   const sizeTranslationKeys: Record<string, string> = {
     small: "customization.small",
@@ -82,7 +77,7 @@ export function DrinkCustomizationDialog({
           <div className="space-y-2">
             <Label>{translate("customization.size")}</Label>
             <div className="grid grid-cols-3 gap-2">
-              {sizeOptions.map((size) => (
+              {SIZE_OPTIONS.map((size) => (
                 <Button
                   key={size}
                   type="button"
@@ -99,7 +94,7 @@ export function DrinkCustomizationDialog({
           <div className="space-y-2">
             <Label>{translate("customization.sweetness")}</Label>
             <div className="grid grid-cols-3 gap-2">
-              {sweetnessOptions.map((sweetness) => (
+              {SWEETNESS_OPTIONS.map((sweetness) => (
                 <Button
                   key={sweetness}
                   type="button"
@@ -116,7 +111,7 @@ export function DrinkCustomizationDialog({
           <div className="space-y-2">
             <Label>{translate("customization.ice")}</Label>
             <div className="grid grid-cols-3 gap-2">
-              {iceOptions.map((ice) => (
+              {ICE_OPTIONS.map((ice) => (
                 <Button
                   key={ice}
                   type="button"
