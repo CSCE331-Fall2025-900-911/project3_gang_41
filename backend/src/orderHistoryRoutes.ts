@@ -1,94 +1,199 @@
 import express, { Request, Response } from 'express';
 import db, { runTransaction } from './db';
-import { deductInventory } from './services/inventoryService';
-import { sendSuccess, sendError, sendBadRequest } from './utils/response';
+import { executeInventoryDeduction, validateInventoryAvailability } from './services/inventoryService';
+import { 
+  sendSuccess, 
+  sendError, 
+  sendBadRequest, 
+  sendCreated
+} from './utils/response';
 import { POINTS_PER_DOLLAR } from '@project3/shared';
+import type { PoolClient } from 'pg';
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Constants & Types
+// ─────────────────────────────────────────────────────────────────────────────
+
+const BUSINESS_TZ = 'America/Chicago';
+const DEFAULT_PAGE_SIZE = 20;
+
+interface OrderItemInput {
+  item_id: number;
+  item_name: string;
+  cost: number;
+  quantity: number;
+}
+
+interface CreateOrderBody {
+  items: OrderItemInput[];
+  customerId?: number;
+  employeeId?: number;
+  paymentmethod?: string;
+  pointsRedeemed?: number;
+}
+
+interface OrderHistoryQuery {
+  page?: string;
+  limit?: string;
+  mode?: string;
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Router
+// ─────────────────────────────────────────────────────────────────────────────
 
 const router = express.Router();
-const BUSINESS_TZ = 'America/Chicago';
 
-// Create Order
-router.post('/', async (req: Request, res: Response) => {
-  const { items, customerId, employeeId, paymentmethod, pointsRedeemed, discountAmount } = req.body;
+/**
+ * Creates a new order with atomic inventory deduction.
+ * POST /api/order-history
+ */
+router.post('/', async (req: Request<{}, {}, CreateOrderBody>, res: Response) => {
+  const { 
+    items, 
+    customerId, 
+    employeeId, 
+    paymentmethod, 
+    pointsRedeemed 
+  } = req.body;
 
+  // 1. Strict Input Validation
   if (!Array.isArray(items) || items.length === 0) {
-    return sendError(res, 'No items provided', 400);
+    return sendBadRequest(res, 'Order must contain at least one item');
   }
 
+  const validatedItems: OrderItemInput[] = [];
+  for (const item of items) {
+    if (!item.item_id || !item.quantity || item.quantity <= 0) {
+      return sendBadRequest(res, 'Invalid item data');
+    }
+    validatedItems.push({
+      item_id: Number(item.item_id),
+      item_name: String(item.item_name).trim(),
+      cost: Number(item.cost),
+      quantity: Math.floor(Number(item.quantity)),
+    });
+  }
+
+  const safeCustomerId = Number(customerId) || 0;
+  const safeEmployeeId = Number(employeeId) || 0;
+  const safePayment = paymentmethod || 'card';
+
   try {
-    const orderid = await runTransaction(async (client) => {
-      // 1. Get New Order ID
-      const { rows } = await client.query(
-        "SELECT COALESCE(MAX(orderid), 0) + 1 AS new_id FROM order_history"
-      );
-      const newId = Number(rows[0].new_id);
-
-      const insertSql = `
-        INSERT INTO order_history
-        (orderid, customerid, employeeatcheckout, paymentmethod, menuitemid, itemname, quantity, unitprice, totalprice)
-        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
-      `;
-
-      let orderTotal = 0;
-
-      for (const item of items) {
-        const lineTotal = Number(item.cost) * Number(item.quantity);
-        orderTotal += lineTotal;
-        
-        await client.query(insertSql, [
-          newId,
-          customerId || 0, 
-          employeeId || 0,
-          paymentmethod || 'card',
-          item.item_id,
-          item.item_name,
-          item.quantity,
-          item.cost,
-          lineTotal,
-        ]);
+    const orderId = await runTransaction(async (client: PoolClient) => {
+      
+      // 2. Pre-Check Inventory (Fail Fast)
+      for (const item of validatedItems) {
+        const hasStock = await validateInventoryAvailability(
+          item.item_id, 
+          item.quantity, 
+          client 
+        );
+        if (!hasStock) {
+          throw new Error(`INSUFFICIENT_STOCK: ${item.item_name}`);
+        }
       }
 
-      if (customerId && customerId > 0) {
+      // 3. Get Next Sequence ID
+      const seqResult = await client.query<{ new_id: string }>(
+        "SELECT nextval(pg_get_serial_sequence('order_history', 'orderid')) AS new_id"
+      );
+      const newId = Number(seqResult.rows[0].new_id);
+
+      // 4. Prepare Bulk Arrays
+      const orderIds: number[] = [];
+      const customerIds: number[] = [];
+      const employeeIds: number[] = [];
+      const paymentMethods: string[] = [];
+      const menuItemIds: number[] = [];
+      const itemNames: string[] = [];
+      const quantities: number[] = [];
+      const unitPrices: number[] = [];
+      const totalPrices: number[] = [];
+      
+      let orderTotal = 0;
+
+      for (const item of validatedItems) {
+        const lineTotal = item.cost * item.quantity;
+        orderTotal += lineTotal;
+
+        orderIds.push(newId);
+        customerIds.push(safeCustomerId);
+        employeeIds.push(safeEmployeeId);
+        paymentMethods.push(safePayment);
+        menuItemIds.push(item.item_id);
+        itemNames.push(item.item_name);
+        quantities.push(item.quantity);
+        unitPrices.push(item.cost);
+        totalPrices.push(lineTotal);
+      }
+
+      // 5. Bulk Insert using UNNEST
+      await client.query(
+        `INSERT INTO order_history (
+           orderid, customerid, employeeatcheckout, paymentmethod,
+           menuitemid, itemname, quantity, unitprice, totalprice
+         )
+         SELECT * FROM unnest(
+           $1::int[], $2::int[], $3::int[], $4::text[],
+           $5::int[], $6::text[], $7::int[], $8::numeric[], $9::numeric[]
+         )`,
+        [orderIds, customerIds, employeeIds, paymentMethods, menuItemIds, itemNames, quantities, unitPrices, totalPrices]
+      );
+
+      // 6. Atomic Inventory Deduction
+      await executeInventoryDeduction(client, validatedItems.map(i => ({
+        item_id: i.item_id,
+        quantity: i.quantity
+      })));
+
+      // 7. Update Customer Points
+      if (safeCustomerId > 0) {
         const pointsEarned = Math.floor(orderTotal * POINTS_PER_DOLLAR);
-        const pointsUsed = pointsRedeemed || 0;
+        const pointsUsed = Number(pointsRedeemed) || 0;
+        
         await client.query(
           `UPDATE customers 
            SET points = points + $1 - $2,
                total_spent = COALESCE(total_spent, 0) + $3
            WHERE customers_id = $4`,
-           [pointsEarned, pointsUsed, orderTotal, customerId]
+          [pointsEarned, pointsUsed, orderTotal, safeCustomerId]
         );
       }
 
       return newId;
     });
 
-    deductInventory(items).catch(e => console.error('Inventory deduction error', e));
+    return sendCreated(res, { orderid: orderId }, 'Order created successfully');
 
-    sendSuccess(res, { orderid }, 'Order created');
-  } catch (err) {
-    console.error(err);
-    sendError(res, 'Failed to create order');
+  } catch (err: any) {
+    if (String(err.message).includes('INSUFFICIENT_STOCK')) {
+      return sendBadRequest(res, err.message);
+    }
+    console.error('[Order] Creation failed:', err);
+    return sendError(res, 'Failed to create order');
   }
 });
 
-// Get Order History
-router.get('/', async (req: Request, res: Response) => {
+/**
+ * Retrieves paginated order history with aggregated items.
+ * GET /api/order-history
+ */
+router.get('/', async (req: Request<{}, {}, {}, OrderHistoryQuery>, res: Response) => {
   try {
-    const page = parseInt((req.query.page as string) || '1', 10);
-    const limit = parseInt((req.query.limit as string) || '20', 10);
+    const page = Math.max(1, parseInt(req.query.page ?? '1', 10) || 1);
+    const limit = Math.min(100, Math.max(1, parseInt(req.query.limit ?? String(DEFAULT_PAGE_SIZE), 10) || DEFAULT_PAGE_SIZE));
     const offset = (page - 1) * limit;
-
-    const isDashboard = (req.query.mode as string) === 'dashboard';
+    const isDashboard = req.query.mode === 'dashboard';
 
     const sql = `
       SELECT 
         orderid, 
-        MAX(customerid) as customerid,
-        MIN(orderdate) as orderdate,
-        TO_CHAR(MIN(orderdate AT TIME ZONE '${BUSINESS_TZ}'), 'HH12:MI AM') as order_time_label,
-        MAX(employeeatcheckout) as employeeatcheckout, 
-        MAX(paymentmethod) as paymentmethod,
+        MAX(customerid) AS customerid,
+        MIN(orderdate) AS orderdate,
+        TO_CHAR(MIN(orderdate AT TIME ZONE $3), 'HH12:MI AM') AS order_time_label,
+        MAX(employeeatcheckout) AS employeeatcheckout, 
+        MAX(paymentmethod) AS paymentmethod,
         SUM(totalprice::numeric)::float AS total_order_price,
         json_agg(
           json_build_object(
@@ -105,20 +210,23 @@ router.get('/', async (req: Request, res: Response) => {
 
     let totalCount = 0;
     if (!isDashboard) {
-      const countResult = await db.query('SELECT COUNT(DISTINCT orderid) FROM order_history');
-      totalCount = parseInt(countResult.rows[0].count, 10);
+      // FIX: Use 'db' (the global pool), not 'client'
+      const countResult = await db.query<{ count: string }>(
+        'SELECT COUNT(DISTINCT orderid) AS count FROM order_history'
+      );
+      totalCount = parseInt(countResult.rows[0]?.count ?? '0', 10);
     }
 
-    const dataResult = await db.query(sql, [offset, limit]);
+    const dataResult = await db.query(sql, [offset, limit, BUSINESS_TZ]);
 
-    sendSuccess(res, {
+    return sendSuccess(res, {
       orders: dataResult.rows,
-      totalPages: Math.ceil(totalCount / limit),
+      totalPages: Math.ceil(totalCount / limit) || 1,
       currentPage: page,
     });
   } catch (error) {
-    console.error('Error fetching order history:', error);
-    sendError(res, 'Failed to load order history.');
+    console.error('[OrderHistory] Fetch failed:', error);
+    return sendError(res, 'Failed to load order history');
   }
 });
 

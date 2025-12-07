@@ -1,10 +1,27 @@
 import db, { runTransaction } from '../db';
-import { deductInventory } from './inventoryService';
-import { type MenuItem, type OrderItem, MS_PER_DAY } from '@project3/shared';
+import { executeInventoryDeduction } from './inventoryService';
+import { MenuItem, MS_PER_DAY, PaymentMethod } from '@project3/shared';
+import type { PoolClient } from 'pg';
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Configuration
+// ─────────────────────────────────────────────────────────────────────────────
 
 const BUSINESS_TZ = 'America/Chicago';
 
+// Explicitly typed array matching Shared Type
+const VALID_PAYMENT_METHODS: PaymentMethod[] = ['cash', 'card', 'digital'];
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Helpers (Mulberry32 & Date Logic)
+// ─────────────────────────────────────────────────────────────────────────────
+
 type RNG = () => number;
+
+/**
+ * Creates a seeded pseudo-random number generator using the Mulberry32 algorithm.
+ * Used to ensure consistent "trending" items within a business week.
+ */
 function mulberry32(seed: number): RNG {
   return function () {
     let t = (seed += 0x6d2b79f5);
@@ -28,72 +45,136 @@ function getBusinessHourAndWeekKey(date: Date) {
   return { hour, weekKey: year * 100 + week };
 }
 
-// MenuItem is imported from shared; ensure DB rows are cast to MenuItem and numeric fields normalized where necessary
+// ─────────────────────────────────────────────────────────────────────────────
+// Logic
+// ─────────────────────────────────────────────────────────────────────────────
 
 function pickWeightedMenuItem(menu: MenuItem[], favoredCategory: string | null, favoredItemId: number | null): MenuItem {
-  const weights: number[] = [];
-  let total = 0;
-  for (const m of menu) {
-    let w = 1;
-    if (favoredItemId != null && m.item_id === favoredItemId) w *= 4;
-    else if (favoredCategory && m.category === favoredCategory) w *= 4;
-    weights.push(w);
-    total += w;
-  }
-  let r = Math.random() * total;
-  for (let i = 0; i < menu.length; i++) {
-    r -= weights[i];
-    if (r <= 0) return menu[i];
-  }
-  return menu[menu.length - 1];
+    const weights: number[] = [];
+    let total = 0;
+    for (const m of menu) {
+        let w = 1;
+        if (favoredItemId != null && m.item_id === favoredItemId) w *= 4;
+        else if (favoredCategory && m.category === favoredCategory) w *= 4;
+        weights.push(w);
+        total += w;
+    }
+    let r = Math.random() * total;
+    for (let i = 0; i < menu.length; i++) {
+        r -= weights[i]!;
+        if (r <= 0) return menu[i]!;
+    }
+    return menu[menu.length - 1]!;
 }
 
-async function createSyntheticOrder(menu: MenuItem[], favoredCategory: string | null, favoredItemId: number | null, employeeIds: number[]) {
+async function createSyntheticOrder(
+  menu: MenuItem[],
+  favoredCategory: string | null,
+  favoredItemId: number | null,
+  employeeIds: number[]
+): Promise<number | null> {
   if (menu.length === 0) return null;
+
   const numItems = 1 + Math.floor(Math.random() * 4);
-  const agg = new Map<number, OrderItem>();
+  const itemsMap = new Map<number, { item: MenuItem; qty: number }>();
 
   for (let i = 0; i < numItems; i++) {
     const item = pickWeightedMenuItem(menu, favoredCategory, favoredItemId);
-    const quantity = 1 + Math.floor(Math.random() * 3);
-    const existing = agg.get(item.item_id);
-    if (existing) existing.quantity += quantity;
-    else agg.set(item.item_id, { item_id: item.item_id, item_name: item.item_name, cost: item.cost, quantity });
-  }
-  const items = Array.from(agg.values());
-
-  const orderid = await runTransaction<number>(async (client) => {
-    const { rows } = await client.query('SELECT COALESCE(MAX(orderid), 0) + 1 AS new_id FROM order_history');
-    const newId = Number(rows[0].new_id);
-    const employeeId = employeeIds.length > 0 ? employeeIds[Math.floor(Math.random() * employeeIds.length)] : 0;
-    const payment = (['cash', 'card', 'mobile'] as const)[Math.floor(Math.random() * 3)];
-
-    for (const item of items) {
-      await client.query(
-        `INSERT INTO order_history (orderid, customerid, employeeatcheckout, paymentmethod, menuitemid, itemname, quantity, unitprice, totalprice)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
-        [newId, 0, employeeId, payment, item.item_id, item.item_name, item.quantity, item.cost, item.cost * item.quantity]
-      );
+    const current = itemsMap.get(item.item_id);
+    if (current) {
+      current.qty += (1 + Math.floor(Math.random() * 2));
+    } else {
+      itemsMap.set(item.item_id, { 
+        item, 
+        qty: 1 + Math.floor(Math.random() * 2) 
+      });
     }
+  }
+
+  const employeeId = employeeIds[Math.floor(Math.random() * employeeIds.length)] || 0;
+  const paymentMethod = VALID_PAYMENT_METHODS[Math.floor(Math.random() * VALID_PAYMENT_METHODS.length)]!;
+
+  // Transactional Write with Sequence ID
+  return runTransaction(async (client: PoolClient) => {
+    // 1. Get next order ID securely
+    const seqResult = await client.query<{ new_id: string }>(
+      "SELECT nextval(pg_get_serial_sequence('order_history', 'orderid')) AS new_id"
+    );
+    const newId = Number(seqResult.rows[0].new_id);
+
+    // 2. Prepare Bulk Data
+    const orderIds: number[] = [];
+    const customerIds: number[] = [];
+    const employeeIdsArr: number[] = [];
+    const methods: string[] = [];
+    const menuIds: number[] = [];
+    const names: string[] = [];
+    const qtys: number[] = [];
+    const prices: number[] = [];
+    const totals: number[] = [];
+
+    const deductionRequests: { item_id: number; quantity: number }[] = [];
+
+    for (const { item, qty } of itemsMap.values()) {
+      orderIds.push(newId);
+      customerIds.push(0);
+      employeeIdsArr.push(employeeId);
+      methods.push(paymentMethod);
+      menuIds.push(item.item_id);
+      names.push(item.item_name);
+      qtys.push(qty);
+      prices.push(item.cost);
+      totals.push(item.cost * qty);
+
+      deductionRequests.push({ item_id: item.item_id, quantity: qty });
+    }
+
+    // 3. Bulk Insert
+    await client.query(
+      `INSERT INTO order_history (
+         orderid, customerid, employeeatcheckout, paymentmethod,
+         menuitemid, itemname, quantity, unitprice, totalprice
+       )
+       SELECT * FROM unnest(
+         $1::int[], $2::int[], $3::int[], $4::text[],
+         $5::int[], $6::text[], $7::int[], $8::numeric[], $9::numeric[]
+       )`,
+      [orderIds, customerIds, employeeIdsArr, methods, menuIds, names, qtys, prices, totals]
+    );
+
+    // 4. Atomic Inventory Deduction
+    await executeInventoryDeduction(client, deductionRequests);
+
     return newId;
   });
-
-  await deductInventory(items.map(it => ({ item_id: it.item_id, quantity: it.quantity }))).catch(console.error);
-  return orderid;
 }
 
+/**
+ * Generates fake orders for the current time slot.
+ * Determines volume based on peak/off-peak logic and trending items.
+ */
 export async function generateFakeOrdersForRun(): Promise<number[]> {
   const { rows: rawMenu } = await db.query<MenuItem>('SELECT item_id, item_name, cost, category FROM menuitems');
-  const menu: MenuItem[] = rawMenu.map((r) => ({ ...r, cost: Number((r as any).cost) }));
+  const menu: MenuItem[] = rawMenu.map((r) => ({ ...r, cost: Number(r.cost) }));
   if (menu.length === 0) return [];
 
-  const { rows: employees } = await db.query<{employee_id: number}>('SELECT employee_id FROM employees');
+  const { rows: employees } = await db.query<{ employee_id: number }>('SELECT employee_id FROM employees');
   const employeeIds = employees.map((e) => e.employee_id);
 
   const { hour, weekKey } = getBusinessHourAndWeekKey(new Date());
-  const isPeak = (hour >= 11 && hour <= 13) || (hour >= 17 && hour <= 20);
+  
+  // Peak Logic
+  const LUNCH_PEAK_START = 11;
+  const LUNCH_PEAK_END = 13;
+  const DINNER_PEAK_START = 17;
+  const DINNER_PEAK_END = 20;
+
+  const isPeak = (hour >= LUNCH_PEAK_START && hour <= LUNCH_PEAK_END) || 
+                 (hour >= DINNER_PEAK_START && hour <= DINNER_PEAK_END);
+
   const r = Math.random();
-  let ordersCount = isPeak ? (r < 0.6 ? 2 : 3) : (r < 0.5 ? 0 : (r < 0.9 ? 1 : 2));
+  const ordersCount = isPeak ? (r < 0.6 ? 2 : 3) : (r < 0.5 ? 0 : (r < 0.9 ? 1 : 2));
+  
   if (ordersCount === 0) return [];
 
   const categories = Array.from(new Set(menu.map((m) => m.category).filter(Boolean)));
@@ -102,8 +183,11 @@ export async function generateFakeOrdersForRun(): Promise<number[]> {
   let favCat: string | null = null;
   let favItem: number | null = null;
 
-  if (preferCategory) favCat = categories[Math.floor(weekRng() * categories.length)];
-  else favItem = menu[Math.floor(weekRng() * menu.length)].item_id;
+  if (preferCategory && categories.length > 0) {
+    favCat = categories[Math.floor(weekRng() * categories.length)]!;
+  } else if (menu.length > 0) {
+    favItem = menu[Math.floor(weekRng() * menu.length)]!.item_id;
+  }
 
   const orderIds: number[] = [];
   for (let i = 0; i < ordersCount; i++) {
