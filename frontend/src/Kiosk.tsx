@@ -396,7 +396,7 @@ export default function Kiosk() {
               <div className="flex items-center justify-between">
                 <label htmlFor="high-contrast" className="text-sm text-muted-foreground flex items-center gap-2">
                   <Eye className="h-3 w-3" />
-                  High Contrast
+                  {translate('kiosk.highContrast')}
                 </label>
                 <Switch
                   id="high-contrast"

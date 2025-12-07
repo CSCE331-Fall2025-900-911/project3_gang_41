@@ -106,4 +106,25 @@ router.delete('/:id', async (req: Request, res: Response) => {
   }
 });
 
+// Get menu items that use a specific inventory ingredient
+router.get('/:id/menu-usage', async (req: Request, res: Response) => {
+  const id = Number(req.params.id);
+  if (!Number.isInteger(id)) return sendError(res, 'Invalid item id.', 400);
+
+  try {
+    const sql = `
+      SELECT m.item_id, m.item_name
+      FROM menuitems m
+      JOIN drinkjointable dj ON m.item_id = dj.drink_id
+      WHERE dj.inventory_id = $1
+      ORDER BY m.item_name ASC
+    `;
+    const result = await db.query(sql, [id]);
+    sendSuccess(res, result.rows);
+  } catch (error) {
+    console.error(`Error fetching usage for inventory item ${id}:`, error);
+    sendError(res, 'Failed to load menu usage data.');
+  }
+});
+
 export default router;

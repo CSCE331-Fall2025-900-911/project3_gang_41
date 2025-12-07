@@ -37,7 +37,8 @@
     "addItemsToStart": "Agrega artículos para comenzar",
     "experimental": "Experimental",
     "smoothCursor": "Cursor Suave",
-    "tts": "TTS"
+    "tts": "TTS",
+    "highContrast": "Alto Contraste"
   },
   "cashier": {
     "title": "Cajero",
@@ -385,7 +386,12 @@
     "warningMustBePositive": "El umbral de advertencia debe ser un número positivo",
     "criticalMustBePositive": "El umbral crítico debe ser un número positivo",
     "criticalMustBeLess": "El umbral crítico debe ser menor o igual al umbral de advertencia",
-    "thresholdsUpdated": "Umbrales actualizados exitosamente"
+    "thresholdsUpdated": "Umbrales actualizados exitosamente",
+    "ingredientUsage": "Uso de Ingrediente",
+    "drinksUsing": "Bebidas que usan actualmente",
+    "notUsedInMenu": "Este ingrediente no se usa en ningún artículo del menú.",
+    "viewUsage": "Ver Uso",
+    "close": "Cerrar"
   },
   "history": {
     "title": "Historial de Pedidos",

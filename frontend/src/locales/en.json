@@ -37,7 +37,8 @@
     "addItemsToStart": "Add items to get started",
     "experimental": "Experimental",
     "smoothCursor": "Smooth Cursor",
-    "tts": "TTS"
+    "tts": "TTS",
+    "highContrast": "High Contrast"
   },
   "cashier": {
     "title": "Cashier",
@@ -411,7 +412,12 @@
     "warningMustBePositive": "Warning threshold must be a positive number",
     "criticalMustBePositive": "Critical threshold must be a positive number",
     "criticalMustBeLess": "Critical threshold must be less than or equal to warning threshold",
-    "thresholdsUpdated": "Thresholds updated successfully"
+    "thresholdsUpdated": "Thresholds updated successfully",
+    "ingredientUsage": "Ingredient Usage",
+    "drinksUsing": "Drinks that currently use",
+    "notUsedInMenu": "This ingredient is not used in any menu items.",
+    "viewUsage": "View Usage",
+    "close": "Close"
   },
   "login": {
     "welcomeBack": "Welcome back",

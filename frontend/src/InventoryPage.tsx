@@ -29,6 +29,7 @@ import {
   TrendingDown,
   Check,
   Info,
+  ScrollText, // Added for Usage Dialog
 } from 'lucide-react';
 
 // Dialog components
@@ -71,8 +72,6 @@ function useDebouncedValue<T>(value: T, delay = 250) {
   }, [value, delay]);
   return debounced;
 }
-
-
 
 function getSeverity(supply: number, t: Thresholds): Severity {
   if (supply <= t.crit) return 'crit';
@@ -133,6 +132,12 @@ function InventoryPage() {
 
   const [quickUnits, setQuickUnits] = useLocalStorage<string[]>('inventory.quickUnits', [...BUILTIN_UNITS]);
   const [deleteTarget, setDeleteTarget] = useState<InventoryRow | null>(null);
+  
+  // -- NEW STATE: Usage Dialog --
+  const [usageTarget, setUsageTarget] = useState<InventoryRow | null>(null);
+  const [usageList, setUsageList] = useState<{ item_id: number; item_name: string }[]>([]);
+  const [usageLoading, setUsageLoading] = useState(false);
+
   const [flashRowId, setFlashRowId] = useState<number | null>(null);
   const addFormRef = useRef<HTMLDivElement>(null);
 
@@ -162,6 +167,23 @@ function InventoryPage() {
       setSearch(urlSearch);
     }
   }, [searchParams]);
+
+  // -- NEW HANDLER: Fetch Usage Data --
+  const openUsageDialog = async (row: InventoryRow) => {
+    setUsageTarget(row);
+    setUsageLoading(true);
+    setUsageList([]); 
+    try {
+      const data = await fetchApi<{ item_id: number; item_name: string }[]>(
+        `/api/inventory/${row.item_id}/menu-usage`
+      );
+      setUsageList(data || []);
+    } catch (err) {
+      toast.error(translate('inventory.failedToLoadUsage') || "Failed to load usage data");
+    } finally {
+      setUsageLoading(false);
+    }
+  };
 
   const filtered = useMemo(() => {
     const q = debouncedSearch.trim().toLowerCase();
@@ -513,6 +535,7 @@ function InventoryPage() {
                             onSave={saveEdit}
                             onCancel={cancelEdit}
                             onDelete={() => setDeleteTarget(row)}
+                            onViewUsage={() => openUsageDialog(row)} // Pass usage handler
                             onFormChange={setForm}
                             formIsValid={formIsValid}
                             formIsDirty={formIsDirty}
@@ -728,6 +751,55 @@ function InventoryPage() {
             </DialogFooter>
           </DialogContent>
         </Dialog>
+
+        {/* NEW COMPONENT: Usage/Ingredients Dialog */}
+        <Dialog open={!!usageTarget} onOpenChange={(open) => !open && setUsageTarget(null)}>
+          <DialogContent className="sm:max-w-md">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2">
+                <ScrollText className="h-5 w-5 text-primary" />
+                {translate('inventory.ingredientUsage') || "Ingredient Usage"}
+              </DialogTitle>
+              <DialogDescription>
+                {translate('inventory.drinksUsing') || "Drinks that currently use"} <span className="font-semibold text-foreground">{usageTarget?.item_name}</span>:
+              </DialogDescription>
+            </DialogHeader>
+
+            <div className="max-h-[60vh] overflow-y-auto py-2">
+              {usageLoading ? (
+                <div className="flex flex-col gap-2">
+                  <div className="h-8 w-full animate-pulse rounded bg-muted" />
+                  <div className="h-8 w-full animate-pulse rounded bg-muted" />
+                  <div className="h-8 w-3/4 animate-pulse rounded bg-muted" />
+                </div>
+              ) : usageList.length === 0 ? (
+                <div className="flex flex-col items-center justify-center py-6 text-center text-muted-foreground">
+                  <Package className="h-10 w-10 opacity-20" />
+                  <p className="mt-2">{translate('inventory.notUsedInMenu') || "This ingredient is not used in any menu items."}</p>
+                </div>
+              ) : (
+                <ul className="space-y-1">
+                  {usageList.map((drink) => (
+                    <li
+                      key={drink.item_id}
+                      className="flex items-center gap-3 rounded-md border p-2 text-sm"
+                    >
+                      <div className="flex h-8 w-8 items-center justify-center rounded-full bg-secondary text-secondary-foreground">
+                        <ScrollText className="h-4 w-4" />
+                      </div>
+                      <span className="font-medium">{drink.item_name}</span>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
+
+            <DialogFooter>
+              <Button onClick={() => setUsageTarget(null)}>{translate('inventory.close') || "Close"}</Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
         </div>
       </div>
     </TooltipProvider>
@@ -840,6 +912,7 @@ function TableRow({
   onSave,
   onCancel,
   onDelete,
+  onViewUsage, // Added prop
   onFormChange,
   formIsValid,
   formIsDirty,
@@ -856,6 +929,7 @@ function TableRow({
   onSave: () => void;
   onCancel: () => void;
   onDelete: () => void;
+  onViewUsage: () => void; // Added type
   onFormChange: (form: any) => void;
   formIsValid: boolean;
   formIsDirty: boolean;
@@ -879,13 +953,10 @@ function TableRow({
     <tr
       className={cn(
         'group transition-all',
-        // Subtle zebra striping for non-severity rows (every other row) a
-        // Slightly darker than before for better visibility
         severity === 'ok' && !isEditing && !isFlashing && index % 2 === 1 && 'bg-muted/20 dark:bg-muted/30',
         !isEditing && 'hover:bg-muted/50',
         isEditing && 'bg-accent/50',
         isFlashing && 'animate-pulse bg-emerald-50 dark:bg-emerald-950/20',
-        // Add severity-based row tints (take precedence over zebra because they only apply when severity !== 'ok')
         severity === 'crit' && !isEditing && !isFlashing && 
           'bg-red-50/50 dark:bg-red-950/10 hover:bg-red-100/50 dark:hover:bg-red-950/20',
         severity === 'warn' && !isEditing && !isFlashing && 
@@ -1024,6 +1095,23 @@ function TableRow({
             </>
           ) : (
             <>
+               {/* NEW: View Usage Button */}
+               <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    onClick={onViewUsage}
+                    className="h-8 w-8 p-0 text-muted-foreground hover:text-primary"
+                  >
+                    <ScrollText className="h-4 w-4" />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p>{translate('inventory.viewUsage') || "View Usage"}</p>
+                </TooltipContent>
+              </Tooltip>
+
               <Tooltip>
                 <TooltipTrigger asChild>
                   <Button
