@@ -115,12 +115,9 @@ function Manager() {
     <div className="flex w-screen h-screen overflow-hidden bg-background">
       {/* Sidebar */}
       <div className="w-64 bg-gray-100 dark:bg-gray-900 border-r p-4 flex flex-col gap-2 shrink-0">
-        {/* BobaPOS Header */}
-        <div className="mb-4 flex items-center gap-3 px-2">
-          <div className="h-8 w-8 bg-brand-500 rounded-full flex items-center justify-center text-white font-bold text-lg">
-            🧋
-          </div>
-          <h1 className="text-xl font-bold text-brand-900">BobaPOS</h1>
+        {/* Logo Header */}
+        <div className="mb-4 flex items-center justify-center px-2">
+          <img src="/logo.jpg" alt="Logo" className="h-12 w-auto" />
         </div>
 
         <div className="mb-4 space-y-2">

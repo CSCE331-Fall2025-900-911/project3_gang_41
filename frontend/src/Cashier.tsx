@@ -170,7 +170,7 @@ function Cashier() {
         {/* Header */}
         <div className="border-b">
           <div className="flex h-16 items-center px-6 justify-between">
-            <h1 className="text-2xl font-bold">BobaPOS</h1>
+            <img src="/logo.jpg" alt="Logo" className="h-10 w-auto" />
             <div className="flex items-center gap-4">
               <ModeToggle currentMode="cashier" />
               <LanguageToggle />

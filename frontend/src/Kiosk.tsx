@@ -289,7 +289,12 @@ export default function Kiosk() {
 
       {/* Sidebar */}
       <nav className="w-72 bg-gray-100 dark:bg-gray-900 border-r p-4 flex flex-col gap-2" aria-label="Main Navigation">
-        
+
+        {/* Logo Header */}
+        <div className="mb-4 flex items-center justify-center px-2">
+          <img src="/logo.jpg" alt="Logo" className="h-12 w-auto" />
+        </div>
+
         {/* MEMBER LOGIN BUTTON */}
         <div className="px-2 pb-2">
           {customer ? (
