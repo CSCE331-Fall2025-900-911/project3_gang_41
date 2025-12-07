@@ -4,7 +4,6 @@ import { sendSuccess, sendError } from './utils/response';
 
 const router = express.Router();
 
-// Record a sale in the current sales report
 router.post('/', async (req: Request, res: Response) => {
   const { order_total, payment_method } = req.body as {
     order_total: number;
@@ -18,8 +17,6 @@ router.post('/', async (req: Request, res: Response) => {
   try {
     const sql = 'INSERT INTO current_sales_report (order_total, payment_method) VALUES ($1, $2)';
     await db.query(sql, [order_total, payment_method]);
-
-    console.log(`Sales Report: $${order_total} via ${payment_method}`);
     sendSuccess(res, { order_total, payment_method }, 'Sale recorded');
   } catch (error) {
     console.error('Error recording sale:', error);
@@ -27,7 +24,6 @@ router.post('/', async (req: Request, res: Response) => {
   }
 });
 
-// Get sales report data (for manager dashboard)
 router.get('/', async (req: Request, res: Response) => {
   try {
     const sql = 'SELECT * FROM current_sales_report ORDER BY id DESC';

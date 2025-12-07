@@ -1,193 +1,408 @@
-import dotenv from "dotenv";
+import dotenv from 'dotenv';
 dotenv.config();
 
-import express, { Request, Response } from "express";
-import cors from "cors";
-import session from "express-session";
-import helmet from "helmet"; // Security Headers
+import express, { Request, Response, NextFunction } from 'express';
+import cors from 'cors';
+import session from 'express-session';
+import helmet from 'helmet';
 import compression from 'compression';
-import rateLimit from "express-rate-limit"; // Rate Limiting
-import { OAuth2Client } from "google-auth-library";
-import pool from "./db";
-import menuRoutes from "./menuRoutes";
-import inventoryRoutes from "./inventoryRoutes";
-import orderHistoryRoutes from "./orderHistoryRoutes";
-import salesReportRoutes from "./salesReportRoutes";
-import employeeRoutes from "./employeeRoutes";
-import reportsRoutes from "./reportsRoutes";
-import customerRoutes from "./customerRoutes";
-import { generateFakeOrdersForRun } from "./services/fakeOrderService";
+import rateLimit from 'express-rate-limit';
+import { OAuth2Client, TokenPayload } from 'google-auth-library';
+
+import pool, { closePool } from './db';
+import menuRoutes from './menuRoutes';
+import inventoryRoutes from './inventoryRoutes';
+import orderHistoryRoutes from './orderHistoryRoutes';
+import salesReportRoutes from './salesReportRoutes';
+import employeeRoutes from './employeeRoutes';
+import reportsRoutes from './reportsRoutes';
+import customerRoutes from './customerRoutes';
+import { generateFakeOrdersForRun } from './services/fakeOrderService';
 import { sendSuccess, sendError } from './utils/response';
 
-const client = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
-const app = express();
-const PORT = process.env.PORT || 3000;
+// ─────────────────────────────────────────────────────────────────────────────
+// Constants
+// ─────────────────────────────────────────────────────────────────────────────
 
-// --- 1. Security Middleware ---
-app.use(helmet()); // Protects against common vulnerabilities
-app.use(compression());
+const PORT = parseInt(process.env.PORT ?? '3000', 10);
+const IS_PRODUCTION = process.env.NODE_ENV === 'production';
 
-// Rate limiting: max 100 requests per 15 minutes per IP
-const limiter = rateLimit({
-  windowMs: 15 * 60 * 1000, 
-  max: 2000, // Increased slightly for POS usage
-  standardHeaders: true,
-  legacyHeaders: false,
-});
-app.use(limiter);
+// Time constants (in milliseconds)
+const MS_PER_MINUTE = 60_000;
+const MS_PER_HOUR = 60 * MS_PER_MINUTE;
+const MS_PER_DAY = 24 * MS_PER_HOUR;
 
-// --- 2. Configuration ---
-declare module "express-session" {
+// Rate limiting configuration
+const RATE_LIMIT_WINDOW_MS = 15 * MS_PER_MINUTE;
+const RATE_LIMIT_MAX_REQUESTS = 2000;
+
+// Session configuration
+const SESSION_MAX_AGE_MS = MS_PER_DAY;
+
+// Weather cache duration (5 minutes)
+const WEATHER_CACHE_TTL_MS = 5 * MS_PER_MINUTE;
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Type Definitions
+// ─────────────────────────────────────────────────────────────────────────────
+
+interface SessionUser {
+  id: string;
+  email: string;
+  name: string;
+  picture?: string;
+}
+
+interface GoogleVerifyRequestBody {
+  credential?: string;
+}
+
+interface WeatherCache {
+  data: { temperature: number; icon: string } | null;
+  timestamp: number;
+}
+
+declare module 'express-session' {
   interface SessionData {
-    user?: {
-      id: string;
-      email: string;
-      name: string;
-      picture?: string;
-    };
+    user?: SessionUser;
   }
 }
 
-const allowedOrigins = (process.env.FRONTEND_URL || "http://localhost:5173")
-  .split(",")
-  .map((s) => s.trim());
+// ─────────────────────────────────────────────────────────────────────────────
+// OAuth Client Setup
+// ─────────────────────────────────────────────────────────────────────────────
 
-app.set("trust proxy", 1); // Required for Render/Vercel
+const googleClientId = process.env.GOOGLE_CLIENT_ID;
+if (!googleClientId) {
+  console.warn('[Auth] GOOGLE_CLIENT_ID not set. Google OAuth will not work.');
+}
+const oauthClient = new OAuth2Client(googleClientId);
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Express App Setup
+// ─────────────────────────────────────────────────────────────────────────────
+
+const app = express();
+
+// Trust proxy for production environments (Render, Vercel, etc.)
+app.set('trust proxy', 1);
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Security Middleware
+// ─────────────────────────────────────────────────────────────────────────────
+
+app.use(helmet());
+app.use(compression());
+
+const limiter = rateLimit({
+  windowMs: RATE_LIMIT_WINDOW_MS,
+  max: RATE_LIMIT_MAX_REQUESTS,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { success: false, message: 'Too many requests, please try again later.' },
+});
+app.use(limiter);
+
+// ─────────────────────────────────────────────────────────────────────────────
+// CORS Configuration
+// ─────────────────────────────────────────────────────────────────────────────
+
+const allowedOrigins = new Set(
+  (process.env.FRONTEND_URL || 'http://localhost:5173')
+    .split(',')
+    .map((origin) => origin.trim())
+    .filter(Boolean)
+);
 
 app.use(
   cors({
-    origin: (origin, cb) => {
-      if (!origin || allowedOrigins.includes(origin)) return cb(null, true);
-      return cb(new Error(`Not allowed by CORS: ${origin}`));
+    origin: (origin, callback) => {
+      // Allow requests with no origin (mobile apps, curl, etc.)
+      if (!origin || allowedOrigins.has(origin)) {
+        return callback(null, true);
+      }
+      console.warn(`[CORS] Blocked request from origin: ${origin}`);
+      return callback(new Error(`CORS policy: Origin ${origin} not allowed`));
     },
     credentials: true,
   })
 );
 
-app.use(express.json());
+app.use(express.json({ limit: '1mb' }));
 
-// --- 3. Session Configuration (MemoryStore) ---
+// ─────────────────────────────────────────────────────────────────────────────
+// Session Configuration
+// ─────────────────────────────────────────────────────────────────────────────
+
+const sessionSecret = process.env.SESSION_SECRET;
+if (!sessionSecret && IS_PRODUCTION) {
+  throw new Error('SESSION_SECRET must be set in production');
+}
+
 app.use(
   session({
-    secret: process.env.SESSION_SECRET || "your-secret-key",
+    secret: sessionSecret || 'dev-secret-change-in-production',
     resave: false,
     saveUninitialized: false,
     cookie: {
-      secure: process.env.NODE_ENV === "production",
-      sameSite: process.env.NODE_ENV === "production" ? "none" : "lax",
+      secure: IS_PRODUCTION,
+      sameSite: IS_PRODUCTION ? 'none' : 'lax',
       httpOnly: true,
-      maxAge: 24 * 60 * 60 * 1000, // 24 hrs
+      maxAge: SESSION_MAX_AGE_MS,
     },
   })
 );
 
-// --- 4. Routes ---
-app.get("/health", async (req: Request, res: Response) => {
+// ─────────────────────────────────────────────────────────────────────────────
+// Weather Cache (Simple in-memory cache)
+// ─────────────────────────────────────────────────────────────────────────────
+
+const weatherCache: WeatherCache = { data: null, timestamp: 0 };
+
+/**
+ * Maps weather forecast text to an icon name.
+ */
+const getWeatherIcon = (forecast: string): string => {
+  const lowerForecast = forecast.toLowerCase();
+
+  if (lowerForecast.includes('thunder') || lowerForecast.includes('storm')) {
+    return 'cloud-lightning';
+  }
+  if (lowerForecast.includes('rain') || lowerForecast.includes('shower')) {
+    return 'cloud-rain';
+  }
+  if (lowerForecast.includes('wind')) {
+    return 'wind';
+  }
+  if (lowerForecast.includes('cloudy') && !lowerForecast.includes('partly')) {
+    return 'cloud';
+  }
+  if (lowerForecast.includes('partly')) {
+    return 'cloud-sun';
+  }
+  return 'sun';
+};
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Health Check Route
+// ─────────────────────────────────────────────────────────────────────────────
+
+app.get('/health', async (_req: Request, res: Response) => {
   try {
-    const result = await pool.query("SELECT NOW()");
-    sendSuccess(res, { status: "ok", database: "connected", time: result.rows[0] });
-  } catch (err: any) {
-    sendError(res, `Database disconnected: ${err.message}`, 500);
+    const result = await pool.query('SELECT NOW() AS current_time');
+    const currentTime = result.rows[0]?.current_time;
+
+    return sendSuccess(res, {
+      status: 'healthy',
+      database: 'connected',
+      timestamp: currentTime,
+      uptime: process.uptime(),
+    });
+  } catch (err) {
+    const errorMessage = err instanceof Error ? err.message : 'Unknown error';
+    console.error('[Health] Database check failed:', errorMessage);
+    return sendError(res, `Database disconnected: ${errorMessage}`, 503);
   }
 });
+
+// ─────────────────────────────────────────────────────────────────────────────
+// API Routes
+// ─────────────────────────────────────────────────────────────────────────────
 
 app.use('/api/inventory', inventoryRoutes);
 app.use('/api/menu', menuRoutes);
 app.use('/api/order-history', orderHistoryRoutes);
 app.use('/api/sales-report', salesReportRoutes);
-app.use('/api/employees', employeeRoutes)
-// Only mount employeeRoutes at the base path; the router handles `/:id` internally.
-app.use('/api/employees', employeeRoutes)
+app.use('/api/employees', employeeRoutes);
 app.use('/api/reports', reportsRoutes);
 app.use('/api/customers', customerRoutes);
 
-// Weather Proxy
-app.get('/api/weather/current', async (req: Request, res: Response) => {
+// ─────────────────────────────────────────────────────────────────────────────
+// Weather Proxy Route (with caching)
+// ─────────────────────────────────────────────────────────────────────────────
+
+app.get('/api/weather/current', async (_req: Request, res: Response) => {
   try {
     res.setHeader('Cache-Control', 'no-store');
+
+    // Return cached data if still valid
+    const now = Date.now();
+    if (weatherCache.data && now - weatherCache.timestamp < WEATHER_CACHE_TTL_MS) {
+      return sendSuccess(res, weatherCache.data);
+    }
+
     const response = await fetch(
       'https://api.weather.gov/gridpoints/HGX/26,133/forecast',
-      { headers: { 'User-Agent': 'Restaurant POS System Project' } }
+      {
+        headers: { 'User-Agent': 'Restaurant POS System Project' },
+        signal: AbortSignal.timeout(5000), // 5 second timeout
+      }
     );
-    if (!response.ok) throw new Error("Weather API Error");
-    
+
+    if (!response.ok) {
+      throw new Error(`Weather API returned status ${response.status}`);
+    }
+
     const data = await response.json();
-    const current = data.properties.periods[0];
-    const forecast = current.shortForecast.toLowerCase();
+    const currentPeriod = data?.properties?.periods?.[0];
 
-    let icon = 'sun';
-    if (forecast.includes('thunder') || forecast.includes('storm')) icon = 'cloud-lightning';
-    else if (forecast.includes('rain') || forecast.includes('shower')) icon = 'cloud-rain';
-    else if (forecast.includes('wind')) icon = 'wind';
-    else if (forecast.includes('cloudy') && !forecast.includes('partly')) icon = 'cloud';
-    else if (forecast.includes('partly')) icon = 'cloud-sun';
+    if (!currentPeriod) {
+      throw new Error('Invalid weather API response structure');
+    }
 
-    sendSuccess(res, { temperature: current.temperature, icon });
+    const weatherData = {
+      temperature: currentPeriod.temperature,
+      icon: getWeatherIcon(currentPeriod.shortForecast),
+    };
+
+    // Update cache
+    weatherCache.data = weatherData;
+    weatherCache.timestamp = now;
+
+    return sendSuccess(res, weatherData);
   } catch (error) {
-    console.error('Weather fetch error:', error);
-    sendError(res, 'Failed to fetch weather', 500);
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    console.error('[Weather] Fetch error:', errorMessage);
+
+    // Return stale cache if available
+    if (weatherCache.data) {
+      console.warn('[Weather] Returning stale cached data');
+      return sendSuccess(res, weatherCache.data);
+    }
+
+    return sendError(res, 'Failed to fetch weather data', 502);
   }
 });
 
-// --- 5. Auth Routes ---
-app.post("/auth/google/verify", async (req, res) => {
+// ─────────────────────────────────────────────────────────────────────────────
+// Authentication Routes
+// ─────────────────────────────────────────────────────────────────────────────
+
+app.post('/auth/google/verify', async (req: Request<{}, {}, GoogleVerifyRequestBody>, res: Response) => {
   try {
     const { credential } = req.body;
-    if (!credential) return sendError(res, 'No credential provided', 400);
 
-    const ticket = await client.verifyIdToken({
+    if (!credential || typeof credential !== 'string') {
+      return sendError(res, 'Missing or invalid credential', 400);
+    }
+
+    if (!googleClientId) {
+      return sendError(res, 'OAuth not configured', 503);
+    }
+
+    const ticket = await oauthClient.verifyIdToken({
       idToken: credential,
-      audience: process.env.GOOGLE_CLIENT_ID,
+      audience: googleClientId,
     });
 
-    const payload = ticket.getPayload();
-    if (!payload) return sendError(res, 'Invalid token', 401);
+    const payload: TokenPayload | undefined = ticket.getPayload();
 
-    const user = {
+    if (!payload?.sub || !payload?.email || !payload?.name) {
+      return sendError(res, 'Invalid token payload', 401);
+    }
+
+    const user: SessionUser = {
       id: payload.sub,
-      email: payload.email!,
-      name: payload.name!,
+      email: payload.email,
+      name: payload.name,
       picture: payload.picture,
     };
 
     req.session.user = user;
+
+    return new Promise<void>((resolve) => {
       req.session.save((err) => {
-      if (err) {
-        console.error("Session save error:", err);
-        return sendError(res, 'Failed to save session', 500);
-      }
-      sendSuccess(res, { user });
+        if (err) {
+          console.error('[Auth] Session save error:', err);
+          sendError(res, 'Failed to save session', 500);
+        } else {
+          sendSuccess(res, { user });
+        }
+        resolve();
+      });
     });
   } catch (error) {
-    console.error("Auth error:", error);
-    sendError(res, 'Invalid token', 401);
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    console.error('[Auth] Verification error:', errorMessage);
+    return sendError(res, 'Token verification failed', 401);
   }
 });
 
-app.get("/auth/user", (req, res) => {
-  if (req.session.user) sendSuccess(res, { user: req.session.user });
-  else sendError(res, 'Not authenticated', 401);
+app.get('/auth/user', (req: Request, res: Response) => {
+  if (req.session.user) {
+    return sendSuccess(res, { user: req.session.user });
+  }
+  return sendError(res, 'Not authenticated', 401);
 });
 
-app.post("/auth/logout", (req, res) => {
+app.post('/auth/logout', (req: Request, res: Response) => {
   req.session.destroy((err) => {
-    if (err) console.error("Logout error:", err);
-    res.clearCookie("connect.sid");
-    sendSuccess(res, { loggedOut: true });
+    if (err) {
+      console.error('[Auth] Logout error:', err);
+    }
+    res.clearCookie('connect.sid');
+    return sendSuccess(res, { loggedOut: true });
   });
 });
 
-// Public endpoint for scheduled fake orders (GitHub Actions will call this)
-app.post("/internal/generate-fake-orders", async (req: Request, res: Response) => {
+// ─────────────────────────────────────────────────────────────────────────────
+// Internal Routes
+// ─────────────────────────────────────────────────────────────────────────────
+
+app.post('/internal/generate-fake-orders', async (_req: Request, res: Response) => {
   try {
     const orderIds = await generateFakeOrdersForRun();
-    sendSuccess(res, { createdOrders: orderIds });
+    return sendSuccess(res, { createdOrders: orderIds });
   } catch (err) {
-    console.error("Error generating fake orders:", err);
-    sendError(res, "Failed to generate fake orders", 500);
+    const errorMessage = err instanceof Error ? err.message : 'Unknown error';
+    console.error('[Orders] Fake order generation failed:', errorMessage);
+    return sendError(res, 'Failed to generate fake orders', 500);
   }
 });
 
-app.listen(PORT, () => {
-  console.log(`Server running on port ${PORT}`);
+// ─────────────────────────────────────────────────────────────────────────────
+// Global Error Handler
+// ─────────────────────────────────────────────────────────────────────────────
+
+app.use((err: Error, _req: Request, res: Response, _next: NextFunction) => {
+  console.error('[Server] Unhandled error:', err);
+  return sendError(res, IS_PRODUCTION ? 'Internal server error' : err.message, 500);
 });
+
+// ─────────────────────────────────────────────────────────────────────────────
+// 404 Handler
+// ─────────────────────────────────────────────────────────────────────────────
+
+app.use((_req: Request, res: Response) => {
+  return sendError(res, 'Route not found', 404);
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Server Startup & Graceful Shutdown
+// ─────────────────────────────────────────────────────────────────────────────
+
+const server = app.listen(PORT, () => {
+  console.log(`[Server] Running on port ${PORT} (${IS_PRODUCTION ? 'production' : 'development'})`);
+});
+
+const gracefulShutdown = async (signal: string): Promise<void> => {
+  console.log(`\n[Server] Received ${signal}. Starting graceful shutdown...`);
+
+  server.close(async () => {
+    console.log('[Server] HTTP server closed');
+    await closePool();
+    console.log('[Server] Shutdown complete');
+    process.exit(0);
+  });
+
+  // Force shutdown after 10 seconds
+  setTimeout(() => {
+    console.error('[Server] Forced shutdown after timeout');
+    process.exit(1);
+  }, 10_000);
+};
+
+process.on('SIGTERM', () => gracefulShutdown('SIGTERM'));
+process.on('SIGINT', () => gracefulShutdown('SIGINT'));
+
+export default app;

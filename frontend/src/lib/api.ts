@@ -1,4 +1,4 @@
-import { ApiResponse } from "@project3/shared";
+import { ApiResponse, isSuccessResponse } from "@project3/shared";
 
 export const API_URL =
   import.meta.env.VITE_API_URL ||
@@ -7,16 +7,26 @@ export const API_URL =
 
 /**
  * Generic fetch wrapper that handles the ApiResponse<T> shape.
- * It automatically unwraps 'data' if success is true, or throws 'message' if false.
+ * Automatically unwraps 'data' if success is true, or throws error if false.
  */
 export async function fetchApi<T>(endpoint: string, options?: RequestInit): Promise<T> {
   const res = await fetch(`${API_URL}${endpoint}`, options);
+  
+  // 1. Handle non-JSON responses (like 404s from the server that might be text)
+  const contentType = res.headers.get("content-type");
+  if (!contentType || !contentType.includes("application/json")) {
+    throw new Error(`API Error: ${res.status} ${res.statusText}`);
+  }
+
   const json: ApiResponse<T> = await res.json();
 
-  if (!res.ok || !json.success) {
+  // 2. Use the Type Guard 'isSuccessResponse' from shared types
+  // This tells TypeScript that inside this block, 'json' is definitely the Success variant
+  if (!isSuccessResponse(json)) {
     throw new Error(json.message || `API Error: ${res.statusText}`);
   }
 
+  // 3. Return the data directly
   return json.data;
 }
 

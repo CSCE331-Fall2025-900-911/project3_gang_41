@@ -22,7 +22,6 @@ router.post('/lookup', async (req: Request, res: Response) => {
         query = 'SELECT customers_id, customer_name, points, email, phone_number FROM customers WHERE phone_number = $1';
         params = [phone];
     } else {
-        // Use ILIKE for case-insensitive email matching just in case
         query = 'SELECT customers_id, customer_name, points, email, phone_number FROM customers WHERE email = $1';
         params = [email];
     }
@@ -40,20 +39,14 @@ router.post('/lookup', async (req: Request, res: Response) => {
   }
 });
 
-// 2. Register new customer (Phone OR Email)
+// 2. Register new customer
 router.post('/register', async (req: Request, res: Response) => {
   const { phone, email, name } = req.body;
 
-  // Validate inputs
-  if (!name) {
-      return sendError(res, 'Name is required', 400);
-  }
-  if (!phone && !email) {
-      return sendError(res, 'Either Phone or Email is required', 400);
-  }
+  if (!name) return sendError(res, 'Name is required', 400);
+  if (!phone && !email) return sendError(res, 'Either Phone or Email is required', 400);
 
   try {
-    // Explicitly handle nulls for SQL
     const phoneVal = phone && phone.length > 0 ? phone : null;
     const emailVal = email && email.length > 0 ? email : null;
 
@@ -66,7 +59,6 @@ router.post('/register', async (req: Request, res: Response) => {
     
     sendSuccess(res, result.rows[0], 'Registration successful');
   } catch (error: any) {
-    // Handle Postgres Unique Violation (code 23505)
     if (error.code === '23505') { 
         return sendError(res, 'Phone number or Email already registered', 409);
     }
@@ -75,8 +67,6 @@ router.post('/register', async (req: Request, res: Response) => {
   }
 });
 
-// ... (Rest of routes: /google, /:id/orders remain unchanged) ...
-// Ensure you keep the Google auth and Order History routes below this in your file.
 router.post('/google', async (req: Request, res: Response) => {
     const { credential } = req.body;
     try {

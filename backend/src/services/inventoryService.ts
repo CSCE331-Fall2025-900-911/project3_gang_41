@@ -10,7 +10,6 @@ export const deductInventory = async (items: { item_id: number; quantity: number
       const drinkId = item.item_id;
       const orderQuantity = item.quantity;
 
-      // Get ingredients
       const recipeResult = await client.query(
         'SELECT inventory_id, quantity FROM drinkjointable WHERE drink_id = $1',
         [drinkId]
