@@ -13,7 +13,7 @@ import {
 } from '@/components/ui/drawer';
 import { 
   Minus, Plus, ShoppingCart, Trash2, Edit, Loader2, FlaskConical, ChevronDown, 
-  CreditCard, Banknote, LogIn, User, Star, LogOut, CheckCircle, History
+  CreditCard, Banknote, LogIn, User, Star, LogOut, CheckCircle, History, Eye
 } from 'lucide-react';
 import { WeatherDisplay } from '@/components/WeatherDisplay';
 import { DrinkCustomizationDialog } from "@/components/DrinkCustomizationDialog";
@@ -92,7 +92,10 @@ export default function Kiosk() {
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [buttonPulse, setButtonPulse] = useState(false);
   const [weather, setWeather] = useState<{ temperature: number; icon: string } | null>(null);
+  
+  // -- EXPERIMENTAL MODES --
   const [experimentalMode, setExperimentalMode] = useState(false);
+  const [highContrast, setHighContrast] = useState(false);
   
   const [customizationDialog, setCustomizationDialog] = useState<{
       open: boolean;
@@ -257,6 +260,19 @@ export default function Kiosk() {
   return (
     <div className={`flex h-screen bg-background ${experimentalMode ? 'cursor-none' : ''}`}>
       
+      {/* High Contrast Style Injection */}
+      {highContrast && (
+        <style>{`
+          /* Force higher contrast for common text classes */
+          .text-muted-foreground { color: #0f172a !important; }
+          .text-gray-400, .text-gray-500, .text-gray-600 { color: #000000 !important; font-weight: 500 !important; }
+          .bg-muted { background-color: #f1f5f9 !important; border: 1px solid #94a3b8; }
+          .border { border-color: #000000 !important; }
+          /* Ensure icons are visible */
+          .lucide { color: #000000 !important; }
+        `}</style>
+      )}
+
       {/* GLOBAL CONFETTI CANVAS */}
       <Confetti 
         ref={confettiRef} 
@@ -266,7 +282,7 @@ export default function Kiosk() {
       />
 
       {/* Sidebar */}
-      <div className="w-72 bg-gray-100 dark:bg-gray-900 border-r p-4 flex flex-col gap-2">
+      <nav className="w-72 bg-gray-100 dark:bg-gray-900 border-r p-4 flex flex-col gap-2" aria-label="Main Navigation">
         
         {/* MEMBER LOGIN BUTTON */}
         <div className="px-2 pb-2">
@@ -377,6 +393,17 @@ export default function Kiosk() {
                   }}
                 />
               </div>
+              <div className="flex items-center justify-between">
+                <label htmlFor="high-contrast" className="text-sm text-muted-foreground flex items-center gap-2">
+                  <Eye className="h-3 w-3" />
+                  High Contrast
+                </label>
+                <Switch
+                  id="high-contrast"
+                  checked={highContrast}
+                  onCheckedChange={setHighContrast}
+                />
+              </div>
             </CollapsibleContent>
           </Collapsible>
 
@@ -389,10 +416,11 @@ export default function Kiosk() {
             {translate('common.login')}
           </Button>
         </div>
-      </div>
+      </nav>
 
       {/* Main content */}
-      <div className="flex-1 flex flex-col overflow-hidden">
+      <main className="flex-1 flex flex-col overflow-hidden">
+        <h1 className="sr-only">Boba Tea Kiosk Menu and Ordering</h1>
         <div className="flex-1 overflow-auto p-8">
           <div className="max-w-5xl mx-auto">
             <div className="grid grid-cols-3 gap-6">
@@ -448,7 +476,7 @@ export default function Kiosk() {
             )}
           </Button>
         </div>
-      </div>
+      </main>
 
       {/* CHECKOUT DRAWER */}
       <Drawer open={drawerOpen} onOpenChange={setDrawerOpen}>
