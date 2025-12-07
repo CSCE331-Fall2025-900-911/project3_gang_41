@@ -1,7 +1,8 @@
 import express, { Request, Response } from 'express';
 import db, { runTransaction } from './db';
 import { deductInventory } from './services/inventoryService';
-import { sendSuccess, sendError } from './utils/response';
+import { sendSuccess, sendError, sendBadRequest } from './utils/response';
+import { POINTS_PER_DOLLAR } from '@project3/shared';
 
 const router = express.Router();
 const BUSINESS_TZ = 'America/Chicago';
@@ -48,7 +49,7 @@ router.post('/', async (req: Request, res: Response) => {
       }
 
       if (customerId && customerId > 0) {
-        const pointsEarned = Math.floor(orderTotal * 10);
+        const pointsEarned = Math.floor(orderTotal * POINTS_PER_DOLLAR);
         const pointsUsed = pointsRedeemed || 0;
         await client.query(
           `UPDATE customers 

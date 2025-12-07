@@ -1,6 +1,6 @@
 import express, { Request, Response } from 'express';
 import db, { runTransaction } from './db';
-import { buildUpdateQuery } from './utils/sql';
+import { buildInsertQuery, buildUpdateQuery } from './utils/sql';
 import { sendSuccess, sendError, sendBadRequest, sendNotFound } from './utils/response';
 import { MenuItem } from '@project3/shared';
 
@@ -35,12 +35,13 @@ router.post('/', async (req: Request, res: Response) => {
   if (isNaN(price)) return sendBadRequest(res, 'Cost must be a valid number');
 
   try {
-    const insertSql = `
-      INSERT INTO menuitems (item_name, cost, category)
-      VALUES ($1, $2, $3)
-      RETURNING item_id, item_name, cost, category
-    `;
-    const result = await db.query(insertSql, [name, price, cat]);
+    const query = buildInsertQuery('menuitems', {
+      item_name: name,
+      cost: price,
+      category: cat
+    });
+    if (!query) return sendBadRequest(res, 'Invalid item data');
+    const result = await db.query(query.sql, query.values);
     return sendSuccess(res, result.rows[0], 'Item created successfully', 201);
   } catch (error) {
     console.error('[Menu] Create error:', error);

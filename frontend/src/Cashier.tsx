@@ -2,7 +2,12 @@ import { useState, useEffect } from "react";
 import { useTranslation } from "react-i18next";
 import { fetchApi } from "@/lib/api";
 import type { MenuItem, CartItem, DrinkCustomization } from "@project3/shared";
-import { TAX_RATE } from "@project3/shared";
+import { 
+  TAX_RATE, 
+  generateCartItemId,
+  calculateTax,
+  calculateTotal
+} from "@project3/shared";
 import { useNavigate } from "react-router-dom";
 
 import { Button } from "@/components/ui/button";
@@ -134,15 +139,14 @@ function Cashier() {
       });
     } else {
       // Adding new item to cart
+      // UPDATED: Use Shared ID generator + timestamp for unique rows
       const newCartItem: CartItem = {
         item_id: customizationDialog.item.item_id,
         item_name: customizationDialog.item.item_name,
         cost: customizationDialog.item.cost,
         quantity: 1,
         customization,
-        uniqueId: `${
-          customizationDialog.item.item_id
-        }-${Date.now()}-${Math.random()}`,
+        uniqueId: `${generateCartItemId(customizationDialog.item.item_id, customization)}-${Date.now()}`,
       };
       addToCart(newCartItem);
     }
@@ -150,7 +154,10 @@ function Cashier() {
     setCustomizationDialog({ open: false, item: null, editingCartItem: null });
   };
 
+  // UPDATED: Use shared calculation helpers
   const total = cart.reduce((sum, item) => sum + item.cost * item.quantity, 0);
+  const taxAmount = calculateTax(total);
+  const finalTotal = calculateTotal(total);
 
   const handleCheckout = () => {
     checkout(paymentMethod);
@@ -404,14 +411,14 @@ function Cashier() {
                 <span className="text-muted-foreground">
                   {translate("common.tax")} ({(TAX_RATE * 100).toFixed(2)}%)
                 </span>
-                <span className="font-medium">
-                  {(total * TAX_RATE).toFixed(2)}
-                </span>
+                {/* Use calculated tax amount */}
+                <span className="font-medium">${taxAmount.toFixed(2)}</span>
               </div>
               <Separator />
               <div className="flex justify-between text-lg font-bold">
                 <span>{translate("common.total")}</span>
-                <span>${(total * (1 + TAX_RATE)).toFixed(2)}</span>
+                {/* Use calculated final total */}
+                <span>${finalTotal.toFixed(2)}</span>
               </div>
             </div>
 

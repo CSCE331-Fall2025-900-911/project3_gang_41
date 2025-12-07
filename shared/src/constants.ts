@@ -76,3 +76,12 @@ export const SIZE_PRICE_MODIFIERS: Record<string, number> = {
   medium: 0,
   large: 0.75,
 } as const;
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Loyalty / Points
+// ─────────────────────────────────────────────────────────────────────────────
+
+/**
+ * Points awarded per dollar spent. Use on both frontend and backend to keep behavior consistent.
+ */
+export const POINTS_PER_DOLLAR = 10 as const;

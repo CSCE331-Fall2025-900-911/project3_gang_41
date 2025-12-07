@@ -20,17 +20,14 @@ import customerRoutes from './customerRoutes';
 import { generateFakeOrdersForRun } from './services/fakeOrderService';
 import { sendSuccess, sendError } from './utils/response';
 
+import { MS_PER_MINUTE, MS_PER_DAY } from '@project3/shared';
+
 // ─────────────────────────────────────────────────────────────────────────────
 // Constants
 // ─────────────────────────────────────────────────────────────────────────────
 
 const PORT = parseInt(process.env.PORT ?? '3000', 10);
 const IS_PRODUCTION = process.env.NODE_ENV === 'production';
-
-// Time constants (in milliseconds)
-const MS_PER_MINUTE = 60_000;
-const MS_PER_HOUR = 60 * MS_PER_MINUTE;
-const MS_PER_DAY = 24 * MS_PER_HOUR;
 
 // Rate limiting configuration
 const RATE_LIMIT_WINDOW_MS = 15 * MS_PER_MINUTE;

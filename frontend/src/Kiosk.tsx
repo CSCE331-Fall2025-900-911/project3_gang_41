@@ -35,7 +35,11 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } f
 import { Confetti, type ConfettiRef } from "@/components/ui/confetti";
 
 import type { MenuItem, CartItem, DrinkCustomization } from "@project3/shared";
-import { TAX_RATE } from "@project3/shared";
+import { 
+  TAX_RATE, 
+  calculateTax,
+  generateCartItemId
+} from "@project3/shared";
 
 // --- Types ---
 interface SuccessData {
@@ -191,7 +195,8 @@ export default function Kiosk() {
         cost: customizationDialog.item.cost,
         quantity: 1,
         customization,
-        uniqueId: `${customizationDialog.item.item_id}-${Date.now()}-${Math.random()}`,
+        // UPDATED: Use Shared ID generator + timestamp
+        uniqueId: `${generateCartItemId(customizationDialog.item.item_id, customization)}-${Date.now()}`,
       };
       addToCart(newCartItem);
       if (ttsEnabled) play('drink');
@@ -221,7 +226,8 @@ export default function Kiosk() {
   const pointsToBurn = discountAmount * POINTS_PER_DOLLAR;
 
   const taxableAmount = Math.max(0, total - discountAmount);
-  const tax = taxableAmount * TAX_RATE;
+  // UPDATED: Use Shared Calculation
+  const tax = calculateTax(taxableAmount);
   const finalTotal = taxableAmount + tax;
 
   const estimatedPointsEarned = Math.floor(total * 10);
@@ -600,7 +606,7 @@ export default function Kiosk() {
                           <span>Points Discount:</span> <span>-${discountAmount.toFixed(2)}</span>
                         </div>
                     )}
-                    <div className="flex justify-between"><span>Tax:</span> <span>${tax.toFixed(2)}</span></div>
+                    <div className="flex justify-between"><span>Tax ({(TAX_RATE * 100).toFixed(2)}%):</span> <span>${tax.toFixed(2)}</span></div>
                   </div>
                 </div>
 

@@ -7,7 +7,8 @@ import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
 import { formatCurrency } from "@/lib/utils";
-import type { CartItem, MenuItem } from "@project3/shared";
+// UPDATED: Shared types and ID gen
+import { type CartItem, type MenuItem, generateCartItemId } from "@project3/shared";
 
 interface PastOrder {
   orderid: number;
@@ -67,7 +68,8 @@ export function PastOrdersDialog({ open, onOpenChange, customerId, onReorder }: 
           item_name: menuItem.item_name,
           cost: Number(menuItem.cost), 
           quantity: histItem.qty,
-          uniqueId: `${menuItem.item_id}-${Date.now()}-${Math.random()}`,
+          // UPDATED: Use Shared ID + Timestamp
+          uniqueId: `${generateCartItemId(menuItem.item_id)}-${Date.now()}-${Math.random()}`,
         });
       }
     });

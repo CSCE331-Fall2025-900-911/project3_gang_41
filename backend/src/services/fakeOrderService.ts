@@ -1,6 +1,6 @@
 import db, { runTransaction } from '../db';
 import { deductInventory } from './inventoryService';
-import type { MenuItem, OrderItem } from '@project3/shared';
+import { type MenuItem, type OrderItem, MS_PER_DAY } from '@project3/shared';
 
 const BUSINESS_TZ = 'America/Chicago';
 
@@ -24,20 +24,11 @@ function getBusinessHourAndWeekKey(date: Date) {
   const hour = Number(dtParts.find((p) => p.type === 'hour')?.value);
   
   const d = new Date(Date.UTC(year, month - 1, day));
-  const week = Math.floor((Math.floor((d.getTime() - new Date(Date.UTC(year, 0, 1)).getTime()) / 86400000) + 1 - 1) / 7) + 1;
+  const week = Math.floor((Math.floor((d.getTime() - new Date(Date.UTC(year, 0, 1)).getTime()) / MS_PER_DAY) + 1 - 1) / 7) + 1;
   return { hour, weekKey: year * 100 + week };
 }
 
-type MenuDbRow = { item_id: number; item_name: string; cost: number | string; category: string | null; };
-
-function normalizeMenuRows(rows: MenuDbRow[]): MenuItem[] {
-  return rows.map((r) => ({
-    item_id: r.item_id,
-    item_name: r.item_name,
-    cost: Number(r.cost) || 0,
-    category: (r.category ?? 'Uncategorized').trim() || 'Uncategorized',
-  }));
-}
+// MenuItem is imported from shared; ensure DB rows are cast to MenuItem and numeric fields normalized where necessary
 
 function pickWeightedMenuItem(menu: MenuItem[], favoredCategory: string | null, favoredItemId: number | null): MenuItem {
   const weights: number[] = [];
@@ -92,8 +83,8 @@ async function createSyntheticOrder(menu: MenuItem[], favoredCategory: string | 
 }
 
 export async function generateFakeOrdersForRun(): Promise<number[]> {
-  const { rows: rawMenu } = await db.query<MenuDbRow>('SELECT item_id, item_name, cost, category FROM menuitems');
-  const menu = normalizeMenuRows(rawMenu);
+  const { rows: rawMenu } = await db.query<MenuItem>('SELECT item_id, item_name, cost, category FROM menuitems');
+  const menu: MenuItem[] = rawMenu.map((r) => ({ ...r, cost: Number((r as any).cost) }));
   if (menu.length === 0) return [];
 
   const { rows: employees } = await db.query<{employee_id: number}>('SELECT employee_id FROM employees');

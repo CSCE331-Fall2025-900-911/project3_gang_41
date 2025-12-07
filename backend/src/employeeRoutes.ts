@@ -1,6 +1,6 @@
 import express, { Request, Response } from 'express';
 import db from './db';
-import { buildUpdateQuery } from './utils/sql';
+import { buildInsertQuery, buildUpdateQuery } from './utils/sql';
 import { sendSuccess, sendError, sendBadRequest, sendNotFound } from './utils/response';
 import { Employee } from '@project3/shared';
 
@@ -37,16 +37,21 @@ router.post('/', async (req: Request, res: Response) => {
   const generatedPassword = name.split(' ')[0] + '123!';
 
   try {
-    const insertSql = `
-      INSERT INTO employees (employee_name, job_title, hourly_rate, email, password, date_hired) 
-      VALUES ($1, $2, $3, $4, $5, CURRENT_DATE)
-      RETURNING *
-    `;
-    const result = await db.query(insertSql, [name, job, rate, generatedEmail, generatedPassword]);
-    
+    const query = buildInsertQuery('employees', {
+      employee_name: name,
+      job_title: job,
+      hourly_rate: rate,
+      email: generatedEmail,
+      password: generatedPassword,
+      date_hired: new Date()
+    });
+
+    if (!query) return sendBadRequest(res, 'Invalid data');
+
+    const result = await db.query(query.sql, query.values);
+
     return sendSuccess(res, { 
       ...result.rows[0], 
-      // Return these once so they can be shown to the manager
       email: generatedEmail, 
       password: generatedPassword 
     }, 'Employee created', 201);

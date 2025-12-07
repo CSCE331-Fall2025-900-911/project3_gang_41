@@ -1,12 +1,16 @@
 import express, { Request, Response } from 'express';
 import db from './db';
 import { sendSuccess, sendError } from './utils/response';
+import { buildInsertQuery } from './utils/sql';
+// Use shared tax rate
+import { TAX_RATE } from '@project3/shared';
 
 const router = express.Router();
 const BUSINESS_TZ = 'America/Chicago';
+const TAX_DIVISOR = 1 + TAX_RATE; // e.g. 1.0825
 
 router.get('/dashboard', async (req: Request, res: Response) => {
-  try {
+    try {
     const { range } = req.query;
 
     const localTs = `(orderdate AT TIME ZONE '${BUSINESS_TZ}')`;
@@ -32,7 +36,6 @@ router.get('/dashboard', async (req: Request, res: Response) => {
       timeLabelSelect = `TO_CHAR(${localTs}, 'FMHH12AM')`; 
     }
 
-    // KPI Query
     const kpiQuery = `
       WITH metrics AS (
         SELECT
@@ -55,7 +58,6 @@ router.get('/dashboard', async (req: Request, res: Response) => {
       FROM metrics
     `;
 
-    // Peak Time Query
     const peakQuery = `
       WITH buckets AS (
         SELECT
@@ -73,7 +75,6 @@ router.get('/dashboard', async (req: Request, res: Response) => {
       SELECT is_current, label, revenue FROM ranked WHERE rn = 1
     `;
 
-    // Trend Query
     const currentFilter = `${localTs} >= ${boundarySplit}`;
     let timeGroupSelect = `EXTRACT(HOUR FROM ${localTs})`;
     let trendLabelSelect = `TO_CHAR(${localTs}, 'FMHH12AM')`;
@@ -168,33 +169,34 @@ router.get('/dashboard', async (req: Request, res: Response) => {
 const getShiftStartTime = async () => {
   const lastCloseRes = await db.query('SELECT end_time FROM z_reports ORDER BY date_created DESC LIMIT 1');
   const prevEndTimeRaw = lastCloseRes.rows[0]?.end_time;
-  return prevEndTimeRaw ? `'${prevEndTimeRaw.toISOString()}'` : "DATE_TRUNC('day', NOW())"; 
+  return prevEndTimeRaw ? new Date(prevEndTimeRaw) : new Date(new Date().setHours(0,0,0,0));
 };
 
 router.get('/x-report', async (req: Request, res: Response) => {
   try {
-    const startTimeSQL = await getShiftStartTime();
+    const startTime = await getShiftStartTime();
+
     const query = `
       SELECT 
         COUNT(DISTINCT orderid)::int as transactions,
         COALESCE(SUM(totalprice), 0)::float as grossSales,
         COALESCE(SUM(CASE WHEN paymentmethod = 'cash' THEN totalprice ELSE 0 END), 0)::float as cashSales,
         COALESCE(SUM(CASE WHEN paymentmethod = 'card' THEN totalprice ELSE 0 END), 0)::float as cardSales,
-        (COALESCE(SUM(totalprice), 0) - (COALESCE(SUM(totalprice), 0) / 1.0825))::float as tax
-      FROM order_history WHERE orderdate > ${startTimeSQL}
+        (COALESCE(SUM(totalprice), 0) - (COALESCE(SUM(totalprice), 0) / ${TAX_DIVISOR}))::float as tax
+      FROM order_history WHERE orderdate > $1
     `;
 
-    const result = await db.query(query);
+    const result = await db.query(query, [startTime]);
     const row = result.rows[0];
 
     sendSuccess(res, {
       transactions: row.transactions,
-      grossSales: row.grosssales, 
+      grossSales: row.grosssales,
       cashSales: row.cashsales,
       cardSales: row.cardsales,
       netSales: row.grosssales - row.tax,
       tax: row.tax,
-      discounts: 0 
+      discounts: 0
     });
 
   } catch (error) {
@@ -206,7 +208,8 @@ router.get('/x-report', async (req: Request, res: Response) => {
 router.post('/z-report', async (req: Request, res: Response) => {
   try {
     const { countedCash, openingFloat = 150.00 } = req.body;
-    const startTimeSQL = await getShiftStartTime();
+    const prevEndTimeRaw = (await db.query('SELECT end_time FROM z_reports ORDER BY date_created DESC LIMIT 1')).rows[0]?.end_time;
+    const startTime = prevEndTimeRaw ? new Date(prevEndTimeRaw) : new Date(new Date().setHours(0,0,0,0));
 
     const aggQuery = `
       SELECT 
@@ -214,29 +217,30 @@ router.post('/z-report', async (req: Request, res: Response) => {
         COALESCE(SUM(totalprice), 0)::float as grossSales,
         COALESCE(SUM(CASE WHEN paymentmethod = 'cash' THEN totalprice ELSE 0 END), 0)::float as cashSales,
         COALESCE(SUM(CASE WHEN paymentmethod = 'card' THEN totalprice ELSE 0 END), 0)::float as cardSales,
-        (COALESCE(SUM(totalprice), 0) - (COALESCE(SUM(totalprice), 0) / 1.0825))::float as tax
-      FROM order_history WHERE orderdate > ${startTimeSQL}
+        (COALESCE(SUM(totalprice), 0) - (COALESCE(SUM(totalprice), 0) / ${TAX_DIVISOR}))::float as tax
+      FROM order_history WHERE orderdate > $1
     `;
 
-    const aggRes = await db.query(aggQuery);
+    const aggRes = await db.query(aggQuery, [startTime]);
     const totals = aggRes.rows[0];
     const expectedCash = Number(openingFloat) + Number(totals.cashsales);
     const variance = Number(countedCash) - expectedCash;
 
-    const insertQuery = `
-      INSERT INTO z_reports (
-        start_time, end_time, total_sales, cash_sales, card_sales, 
-        tax_total, transaction_count, opening_float, counted_cash, 
-        variance
-      ) VALUES (
-        ${startTimeSQL}, NOW(), $1, $2, $3, $4, $5, $6, $7, $8
-      ) RETURNING report_id
-    `;
+    const insertQ = buildInsertQuery('z_reports', {
+      start_time: startTime,
+      end_time: new Date(),
+      total_sales: totals.grosssales,
+      cash_sales: totals.cashsales,
+      card_sales: totals.cardsales,
+      tax_total: totals.tax,
+      transaction_count: totals.transactions,
+      opening_float: openingFloat,
+      counted_cash: countedCash,
+      variance: variance
+    });
 
-    const insertRes = await db.query(insertQuery, [
-      totals.grosssales, totals.cashsales, totals.cardsales, totals.tax,
-      totals.transactions, openingFloat, countedCash, variance
-    ]);
+    if (!insertQ) throw new Error('Failed to build Z-Report query');
+    const insertRes = await db.query(insertQ.sql, insertQ.values);
 
     sendSuccess(res, {
       message: 'Shift closed successfully',

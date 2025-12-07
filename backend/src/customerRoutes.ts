@@ -2,6 +2,7 @@ import express, { Request, Response } from 'express';
 import { OAuth2Client } from 'google-auth-library';
 import db from './db';
 import { sendSuccess, sendError } from './utils/response';
+import { buildInsertQuery } from './utils/sql';
 import { Customer } from '@project3/shared';
 
 const router = express.Router();
@@ -52,13 +53,15 @@ router.post('/register', async (req: Request, res: Response) => {
     const phoneVal = phone && phone.length > 0 ? phone : null;
     const emailVal = email && email.length > 0 ? email : null;
 
-    const result = await db.query<Customer>(
-      `INSERT INTO customers (phone_number, email, customer_name, points, sign_up_date) 
-       VALUES ($1, $2, $3, 50, NOW()) 
-       RETURNING *`,
-      [phoneVal, emailVal, name]
-    );
-    
+    const query = buildInsertQuery('customers', {
+      phone_number: phoneVal,
+      email: emailVal,
+      customer_name: name,
+      points: 50,
+      sign_up_date: new Date()
+    });
+    if (!query) throw new Error('Failed to build query');
+    const result = await db.query<Customer>(query.sql, query.values);
     sendSuccess(res, result.rows[0], 'Registration successful');
   } catch (error: any) {
     if (error.code === '23505') { 
@@ -96,13 +99,16 @@ router.post('/google', async (req: Request, res: Response) => {
         return sendSuccess(res, existing.rows[0]);
       }
   
-      const newUser = await db.query<Customer>(
-        `INSERT INTO customers (customer_name, email, google_sub, points, sign_up_date)
-         VALUES ($1, $2, $3, 50, NOW())
-         RETURNING *`,
-        [name, email, googleSub]
-      );
-  
+      const query = buildInsertQuery('customers', {
+        customer_name: name,
+        email,
+        google_sub: googleSub,
+        points: 50,
+        sign_up_date: new Date()
+      });
+      if (!query) throw new Error('Failed to build query');
+      const newUser = await db.query<Customer>(query.sql, query.values);
+
       sendSuccess(res, newUser.rows[0]);
     } catch (error) {
       console.error('Google Customer Auth Error:', error);

@@ -1,6 +1,7 @@
 import express, { Request, Response } from 'express';
 import db from './db';
-import { sendSuccess, sendError } from './utils/response';
+import { sendSuccess, sendError, sendBadRequest } from './utils/response';
+import { buildInsertQuery } from './utils/sql';
 
 const router = express.Router();
 
@@ -11,12 +12,18 @@ router.post('/', async (req: Request, res: Response) => {
   };
 
   if (order_total === undefined || !payment_method) {
-    return sendError(res, 'Missing order_total or payment_method', 400);
+    return sendBadRequest(res, 'Missing order_total or payment_method');
   }
 
   try {
-    const sql = 'INSERT INTO current_sales_report (order_total, payment_method) VALUES ($1, $2)';
-    await db.query(sql, [order_total, payment_method]);
+    const query = buildInsertQuery('current_sales_report', {
+      order_total,
+      payment_method
+    });
+
+    if (!query) return sendBadRequest(res, 'Invalid sale data');
+
+    await db.query(query.sql, query.values);
     sendSuccess(res, { order_total, payment_method }, 'Sale recorded');
   } catch (error) {
     console.error('Error recording sale:', error);

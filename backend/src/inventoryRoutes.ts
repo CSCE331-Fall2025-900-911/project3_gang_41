@@ -1,6 +1,6 @@
 import express, { Request, Response } from 'express';
 import db, { runTransaction } from './db';
-import { buildUpdateQuery } from './utils/sql';
+import { buildInsertQuery, buildUpdateQuery, validateIdValue } from './utils/sql';
 import { deductInventory } from './services/inventoryService';
 import { sendSuccess, sendError, sendBadRequest, sendNotFound } from './utils/response';
 import { InventoryItem } from '@project3/shared';
@@ -36,12 +36,14 @@ router.post('/', async (req: Request, res: Response) => {
   }
 
   try {
-    const sql = `
-      INSERT INTO inventory (item_name, supply, unit, cost)
-      VALUES ($1, $2, $3, $4)
-      RETURNING *
-    `;
-    const result = await db.query(sql, [item_name, quantity, unit ?? null, cost]);
+    const query = buildInsertQuery('inventory', {
+      item_name,
+      supply: quantity,
+      unit: unit ?? null,
+      cost
+    });
+    if (!query) return sendBadRequest(res, 'Invalid data');
+    const result = await db.query(query.sql, query.values);
     return sendSuccess(res, result.rows[0], 'Inventory item created', 201);
   } catch (error) {
     console.error('[Inventory] Create error:', error);
@@ -50,8 +52,12 @@ router.post('/', async (req: Request, res: Response) => {
 });
 
 router.put('/:id', async (req: Request, res: Response) => {
-  const id = parseInt(req.params.id, 10);
-  if (isNaN(id)) return sendBadRequest(res, 'Invalid item ID');
+  let id: number;
+  try {
+    id = validateIdValue(parseInt(req.params.id, 10));
+  } catch (e) {
+    return sendBadRequest(res, 'Invalid item ID');
+  }
 
   const { item_name, quantity, unit, cost } = req.body;
 
@@ -75,8 +81,12 @@ router.put('/:id', async (req: Request, res: Response) => {
 });
 
 router.delete('/:id', async (req: Request, res: Response) => {
-  const id = parseInt(req.params.id, 10);
-  if (isNaN(id)) return sendBadRequest(res, 'Invalid item ID');
+  let id: number;
+  try {
+    id = validateIdValue(parseInt(req.params.id, 10));
+  } catch (e) {
+    return sendBadRequest(res, 'Invalid item ID');
+  }
 
   try {
     await runTransaction(async (client) => {

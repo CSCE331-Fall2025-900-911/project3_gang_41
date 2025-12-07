@@ -14,7 +14,8 @@ import { Badge } from "@/components/ui/badge";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
 import { ChevronDown, ChevronUp, Loader2, ReceiptText, Search, X } from "lucide-react";
-import { TAX_RATE } from "@project3/shared";
+// UPDATED: Use shared calc logic
+import { TAX_RATE, calculateTax, calculateTotal } from "@project3/shared";
 
 // ... (Types and Constants remain exactly the same) ...
 type ApiOrderItem = {
@@ -83,8 +84,9 @@ const normalizeOrder = (o: ApiOrder): Order => {
     return { name: it.name, qty, unitPrice, lineTotal };
   });
 
-  const tax = subtotal * TAX_RATE;
-  const total = subtotal + tax;
+  // UPDATED: Use Shared Helper
+  const tax = calculateTax(subtotal);
+  const total = calculateTotal(subtotal);
   const itemCount = items.reduce((s, i) => s + i.qty, 0);
 
   return {

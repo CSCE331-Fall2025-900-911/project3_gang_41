@@ -7,7 +7,8 @@ interface UpdateQueryResult {
   values: unknown[];
 }
 
-type FieldValue = string | number | boolean | null | undefined;
+// Allow Date objects so 'pg' driver can handle them natively
+type FieldValue = string | number | boolean | Date | null | undefined;
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Validation Helpers
@@ -49,7 +50,7 @@ const validateIdentifier = (identifier: string, type: string): void => {
 /**
  * Validates that an ID value is a positive integer.
  */
-const validateIdValue = (value: unknown): number => {
+export const validateIdValue = (value: unknown): number => {
   if (typeof value !== 'number' || !Number.isInteger(value) || value <= 0) {
     throw new Error(`ID must be a positive integer, received: ${value}`);
   }
