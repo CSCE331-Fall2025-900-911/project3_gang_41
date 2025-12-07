@@ -6,12 +6,15 @@ export interface Customer {
   customers_id: number;
   customer_name: string;
   points: number;
+  email?: string;
+  phone_number?: string;
 }
 
 interface CustomerContextType {
   customer: Customer | null;
   loginPhone: (phone: string) => Promise<boolean>;
-  registerCustomer: (phone: string, name: string) => Promise<void>;
+  loginEmail: (email: string) => Promise<boolean>;
+  registerCustomer: (data: { phone?: string; email?: string; name: string }) => Promise<void>;
   loginGoogleCustomer: (credential: string) => Promise<void>;
   logoutCustomer: () => void;
   refreshCustomer: () => Promise<void>;
@@ -35,20 +38,41 @@ export function CustomerProvider({ children }: { children: ReactNode }) {
         toast.success(`Welcome back, ${res.customer.customer_name}!`);
         return true;
       }
-      return false; // Not found, prompt registration
+      return false; 
     } catch (error) {
       console.error(error);
-      toast.error('Login failed');
       return false;
     }
   };
 
-  const registerCustomer = async (phone: string, name: string) => {
+  // NEW: Login via Email
+  const loginEmail = async (email: string) => {
+    try {
+      const res = await fetchApi<{ found: boolean; customer?: Customer }>('/api/customers/lookup', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email }),
+      });
+
+      if (res.found && res.customer) {
+        setCustomer(res.customer);
+        toast.success(`Welcome back, ${res.customer.customer_name}!`);
+        return true;
+      }
+      return false; 
+    } catch (error) {
+      console.error(error);
+      return false;
+    }
+  };
+
+  // UPDATED: Register accepts object
+  const registerCustomer = async ({ phone, email, name }: { phone?: string; email?: string; name: string }) => {
     try {
       const newCustomer = await fetchApi<Customer>('/api/customers/register', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ phone, name }),
+        body: JSON.stringify({ phone, email, name }),
       });
       setCustomer(newCustomer);
       toast.success('Membership created! 50 points added.');
@@ -78,14 +102,20 @@ export function CustomerProvider({ children }: { children: ReactNode }) {
     toast.info('Logged out');
   };
 
-  // Useful to update points immediately after an order
   const refreshCustomer = async () => {
-      // Implementation depends on storing the phone/id, 
-      // simplified here to just be a placeholder if needed later.
+      // Placeholder
   };
 
   return (
-    <CustomerContext.Provider value={{ customer, loginPhone, registerCustomer, loginGoogleCustomer, logoutCustomer, refreshCustomer }}>
+    <CustomerContext.Provider value={{ 
+        customer, 
+        loginPhone, 
+        loginEmail, 
+        registerCustomer, 
+        loginGoogleCustomer, 
+        logoutCustomer, 
+        refreshCustomer 
+    }}>
       {children}
     </CustomerContext.Provider>
   );
