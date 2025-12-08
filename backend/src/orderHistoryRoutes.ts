@@ -64,7 +64,8 @@ router.post('/', async (req: Request<{}, {}, CreateOrderBody>, res: Response) =>
 
   const validatedItems: OrderItemInput[] = [];
   for (const item of items) {
-    if (!item.item_id || !item.quantity || item.quantity <= 0) {
+    // FIX: Check for undefined specifically so ID 0 is allowed
+    if (item.item_id === undefined || item.item_id === null || !item.quantity || item.quantity <= 0) {
       return sendBadRequest(res, 'Invalid item data');
     }
     validatedItems.push({

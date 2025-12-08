@@ -51,7 +51,8 @@ const validateIdentifier = (identifier: string, type: string): void => {
  * Validates that an ID value is a positive integer.
  */
 export const validateIdValue = (value: unknown): number => {
-  if (typeof value !== 'number' || !Number.isInteger(value) || value <= 0) {
+  // FIX: Changed <= 0 to < 0 to allow ID 0
+  if (typeof value !== 'number' || !Number.isInteger(value) || value < 0) {
     throw new Error(`ID must be a positive integer, received: ${value}`);
   }
   return value;
