@@ -83,6 +83,35 @@ router.post('/', async (req: Request, res: Response) => {
 });
 
 /**
+ * GET /api/inventory/:id/menu-usage
+ * Get menu items that use a specific inventory ingredient.
+ * (Restored Feature)
+ */
+router.get('/:id/menu-usage', async (req: Request, res: Response) => {
+  let id: number;
+  try {
+    id = validateIdValue(parseInt(req.params.id, 10));
+  } catch {
+    return sendBadRequest(res, 'Invalid item ID');
+  }
+
+  try {
+    const sql = `
+      SELECT m.item_id, m.item_name
+      FROM menuitems m
+      JOIN drinkjointable dj ON m.item_id = dj.drink_id
+      WHERE dj.inventory_id = $1
+      ORDER BY m.item_name ASC
+    `;
+    const result = await db.query(sql, [id]);
+    return sendSuccess(res, result.rows);
+  } catch (error) {
+    console.error(`[Inventory] Usage fetch error for ID ${id}:`, error);
+    return sendError(res, 'Failed to load menu usage data');
+  }
+});
+
+/**
  * PUT /api/inventory/:id
  * Updates an inventory item.
  */
