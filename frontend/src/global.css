@@ -96,3 +96,14 @@ Retrieved 2025-11-09, License - CC BY-SA 4.0
     margin: 0;
   }
 }
+
+/* Font Size Accessibility */
+html[data-font-size="default"] {
+  font-size: 16px;
+}
+html[data-font-size="large"] {
+  font-size: 18px;
+}
+html[data-font-size="extra-large"] {
+  font-size: 20px;
+}

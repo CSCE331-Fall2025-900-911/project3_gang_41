@@ -38,7 +38,11 @@
     "experimental": "Experimental",
     "smoothCursor": "Cursor Suave",
     "tts": "TTS",
-    "highContrast": "Alto Contraste"
+    "highContrast": "Alto Contraste",
+    "fontSize": "Tamaño de Fuente",
+    "fontDefault": "Normal",
+    "fontLarge": "Grande",
+    "fontExtraLarge": "Extra Grande"
   },
   "cashier": {
     "title": "Cajero",

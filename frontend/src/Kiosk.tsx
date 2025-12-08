@@ -21,7 +21,8 @@ import { useCart } from "@/hooks/useCart";
 import { useCustomer } from "@/contexts/CustomerContext";
 import { MemberLoginDialog } from "@/components/MemberLoginDialog";
 import { PastOrdersDialog } from "@/components/PastOrdersDialog";
-import { useAudio } from "@/hooks/useAudio"; 
+import { useAudio } from "@/hooks/useAudio";
+import { useFontSize, type FontSize } from "@/hooks/useFontSize"; 
 import {
   Collapsible,
   CollapsibleContent,
@@ -100,6 +101,7 @@ export default function Kiosk() {
   // -- EXPERIMENTAL MODES --
   const [experimentalMode, setExperimentalMode] = useState(false);
   const [highContrast, setHighContrast] = useState(false);
+  const { fontSize, setFontSize } = useFontSize();
   
   const [customizationDialog, setCustomizationDialog] = useState<{
       open: boolean;
@@ -417,6 +419,21 @@ export default function Kiosk() {
                   checked={highContrast}
                   onCheckedChange={setHighContrast}
                 />
+              </div>
+              <div className="flex items-center justify-between">
+                <label htmlFor="font-size" className="text-sm text-muted-foreground">
+                  {translate('kiosk.fontSize')}
+                </label>
+                <select
+                  id="font-size"
+                  value={fontSize}
+                  onChange={(e) => setFontSize(e.target.value as FontSize)}
+                  className="text-sm border rounded px-2 py-1 bg-background"
+                >
+                  <option value="default">{translate('kiosk.fontDefault')}</option>
+                  <option value="large">{translate('kiosk.fontLarge')}</option>
+                  <option value="extra-large">{translate('kiosk.fontExtraLarge')}</option>
+                </select>
               </div>
             </CollapsibleContent>
           </Collapsible>

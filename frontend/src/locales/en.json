@@ -38,7 +38,11 @@
     "experimental": "Experimental",
     "smoothCursor": "Smooth Cursor",
     "tts": "TTS",
-    "highContrast": "High Contrast"
+    "highContrast": "High Contrast",
+    "fontSize": "Font Size",
+    "fontDefault": "Default",
+    "fontLarge": "Large",
+    "fontExtraLarge": "Extra Large"
   },
   "cashier": {
     "title": "Cashier",
