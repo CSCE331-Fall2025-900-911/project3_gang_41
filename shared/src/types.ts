@@ -50,6 +50,7 @@ export interface DrinkCustomization {
   sweetness: SweetnessLevel;
   ice: IceLevel;
   size: DrinkSize;
+  toppings: string[];
 }
 
 /**
@@ -59,6 +60,7 @@ export const DEFAULT_CUSTOMIZATION: DrinkCustomization = {
   sweetness: 100,
   ice: 'regular',
   size: 'medium',
+  toppings: [],
 } as const;
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -85,7 +87,12 @@ export const generateCartItemId = (
   if (!customization) {
     return `item-${itemId}`;
   }
-  return `item-${itemId}-${customization.size}-${customization.ice}-${customization.sweetness}`;
+  // Sort toppings to ensure order doesn't matter (Boba+Jelly is same as Jelly+Boba)
+  const toppingsStr = customization.toppings 
+    ? customization.toppings.sort().join('+') 
+    : '';
+    
+  return `item-${itemId}-${customization.size}-${customization.ice}-${customization.sweetness}-${toppingsStr}`;
 };
 
 // ─────────────────────────────────────────────────────────────────────────────

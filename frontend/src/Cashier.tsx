@@ -333,6 +333,17 @@ function Cashier() {
                                 {item.customization.ice} {translate("common.ice")}
                               </Badge>
                             )}
+
+                            {/* NEW: Toppings Badges */}
+                            {item.customization.toppings && item.customization.toppings.map((t) => (
+                              <Badge
+                                key={t}
+                                variant="secondary"
+                                className="text-xs capitalize"
+                              >
+                                + {translate(`customization.${t}`)}
+                              </Badge>
+                            ))}
                           </div>
                         )}
                       </div>

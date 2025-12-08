@@ -92,11 +92,12 @@ export function DrinkCustomizationDialog({
   }, [defaultCustomization, open]);
 
   const handleConfirm = () => {
-    // Pass back only the DrinkCustomization fields (ignore extended display-only fields for DB)
+    // UPDATED: Include toppings in the object sent back to parent
     const baseCustomization: DrinkCustomization = {
       size: customization.size,
       sweetness: customization.sweetness,
       ice: customization.ice,
+      toppings: customization.toppings, // <--- PASS THIS THROUGH
     };
     onConfirm(baseCustomization, 1);
     onOpenChange(false);
