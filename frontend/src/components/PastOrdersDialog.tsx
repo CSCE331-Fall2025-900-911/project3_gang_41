@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { fetchApi } from "@/lib/api";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -25,6 +26,7 @@ interface PastOrdersDialogProps {
 }
 
 export function PastOrdersDialog({ open, onOpenChange, customerId, onReorder }: PastOrdersDialogProps) {
+  const { t: translate } = useTranslation();
   const [orders, setOrders] = useState<PastOrder[]>([]);
   const [loading, setLoading] = useState(false);
   const [menuMap, setMenuMap] = useState<Map<string, MenuItem>>(new Map());
@@ -79,7 +81,7 @@ export function PastOrdersDialog({ open, onOpenChange, customerId, onReorder }: 
   };
 
   const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString('en-US', {
+    return new Date(dateString).toLocaleDateString(undefined, {
       month: 'short',
       day: 'numeric',
       hour: 'numeric',
@@ -93,10 +95,10 @@ export function PastOrdersDialog({ open, onOpenChange, customerId, onReorder }: 
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <ShoppingBag className="h-5 w-5" />
-            Order History
+            {translate("pastOrders.title")}
           </DialogTitle>
           <DialogDescription>
-            Select an order to quickly add it to your cart.
+            {translate("pastOrders.selectOrder")}
           </DialogDescription>
         </DialogHeader>
 
@@ -110,7 +112,7 @@ export function PastOrdersDialog({ open, onOpenChange, customerId, onReorder }: 
           ) : orders.length === 0 ? (
             <div className="flex flex-col items-center justify-center h-40 text-center text-muted-foreground gap-2">
               <ShoppingBag className="h-10 w-10 opacity-20" />
-              <p>No past orders found.</p>
+              <p>{translate("pastOrders.noOrders")}</p>
             </div>
           ) : (
             <ScrollArea className="h-[55vh] pr-4">
@@ -163,7 +165,7 @@ export function PastOrdersDialog({ open, onOpenChange, customerId, onReorder }: 
                                   onClick={() => handleReorderClick(order)}
                                 >
                                   <RefreshCw className="h-3 w-3" />
-                                  Order Again
+                                  {translate("pastOrders.orderAgain")}
                                 </Button>
 
                                 {/* Price */}

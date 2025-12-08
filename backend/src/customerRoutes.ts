@@ -116,6 +116,35 @@ router.post('/google', async (req: Request, res: Response) => {
     }
 });
 
-// ... (Order history route remains similar, typically returns aggregate data not strict Customer type)
+// 4. Get Customer Past Orders
+router.get('/:id/orders', async (req: Request, res: Response) => {
+  const id = parseInt(req.params.id, 10);
+  if (isNaN(id)) return sendError(res, 'Invalid Customer ID', 400);
+
+  try {
+    const query = `
+      SELECT 
+        orderid, 
+        MIN(orderdate) as order_date,
+        SUM(totalprice::numeric)::float as total_price,
+        json_agg(json_build_object(
+          'name', itemname, 
+          'qty', quantity, 
+          'id', menuitemid
+        )) as items
+      FROM order_history
+      WHERE customerid = $1
+      GROUP BY orderid
+      ORDER BY orderid DESC
+      LIMIT 20
+    `;
+
+    const result = await db.query(query, [id]);
+    sendSuccess(res, result.rows);
+  } catch (error) {
+    console.error('Error fetching customer orders:', error);
+    sendError(res, 'Failed to fetch orders');
+  }
+});
 
 export default router;

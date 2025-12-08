@@ -437,6 +437,73 @@
     "loginFailed": "Failed to login. Please try again.",
     "googleLoginFailed": "Google login failed. Please try again."
   },
+  "member": {
+    "joinRewards": "Join Rewards",
+    "loginTitle": "Member Login",
+    "notFound": "We didn't find an account. Enter your name below to create one!",
+    "earnPointsDesc": "Earn points on every order. 10 points per $1.",
+    "phone": "Phone",
+    "email": "Email",
+    "google": "Google",
+    "createAccount": "Create Account",
+    "continue": "Continue",
+    "secureLogin": "Secure login via Google",
+    "welcomeBack": "Welcome back, {{name}}!",
+    "regSuccess": "Membership created! 50 points added."
+  },
+  "pastOrders": {
+    "title": "Order History",
+    "selectOrder": "Select an order to quickly add it to your cart.",
+    "noOrders": "No past orders found.",
+    "orderAgain": "Order Again"
+  },
+  "kioskLogin": {
+    "rewardsTitle": "Rewards",
+    "earnPoints": "Earn points on your next order",
+    "enterId": "Enter your ID",
+    "login": "Login",
+    "continueGuest": "Continue without rewards"
+  },
+  "kioskCheckout": {
+    "balance": "Balance:",
+    "pts": "pts",
+    "usePoints": "Use Points?",
+    "saving": "Saving",
+    "maxDiscount": "Max discount:",
+    "pointsDiscount": "Points Discount:",
+    "payNow": "Pay Now",
+    "guestTitle": "Earn Free Drinks? 🥤",
+    "guestDesc": "Join our rewards program now to earn 50 points instantly on this order!",
+    "guestSignup": "Yes! Sign me up",
+    "guestContinue": "No thanks, continue as guest",
+    "successTitle": "Thank You!",
+    "prepMsg": "Your order is being prepared.",
+    "orderNum": "Order Number",
+    "pointsEarned": "Points Earned",
+    "memberThanks": "Thanks for being a member, {{name}}!",
+    "startNew": "Start New Order",
+    "closingIn": "Screen closing in {{seconds}}s"
+  },
+  "print": {
+    "xReport": "X-REPORT",
+    "date": "Date:",
+    "time": "Time:",
+    "salesGross": "Sales (Gross):",
+    "discounts": "Discounts:",
+    "netSales": "Net Sales:",
+    "plusTax": "+ Tax:",
+    "totalCap": "TOTAL:",
+    "cashCalc": "Cash in Drawer (Calc):"
+  },
+  "toasts": {
+    "fillAll": "Please fill in all fields",
+    "copied": "Credentials copied to clipboard",
+    "regFailed": "Registration failed",
+    "loggedOut": "Logged out",
+    "googleFailed": "Google login failed",
+    "shiftClosed": "Shift closed successfully",
+    "failedClose": "Failed to close shift"
+  },
   "aria": {
     "languageToggle": "Change language",
     "selectLanguage": "Select language: {{language}}",

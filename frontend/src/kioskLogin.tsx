@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import { Button } from "@/components/ui/button"
 import {
   Card,
@@ -11,14 +12,15 @@ import { Input } from "@/components/ui/input"
 import { useNavigate } from "react-router-dom"
 
 export default function KioskLogin(){
+    const { t: translate } = useTranslation();
     const navigate = useNavigate()
     return (
         <div className="flex items-center justify-center min-h-screen">
             <Card className="w-full max-w-sm">
                 <CardHeader>
-                    <CardTitle>Rewards</CardTitle>
+                    <CardTitle>{translate("kioskLogin.rewardsTitle")}</CardTitle>
                     <CardDescription>
-                    Earn points on your next order
+                      {translate("kioskLogin.earnPoints")}
                     </CardDescription>
                 </CardHeader>
                 <CardContent>
@@ -28,7 +30,7 @@ export default function KioskLogin(){
                         <Input
                             id="number-input"
                             type="number"
-                            placeholder="Enter your id"
+                            placeholder={translate("kioskLogin.enterId")}
                             required
                         />
                         </div>
@@ -37,10 +39,10 @@ export default function KioskLogin(){
                 </CardContent>
                 <CardFooter className="flex-col gap-2">
                     <Button type="submit" className="w-full" onClick={() => navigate("/kioskmenu")}>
-                        Login
+                        {translate("kioskLogin.login")}
                     </Button>
                     <Button variant="outline" className="w-full" onClick={() => navigate("/kioskmenu")}>
-                        Continue without rewards
+                        {translate("kioskLogin.continueGuest")}
                     </Button>
                 </CardFooter>
             </Card>

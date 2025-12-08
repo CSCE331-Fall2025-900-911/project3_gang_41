@@ -1,4 +1,5 @@
 import { createContext, useContext, useState, ReactNode } from 'react';
+import { useTranslation } from 'react-i18next';
 import { fetchApi } from '@/lib/api';
 import { toast } from 'sonner';
 import type { Customer } from '@project3/shared';
@@ -19,6 +20,7 @@ interface CustomerContextType {
 const CustomerContext = createContext<CustomerContextType | undefined>(undefined);
 
 export function CustomerProvider({ children }: { children: ReactNode }) {
+  const { t: translate } = useTranslation();
   const [customer, setCustomer] = useState<Customer | null>(null);
 
   const loginPhone = async (phone: string) => {
@@ -31,7 +33,7 @@ export function CustomerProvider({ children }: { children: ReactNode }) {
 
       if (res.found && res.customer) {
         setCustomer(res.customer);
-        toast.success(`Welcome back, ${res.customer.customer_name}!`);
+        toast.success(translate("member.welcomeBack", { name: res.customer.customer_name }));
         return true;
       }
       return false; 
@@ -51,7 +53,7 @@ export function CustomerProvider({ children }: { children: ReactNode }) {
 
       if (res.found && res.customer) {
         setCustomer(res.customer);
-        toast.success(`Welcome back, ${res.customer.customer_name}!`);
+        toast.success(translate("member.welcomeBack", { name: res.customer.customer_name }));
         return true;
       }
       return false; 
@@ -69,10 +71,10 @@ export function CustomerProvider({ children }: { children: ReactNode }) {
         body: JSON.stringify({ phone, email, name }),
       });
       setCustomer(newCustomer);
-      toast.success('Membership created! 50 points added.');
+      toast.success(translate("member.regSuccess"));
     } catch (error) {
       console.error(error);
-      toast.error('Registration failed');
+      toast.error(translate("toasts.regFailed"));
     }
   };
 
@@ -84,16 +86,16 @@ export function CustomerProvider({ children }: { children: ReactNode }) {
         body: JSON.stringify({ credential }),
       });
       setCustomer(user);
-      toast.success(`Welcome, ${user.customer_name}!`);
+      toast.success(translate("member.welcomeBack", { name: user.customer_name }));
     } catch (error) {
       console.error(error);
-      toast.error('Google login failed');
+      toast.error(translate("toasts.googleFailed"));
     }
   };
 
   const logoutCustomer = () => {
     setCustomer(null);
-    toast.info('Logged out');
+    toast.info(translate("toasts.loggedOut"));
   };
 
   const refreshCustomer = async () => {

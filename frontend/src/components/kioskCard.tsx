@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import { Button } from "@/components/ui/button"
 import {
   Card,
@@ -10,12 +11,13 @@ import {
 import { Input } from "@/components/ui/input"
 
 export function KioskCard() {
+  const { t: translate } = useTranslation();
   return (
     <Card className="w-full max-w-sm">
       <CardHeader>
-        <CardTitle>Rewards</CardTitle>
+        <CardTitle>{translate("kioskLogin.rewardsTitle")}</CardTitle>
         <CardDescription>
-          Earn points on your next order
+          {translate("kioskLogin.earnPoints")}
         </CardDescription>
       </CardHeader>
       <CardContent>
@@ -25,7 +27,7 @@ export function KioskCard() {
               <Input
                 id="number-input"
                 type="number"
-                placeholder="Enter your id"
+                placeholder={translate("kioskLogin.enterId")}
                 required
               />
             </div>
@@ -34,10 +36,10 @@ export function KioskCard() {
       </CardContent>
       <CardFooter className="flex-col gap-2">
         <Button type="submit" className="w-full">
-          Login
+          {translate("kioskLogin.login")}
         </Button>
         <Button variant="outline" className="w-full">
-          Continue without rewards
+          {translate("kioskLogin.continueGuest")}
         </Button>
       </CardFooter>
     </Card>

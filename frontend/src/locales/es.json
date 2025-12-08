@@ -437,6 +437,73 @@
     "loginFailed": "Error al iniciar sesión. Por favor intenta de nuevo.",
     "googleLoginFailed": "Error de inicio de sesión con Google. Por favor intenta de nuevo."
   },
+  "member": {
+    "joinRewards": "Únete a Recompensas",
+    "loginTitle": "Acceso Miembros",
+    "notFound": "No encontramos una cuenta. ¡Ingresa tu nombre para crear una!",
+    "earnPointsDesc": "Gana puntos en cada pedido. 10 puntos por $1.",
+    "phone": "Teléfono",
+    "email": "Correo",
+    "google": "Google",
+    "createAccount": "Crear Cuenta",
+    "continue": "Continuar",
+    "secureLogin": "Acceso seguro vía Google",
+    "welcomeBack": "¡Bienvenido de nuevo, {{name}}!",
+    "regSuccess": "¡Membresía creada! 50 puntos agregados."
+  },
+  "pastOrders": {
+    "title": "Historial de Pedidos",
+    "selectOrder": "Selecciona un pedido para agregarlo rápidamente al carrito.",
+    "noOrders": "No se encontraron pedidos anteriores.",
+    "orderAgain": "Pedir de Nuevo"
+  },
+  "kioskLogin": {
+    "rewardsTitle": "Recompensas",
+    "earnPoints": "Gana puntos en tu próximo pedido",
+    "enterId": "Ingresa tu ID",
+    "login": "Ingresar",
+    "continueGuest": "Continuar sin recompensas"
+  },
+  "kioskCheckout": {
+    "balance": "Balance:",
+    "pts": "pts",
+    "usePoints": "¿Usar Puntos?",
+    "saving": "Ahorrando",
+    "maxDiscount": "Descuento máx:",
+    "pointsDiscount": "Descuento de Puntos:",
+    "payNow": "Pagar Ahora",
+    "guestTitle": "¿Bebidas Gratis? 🥤",
+    "guestDesc": "¡Únete a nuestro programa de recompensas y gana 50 puntos en este pedido!",
+    "guestSignup": "¡Sí! Regístrame",
+    "guestContinue": "No gracias, continuar como invitado",
+    "successTitle": "¡Gracias!",
+    "prepMsg": "Tu pedido se está preparando.",
+    "orderNum": "Número de Pedido",
+    "pointsEarned": "Puntos Ganados",
+    "memberThanks": "¡Gracias por ser miembro, {{name}}!",
+    "startNew": "Iniciar Nuevo Pedido",
+    "closingIn": "Cerrando en {{seconds}}s"
+  },
+  "print": {
+    "xReport": "REPORTE-X",
+    "date": "Fecha:",
+    "time": "Hora:",
+    "salesGross": "Ventas (Brutas):",
+    "discounts": "Descuentos:",
+    "netSales": "Ventas Netas:",
+    "plusTax": "+ Impuesto:",
+    "totalCap": "TOTAL:",
+    "cashCalc": "Efectivo en Caja (Calc):"
+  },
+  "toasts": {
+    "fillAll": "Por favor completa todos los campos",
+    "copied": "Credenciales copiadas al portapapeles",
+    "regFailed": "Registro fallido",
+    "loggedOut": "Sesión cerrada",
+    "googleFailed": "Fallo el inicio de sesión con Google",
+    "shiftClosed": "Turno cerrado exitosamente",
+    "failedClose": "Error al cerrar turno"
+  },
   "aria": {
     "languageToggle": "Cambiar idioma",
     "selectLanguage": "Seleccionar idioma: {{language}}",

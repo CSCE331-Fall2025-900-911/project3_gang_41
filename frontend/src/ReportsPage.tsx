@@ -105,15 +105,15 @@ export default function ReportsPage() {
 
   const loadXReport = useCallback(async () => {
     setLoading(true);
-    try {
-      const data = await fetchApi<XReportData>('/api/reports/x-report');
-      setXReport(data);
-    } catch (error) {
-      console.error(error);
-      toast.error("Failed to load X-Report data");
-    } finally {
-      setLoading(false);
-    }
+            try {
+            const data = await fetchApi<XReportData>('/api/reports/x-report');
+            setXReport(data);
+        } catch (error) {
+            console.error(error);
+            toast.error(translate("reports.failedToLoad") || "Failed to load X-Report data");
+        } finally {
+            setLoading(false);
+        }
   }, []);
 
   const loadHistory = useCallback(async () => {
@@ -155,14 +155,14 @@ export default function ReportsPage() {
         })
       });
 
-      toast.success(translate("reports.thresholdsUpdated") || "Shift closed successfully");
+    toast.success(translate("toasts.shiftClosed"));
       setCloseDayOpen(false);
       setCountedCash("");
       setXReport(null);
       setActiveTab("history");
     } catch (error: any) {
       console.error(error);
-      toast.error(error.message || "Failed to close shift");
+    toast.error(error.message || translate("toasts.failedClose"));
     } finally {
       setIsSubmitting(false);
     }
@@ -303,19 +303,19 @@ export default function ReportsPage() {
                             </CardHeader>
                             <CardContent className="space-y-2">
                                 <div className="bg-white border rounded-md p-6 max-w-md mx-auto shadow-sm font-mono text-sm">
-                                    <div className="text-center font-bold text-lg mb-4">X-REPORT</div>
-                                    <div className="flex justify-between py-1 border-b"><span>Date:</span><span>{new Date().toLocaleDateString()}</span></div>
-                                    <div className="flex justify-between py-1 border-b"><span>Time:</span><span>{new Date().toLocaleTimeString()}</span></div>
+                                    <div className="text-center font-bold text-lg mb-4">{translate("print.xReport")}</div>
+                                    <div className="flex justify-between py-1 border-b"><span>{translate("print.date")}</span><span>{new Date().toLocaleDateString()}</span></div>
+                                    <div className="flex justify-between py-1 border-b"><span>{translate("print.time")}</span><span>{new Date().toLocaleTimeString()}</span></div>
                                     
                                     <div className="py-4 space-y-1">
-                                        <div className="flex justify-between"><span>Sales (Gross):</span><span>{formatCurrency(xReport?.grossSales || 0)}</span></div>
-                                        <div className="flex justify-between text-muted-foreground"><span>- Discounts:</span><span>{formatCurrency(xReport?.discounts || 0)}</span></div>
-                                        <div className="flex justify-between font-bold pt-2"><span>Net Sales:</span><span>{formatCurrency(xReport?.netSales || 0)}</span></div>
-                                        <div className="flex justify-between"><span>+ Tax:</span><span>{formatCurrency(xReport?.tax || 0)}</span></div>
-                                        <div className="flex justify-between font-bold border-t border-black pt-2 mt-2"><span>TOTAL:</span><span>{formatCurrency(xReport?.grossSales || 0)}</span></div>
+                                        <div className="flex justify-between"><span>{translate("print.salesGross")}</span><span>{formatCurrency(xReport?.grossSales || 0)}</span></div>
+                                        <div className="flex justify-between text-muted-foreground"><span>- {translate("print.discounts")}</span><span>{formatCurrency(xReport?.discounts || 0)}</span></div>
+                                        <div className="flex justify-between font-bold pt-2"><span>{translate("print.netSales")}</span><span>{formatCurrency(xReport?.netSales || 0)}</span></div>
+                                        <div className="flex justify-between"><span>{translate("print.plusTax")}</span><span>{formatCurrency(xReport?.tax || 0)}</span></div>
+                                        <div className="flex justify-between font-bold border-t border-black pt-2 mt-2"><span>{translate("print.totalCap")}</span><span>{formatCurrency(xReport?.grossSales || 0)}</span></div>
                                     </div>
                                     <div className="py-2 border-t border-dashed">
-                                        <div className="flex justify-between"><span>Cash in Drawer (Calc):</span><span>{formatCurrency(expectedCash)}</span></div>
+                                        <div className="flex justify-between"><span>{translate("print.cashCalc")}</span><span>{formatCurrency(expectedCash)}</span></div>
                                     </div>
                                 </div>
                             </CardContent>

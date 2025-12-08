@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from "react";
+import { useTranslation } from "react-i18next";
 import { useCustomer } from "@/contexts/CustomerContext";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -15,6 +16,7 @@ interface MemberLoginDialogProps {
 }
 
 export function MemberLoginDialog({ open, onOpenChange }: MemberLoginDialogProps) {
+  const { t: translate } = useTranslation();
   const { loginPhone, loginEmail, registerCustomer, loginGoogleCustomer } = useCustomer();
   
   const [activeTab, setActiveTab] = useState("phone");
@@ -153,25 +155,25 @@ export function MemberLoginDialog({ open, onOpenChange }: MemberLoginDialogProps
             {isRegistering ? (
               <>
                 <UserPlus className="h-8 w-8 text-primary" />
-                Join Rewards
+                {translate("member.joinRewards")}
               </>
             ) : (
-              "Member Login"
+              translate("member.loginTitle")
             )}
           </DialogTitle>
           <DialogDescription className="text-center text-base">
              {isRegistering 
-               ? "We didn't find an account. Enter your name below to create one!" 
-               : "Earn points on every order. 10 points per $1."}
+               ? translate("member.notFound") 
+               : translate("member.earnPointsDesc")}
           </DialogDescription>
         </DialogHeader>
 
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
           {!isRegistering && (
             <TabsList className="grid w-full grid-cols-3 mb-6 h-12">
-              <TabsTrigger value="phone" className="text-lg"><Phone className="w-5 h-5 mr-2"/> Phone</TabsTrigger>
-              <TabsTrigger value="email" className="text-lg"><Mail className="w-5 h-5 mr-2"/> Email</TabsTrigger>
-              <TabsTrigger value="google" className="text-lg">Google</TabsTrigger>
+              <TabsTrigger value="phone" className="text-lg"><Phone className="w-5 h-5 mr-2"/> {translate("member.phone")}</TabsTrigger>
+              <TabsTrigger value="email" className="text-lg"><Mail className="w-5 h-5 mr-2"/> {translate("member.email")}</TabsTrigger>
+              <TabsTrigger value="google" className="text-lg">{translate("member.google")}</TabsTrigger>
             </TabsList>
           )}
 
@@ -193,7 +195,7 @@ export function MemberLoginDialog({ open, onOpenChange }: MemberLoginDialogProps
                <div className="animate-in slide-in-from-right fade-in duration-300 space-y-2">
                   <Input 
                     ref={nameInputRef}
-                    placeholder="Enter First Name" 
+                    placeholder={translate("member.notFound")}
                     className="text-center text-2xl h-16 bg-muted/30 border-slate-300"
                     value={newName}
                     onChange={(e) => setNewName(e.target.value)}
@@ -238,11 +240,11 @@ export function MemberLoginDialog({ open, onOpenChange }: MemberLoginDialogProps
                                 {email}
                             </div>
                             <Input 
-                                ref={nameInputRef}
-                                placeholder="Enter First Name" 
-                                className="text-center text-2xl h-16 bg-muted/30 border-slate-300"
-                                value={newName}
-                                onChange={(e) => setNewName(e.target.value)}
+                              ref={nameInputRef}
+                              placeholder={translate("member.notFound")} 
+                              className="text-center text-2xl h-16 bg-muted/30 border-slate-300"
+                              value={newName}
+                              onChange={(e) => setNewName(e.target.value)}
                             />
                         </div>
                     )}
@@ -274,7 +276,7 @@ export function MemberLoginDialog({ open, onOpenChange }: MemberLoginDialogProps
                   width="400"
                   size="large"
                 />
-                <p className="text-base text-muted-foreground">Secure login via Google</p>
+                <p className="text-base text-muted-foreground">{translate("member.secureLogin")}</p>
             </div>
           </TabsContent>
         </Tabs>

@@ -306,7 +306,7 @@ export default function Kiosk() {
                       <h3 className="font-bold text-sm truncate w-40">{customer.customer_name}</h3>
                       <div className="flex items-center gap-1 text-amber-500 font-bold text-sm">
                         <Star className="h-3 w-3 fill-current" />
-                        {customer.points} pts
+                        {customer.points} {translate("kioskCheckout.pts")}
                       </div>
                     </div>
                   </div>
@@ -318,7 +318,7 @@ export default function Kiosk() {
                       className="h-8 text-xs gap-1 px-1" 
                       onClick={() => setHistoryOpen(true)}
                     >
-                      <History className="h-4 w-4" /> History
+                      <History className="h-4 w-4" /> {translate("manager.categories.history")}
                     </Button>
                     <Button 
                       variant="ghost" 
@@ -326,7 +326,7 @@ export default function Kiosk() {
                       className="h-8 text-xs gap-1 px-1 text-muted-foreground hover:text-destructive hover:bg-destructive/10" 
                       onClick={logoutCustomer}
                     >
-                      <LogOut className="h-4 w-4" /> Logout
+                      <LogOut className="h-4 w-4" /> {translate('common.logout')}
                     </Button>
                   </div>
                 </div>
@@ -344,7 +344,7 @@ export default function Kiosk() {
               onClick={() => setLoginOpen(true)}
             >
               <User className="h-5 w-5" />
-              Member Login
+              {translate("member.loginTitle")}
             </Button>
           )}
         </div>
@@ -579,7 +579,7 @@ export default function Kiosk() {
                       <div className="flex items-center justify-between mb-2">
                         <div className="flex items-center gap-2">
                             <Star className="h-4 w-4 text-amber-500 fill-current" />
-                            <span className="font-semibold text-amber-900">Use Points?</span>
+                            <span className="font-semibold text-amber-900">{translate("kioskCheckout.usePoints")}</span>
                         </div>
                         <Switch 
                             checked={usePoints} 
@@ -588,14 +588,14 @@ export default function Kiosk() {
                         />
                       </div>
                       <div className="text-sm text-amber-800">
-                        Balance: <strong>{customer.points}</strong> pts.
+                        {translate("kioskCheckout.balance")} <strong>{customer.points}</strong> {translate("kioskCheckout.pts")}
                         {usePoints ? (
                             <div className="mt-1 font-bold text-green-600">
-                              Saving ${discountAmount.toFixed(2)} (-{pointsToBurn} pts)
+                              {translate("kioskCheckout.saving")} ${discountAmount.toFixed(2)} (-{pointsToBurn} {translate("kioskCheckout.pts")})
                             </div>
                         ) : (
                             <div className="mt-1">
-                              Max discount: <strong>${maxDiscount.toFixed(2)}</strong>
+                              {translate("kioskCheckout.maxDiscount")} <strong>${maxDiscount.toFixed(2)}</strong>
                             </div>
                         )}
                       </div>
@@ -632,7 +632,7 @@ export default function Kiosk() {
                 </div>
 
                 <Button size="lg" className="w-full h-14 text-xl" onClick={handleCheckout} disabled={isSubmitting}>
-                  {isSubmitting ? <Loader2 className="animate-spin" /> : "Pay Now"}
+                  {isSubmitting ? <Loader2 className="animate-spin" /> : translate("kioskCheckout.payNow")}
                 </Button>
               </div>
             </div>
@@ -644,10 +644,10 @@ export default function Kiosk() {
       <Dialog open={guestDialog} onOpenChange={setGuestDialog}>
          <DialogContent className="sm:max-w-md">
             <DialogHeader>
-               <DialogTitle className="text-center text-2xl">Earn Free Drinks? 🥤</DialogTitle>
-               <DialogDescription className="text-center text-base">
-                  Join our rewards program now to earn <strong>50 points</strong> instantly on this order!
-               </DialogDescription>
+              <DialogTitle className="text-center text-2xl">{translate("kioskCheckout.guestTitle")}</DialogTitle>
+              <DialogDescription className="text-center text-base">
+                {translate("kioskCheckout.guestDesc")}
+              </DialogDescription>
             </DialogHeader>
             <div className="grid gap-3 mt-4">
                <Button 
@@ -655,14 +655,14 @@ export default function Kiosk() {
                   className="w-full text-lg h-12 font-semibold" 
                   onClick={() => { setGuestDialog(false); setLoginOpen(true); }}
                >
-                  Yes! Sign me up
+                  {translate("kioskCheckout.guestSignup")}
                </Button>
                <Button 
                   variant="ghost" 
                   className="text-muted-foreground" 
                   onClick={() => { setGuestDialog(false); setDrawerOpen(true); }}
                >
-                  No thanks, continue as guest
+                  {translate("kioskCheckout.guestContinue")}
                </Button>
             </div>
          </DialogContent>
@@ -703,6 +703,7 @@ export default function Kiosk() {
 function SuccessDialog({ data, open, onOpenChange }: { data: SuccessData | null, open: boolean, onOpenChange: (open: boolean) => void }) {
   // UseRef for callback stability
   const closeRef = useRef(onOpenChange);
+  const { t: translate } = useTranslation();
   useEffect(() => { closeRef.current = onOpenChange; }, [onOpenChange]);
 
   // COUNTDOWN STATE
@@ -737,22 +738,22 @@ function SuccessDialog({ data, open, onOpenChange }: { data: SuccessData | null,
           </div>
           
           <div className="space-y-2">
-            <DialogTitle className="text-3xl font-bold tracking-tight text-center">Thank You!</DialogTitle>
+            <DialogTitle className="text-3xl font-bold tracking-tight text-center">{translate("kioskCheckout.successTitle")}</DialogTitle>
             <DialogDescription className="text-center text-lg">
-              Your order is being prepared.
+              {translate("kioskCheckout.prepMsg")}
             </DialogDescription>
           </div>
 
           <div className="bg-muted/50 w-full rounded-lg p-6 space-y-4">
             <div className="flex justify-between items-center border-b pb-4">
-              <span className="text-muted-foreground">Order Number</span>
+              <span className="text-muted-foreground">{translate("kioskCheckout.orderNum")}</span>
               <span className="font-mono text-xl font-bold">#{data.orderId}</span>
             </div>
             
             {data.pointsEarned > 0 && (
               <div className="flex justify-between items-center text-amber-600">
                 <span className="flex items-center gap-2 font-medium">
-                  <Star className="h-4 w-4 fill-current" /> Points Earned
+                  <Star className="h-4 w-4 fill-current" /> {translate("kioskCheckout.pointsEarned")}
                 </span>
                 <span className="text-xl font-bold">+{data.pointsEarned}</span>
               </div>
@@ -761,16 +762,16 @@ function SuccessDialog({ data, open, onOpenChange }: { data: SuccessData | null,
 
           {data.customerName && (
             <p className="text-sm text-muted-foreground">
-              Thanks for being a member, <strong>{data.customerName}</strong>!
+              {translate("kioskCheckout.memberThanks", { name: data.customerName })}
             </p>
           )}
 
           <div className="w-full">
             <Button size="lg" className="w-full text-lg h-14 mt-2" onClick={() => onOpenChange(false)}>
-                Start New Order
+              {translate("kioskCheckout.startNew")}
             </Button>
             <p className="text-xs text-muted-foreground mt-4 animate-pulse">
-                Screen closing in {countdown}s
+              {translate("kioskCheckout.closingIn", { seconds: countdown })}
             </p>
           </div>
         </div>

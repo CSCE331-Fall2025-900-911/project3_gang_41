@@ -1170,6 +1170,19 @@ function QuickUnits({
   const [newUnit, setNewUnit] = useState('');
   const [showAdd, setShowAdd] = useState(false);
 
+  const getDisplayUnit = (unit: string) => {
+     // Attempt to use a translation key for builtin units if available
+     try {
+       const key = `units.${unit.replace(/\s+/g, '_')}`;
+       const translated = translate(key);
+       // If the translator returns the key itself, fall back to the raw unit
+       if (!translated || translated === key) return unit;
+       return translated;
+     } catch {
+       return unit;
+     }
+  };
+
   const handleAdd = () => {
     if (newUnit.trim()) {
       onAdd(newUnit.trim());
@@ -1197,7 +1210,7 @@ function QuickUnits({
       </div>
 
       <div className="flex flex-wrap gap-2">
-        {units.map((unit) => {
+                {units.map((unit) => {
           const isCustom = !builtins.includes(unit);
           return (
             <div key={unit} className="group relative">
@@ -1208,7 +1221,7 @@ function QuickUnits({
                 onClick={() => onSelect(unit === selected ? '' : unit)}
                 className="h-8 pr-2"
               >
-                {unit}
+                {getDisplayUnit(unit)}
               </Button>
               {isCustom && (
                 <button
