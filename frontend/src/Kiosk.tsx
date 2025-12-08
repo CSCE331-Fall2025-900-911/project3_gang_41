@@ -183,22 +183,25 @@ export default function Kiosk() {
     }
   };
 
-  const handleCustomizationConfirm = (customization: DrinkCustomization) => {
+  const handleCustomizationConfirm = (customization: DrinkCustomization, quantity: number) => {
     if (!customizationDialog.item) return;
 
     if (customizationDialog.editingCartItem) {
       updateCartItem(customizationDialog.editingCartItem.uniqueId, { customization });
     } else {
-      const newCartItem: CartItem = {
-        item_id: customizationDialog.item.item_id,
-        item_name: customizationDialog.item.item_name,
-        cost: customizationDialog.item.cost,
-        quantity: 1,
-        customization,
-        // UPDATED: Use Shared ID generator + timestamp
-        uniqueId: `${generateCartItemId(customizationDialog.item.item_id, customization)}-${Date.now()}`,
-      };
-      addToCart(newCartItem);
+      // Add multiple items based on quantity
+      for (let i = 0; i < quantity; i++) {
+        const newCartItem: CartItem = {
+          item_id: customizationDialog.item.item_id,
+          item_name: customizationDialog.item.item_name,
+          cost: customizationDialog.item.cost,
+          quantity: 1,
+          customization,
+          // UPDATED: Use Shared ID generator + timestamp + index for uniqueness
+          uniqueId: `${generateCartItemId(customizationDialog.item.item_id, customization)}-${Date.now()}-${i}`,
+        };
+        addToCart(newCartItem);
+      }
       if (ttsEnabled) play('drink');
 
       setButtonPulse(true);

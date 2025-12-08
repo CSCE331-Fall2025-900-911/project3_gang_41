@@ -125,7 +125,7 @@ export function LoginForm({
           </form>
           <div className="bg-muted relative hidden md:block">
             <img
-              src="/images/strawberry_milk_slush.jpg"
+              src="/images/matcha_milk.jpg"
               alt="Boba Tea"
               className="absolute inset-0 h-full w-full object-cover dark:brightness-[0.2] dark:grayscale"
             />

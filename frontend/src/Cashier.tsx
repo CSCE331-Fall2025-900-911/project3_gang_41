@@ -129,7 +129,7 @@ function Cashier() {
     }
   };
 
-  const handleCustomizationConfirm = (customization: DrinkCustomization) => {
+  const handleCustomizationConfirm = (customization: DrinkCustomization, quantity: number) => {
     if (!customizationDialog.item) return;
 
     if (customizationDialog.editingCartItem) {
@@ -138,17 +138,19 @@ function Cashier() {
         customization,
       });
     } else {
-      // Adding new item to cart
-      // UPDATED: Use Shared ID generator + timestamp for unique rows
-      const newCartItem: CartItem = {
-        item_id: customizationDialog.item.item_id,
-        item_name: customizationDialog.item.item_name,
-        cost: customizationDialog.item.cost,
-        quantity: 1,
-        customization,
-        uniqueId: `${generateCartItemId(customizationDialog.item.item_id, customization)}-${Date.now()}`,
-      };
-      addToCart(newCartItem);
+      // Adding new items to cart based on quantity
+      for (let i = 0; i < quantity; i++) {
+        const newCartItem: CartItem = {
+          item_id: customizationDialog.item.item_id,
+          item_name: customizationDialog.item.item_name,
+          cost: customizationDialog.item.cost,
+          quantity: 1,
+          customization,
+          // UPDATED: Use Shared ID generator + timestamp + index for unique rows
+          uniqueId: `${generateCartItemId(customizationDialog.item.item_id, customization)}-${Date.now()}-${i}`,
+        };
+        addToCart(newCartItem);
+      }
     }
 
     setCustomizationDialog({ open: false, item: null, editingCartItem: null });
