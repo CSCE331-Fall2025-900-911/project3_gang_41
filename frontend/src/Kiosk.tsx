@@ -21,6 +21,7 @@ import { useCart } from "@/hooks/useCart";
 import { useCustomer } from "@/contexts/CustomerContext";
 import { MemberLoginDialog } from "@/components/MemberLoginDialog";
 import { PastOrdersDialog } from "@/components/PastOrdersDialog";
+import { CustomizationBadges } from "@/components/CustomizationBadges";
 import { useAudio } from "@/hooks/useAudio";
 import { useFontSize, type FontSize } from "@/hooks/useFontSize"; 
 import {
@@ -562,32 +563,7 @@ export default function Kiosk() {
                             </div>
                             
                             {item.customization && (
-                              <div className="flex flex-wrap gap-1 mt-1">
-                                <Badge variant="secondary" className="text-xs uppercase">
-                                  {item.customization.size.charAt(0)}
-                                </Badge>
-                                {item.customization.sweetness !== 100 && (
-                                  <Badge variant="secondary" className="text-xs">
-                                    {item.customization.sweetness}% {translate('common.sweet')}
-                                  </Badge>
-                                )}
-                                {item.customization.ice !== 'regular' && (
-                                  <Badge variant="secondary" className="text-xs capitalize">
-                                    {item.customization.ice} {translate('common.ice')}
-                                  </Badge>
-                                )}
-
-                                {/* NEW: Toppings Badges */}
-                                {item.customization.toppings && item.customization.toppings.map((t) => (
-                                  <Badge
-                                    key={t}
-                                    variant="secondary"
-                                    className="text-xs capitalize"
-                                  >
-                                    + {translate(`customization.${t}`)}
-                                  </Badge>
-                                ))}
-                              </div>
+                              <CustomizationBadges customization={item.customization} size="sm" />
                             )}
                           </div>
                         </div>

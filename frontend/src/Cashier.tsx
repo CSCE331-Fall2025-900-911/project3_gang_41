@@ -39,6 +39,7 @@ import {
   Banknote,
 } from "lucide-react";
 import { DrinkCustomizationDialog } from "@/components/DrinkCustomizationDialog";
+import { CustomizationBadges } from "@/components/CustomizationBadges";
 import { useCart } from "@/hooks/useCart";
 import { ModeToggle } from "@/components/ModeToggle";
 import { LanguageToggle } from "@/components/LanguageToggle";
@@ -310,41 +311,7 @@ function Cashier() {
                           ${item.cost.toFixed(2)} {translate("common.each")}
                         </p>
                         {item.customization && (
-                          <div className="flex flex-wrap gap-1 mt-2">
-                            {/* Size - always show, display as single letter uppercase */}
-                            <Badge
-                              variant="secondary"
-                              className="text-xs uppercase"
-                            >
-                              {item.customization.size.charAt(0)}
-                            </Badge>
-                            {/* Sweetness - only show if not default (100) */}
-                            {item.customization.sweetness !== 100 && (
-                              <Badge variant="secondary" className="text-xs">
-                                {item.customization.sweetness}% {translate("common.sweet")}
-                              </Badge>
-                            )}
-                            {/* Ice - only show if not default (regular) */}
-                            {item.customization.ice !== "regular" && (
-                              <Badge
-                                variant="secondary"
-                                className="text-xs capitalize"
-                              >
-                                {item.customization.ice} {translate("common.ice")}
-                              </Badge>
-                            )}
-
-                            {/* NEW: Toppings Badges */}
-                            {item.customization.toppings && item.customization.toppings.map((t) => (
-                              <Badge
-                                key={t}
-                                variant="secondary"
-                                className="text-xs capitalize"
-                              >
-                                + {translate(`customization.${t}`)}
-                              </Badge>
-                            ))}
-                          </div>
+                          <CustomizationBadges customization={item.customization} size="sm" />
                         )}
                       </div>
                       <div className="flex gap-1">

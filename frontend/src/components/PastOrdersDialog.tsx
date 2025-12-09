@@ -7,6 +7,7 @@ import { Calendar, ShoppingBag, Star, RefreshCw } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
+import { CustomizationBadges } from "@/components/CustomizationBadges";
 import { formatCurrency } from "@/lib/utils";
 import { 
     type CartItem, 
@@ -156,7 +157,7 @@ export function PastOrdersDialog({ open, onOpenChange, customerId, onReorder }: 
                             </div>
                             
                             {/* Items */}
-                            <div className="space-y-2 mb-4">
+                            <div className="space-y-3 mb-4">
                                 {order.items.map((item, idx) => (
                                     <div key={idx} className="flex flex-col gap-1">
                                       <div className="flex justify-between text-sm items-center">
@@ -168,35 +169,7 @@ export function PastOrdersDialog({ open, onOpenChange, customerId, onReorder }: 
                                       
                                       {/* UPDATED: Customization Badges (Cashier Style) */}
                                       {item.customization && (
-                                        <div className="flex flex-wrap gap-1 ml-1 mt-1">
-                                          {/* Size */}
-                                          {item.customization.size && (
-                                            <Badge variant="secondary" className="text-[10px] uppercase h-5 px-1.5">
-                                              {item.customization.size.charAt(0)}
-                                            </Badge>
-                                          )}
-                                          
-                                          {/* Sweetness */}
-                                          {item.customization.sweetness !== undefined && item.customization.sweetness !== 100 && (
-                                            <Badge variant="secondary" className="text-[10px] h-5 px-1.5">
-                                              {item.customization.sweetness}% {translate("common.sweet")}
-                                            </Badge>
-                                          )}
-
-                                          {/* Ice */}
-                                          {item.customization.ice && item.customization.ice !== 'regular' && (
-                                            <Badge variant="secondary" className="text-[10px] capitalize h-5 px-1.5">
-                                              {item.customization.ice} {translate("common.ice")}
-                                            </Badge>
-                                          )}
-
-                                          {/* Toppings (Translated & Prefixed) */}
-                                          {item.customization.toppings?.map((topping, tIdx) => (
-                                            <Badge key={tIdx} variant="secondary" className="text-[10px] capitalize h-5 px-1.5">
-                                              + {translate(`customization.${topping}`)}
-                                            </Badge>
-                                          ))}
-                                        </div>
+                                        <CustomizationBadges customization={item.customization} size="sm" className="mt-1" />
                                       )}
                                     </div>
                                 ))}

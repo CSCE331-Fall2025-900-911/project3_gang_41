@@ -51,6 +51,7 @@ export interface DrinkCustomization {
   sweetness: SweetnessLevel;
   ice: IceLevel;
   size: DrinkSize;
+  temperature?: 'hot' | 'cold';
   toppings: string[];
 }
 
@@ -61,6 +62,7 @@ export const DEFAULT_CUSTOMIZATION: DrinkCustomization = {
   sweetness: 100,
   ice: 'regular',
   size: 'medium',
+  temperature: 'cold',
   toppings: [],
 } as const;
 

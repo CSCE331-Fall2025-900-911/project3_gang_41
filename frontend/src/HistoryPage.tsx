@@ -11,6 +11,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { CustomizationBadges } from "@/components/CustomizationBadges";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
 import { ChevronDown, ChevronUp, Loader2, ReceiptText, Search, X } from "lucide-react";
@@ -326,35 +327,7 @@ export default function HistoryPage() {
                                   @ {formatCurrency(it.unitPrice)} {translate("history.each")}
                                 </div>
                                 {it.customization && (
-                                  <div className="flex flex-wrap gap-1 mt-1">
-                                    {/* Size (Single Letter) */}
-                                    {it.customization.size && (
-                                      <Badge variant="secondary" className="text-xs h-5 px-1.5 uppercase">
-                                        {it.customization.size.charAt(0)}
-                                      </Badge>
-                                    )}
-                                    
-                                    {/* Sweetness (Suffix + Hide Default) */}
-                                    {it.customization.sweetness !== undefined && it.customization.sweetness !== 100 && (
-                                      <Badge variant="secondary" className="text-xs h-5 px-1.5">
-                                        {it.customization.sweetness}% {translate("common.sweet")}
-                                      </Badge>
-                                    )}
-                                    
-                                    {/* Ice (Suffix + Hide Default) */}
-                                    {it.customization.ice && it.customization.ice !== 'regular' && (
-                                      <Badge variant="secondary" className="text-xs h-5 px-1.5 capitalize">
-                                        {it.customization.ice} {translate("common.ice")}
-                                      </Badge>
-                                    )}
-                                    
-                                    {/* Toppings (Translated + Plus Prefix) */}
-                                    {it.customization.toppings?.map((topping, idx) => (
-                                      <Badge key={idx} variant="secondary" className="text-xs h-5 px-1.5 capitalize">
-                                        + {translate(`customization.${topping}`)}
-                                      </Badge>
-                                    ))}
-                                  </div>
+                                  <CustomizationBadges customization={it.customization} size="sm" />
                                 )}
                               </div>
                             </div>

@@ -77,6 +77,7 @@ export function DrinkCustomizationDialog({
       size: customization.size,
       sweetness: customization.sweetness,
       ice: customization.ice,
+      temperature: customization.temperature,
       toppings: customization.toppings,
     };
     onConfirm(baseCustomization, 1);
