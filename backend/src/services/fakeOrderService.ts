@@ -1,6 +1,18 @@
 import db, { runTransaction } from '../db';
 import { executeInventoryDeduction } from './inventoryService';
-import { MenuItem, MS_PER_DAY, PaymentMethod, DrinkCustomization } from '@project3/shared';
+import { 
+  MenuItem, 
+  MS_PER_DAY, 
+  PaymentMethod, 
+  DrinkCustomization,
+  // Import Constants to ensure data matches frontend logic exactly
+  TOPPING_OPTIONS,
+  SWEETNESS_OPTIONS,
+  ICE_OPTIONS,
+  SIZE_OPTIONS,
+  SIZE_PRICE_MODIFIERS,
+  TOPPING_PRICE
+} from '@project3/shared';
 import type { PoolClient } from 'pg';
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -8,19 +20,11 @@ import type { PoolClient } from 'pg';
 // ─────────────────────────────────────────────────────────────────────────────
 
 const BUSINESS_TZ = 'America/Chicago';
-
-// Explicitly typed array matching Shared Type
 const VALID_PAYMENT_METHODS: PaymentMethod[] = ['cash', 'card', 'digital'];
-
-// Customization options for realistic fake orders
-const VALID_SWEETNESS_LEVELS: DrinkCustomization['sweetness'][] = [0, 25, 50, 75, 100, 125, 150];
-const VALID_ICE_LEVELS: DrinkCustomization['ice'][] = ['regular', 'light', 'none'];
-const VALID_SIZES: DrinkCustomization['size'][] = ['small', 'medium', 'large'];
-const VALID_TOPPINGS: string[] = ['Boba', 'Jelly', 'Coconut Flakes', 'Pudding', 'Red Bean'];
 
 /**
  * Generates a realistic drink customization for fake orders.
- * Most drinks will have customizations, but some will be basic.
+ * Uses the EXACT keys from shared/constants to ensure badges render correctly.
  */
 function generateRandomCustomization(): DrinkCustomization | null {
   // 70% chance of having customizations, 30% basic drink
@@ -30,21 +34,48 @@ function generateRandomCustomization(): DrinkCustomization | null {
 
   const numToppings = Math.floor(Math.random() * 3); // 0-2 toppings
   const toppings: string[] = [];
-  const availableToppings = [...VALID_TOPPINGS];
+  
+  // Create a mutable copy of the readonly constant to pick from
+  const availableToppings = [...TOPPING_OPTIONS];
   
   for (let i = 0; i < numToppings; i++) {
     if (availableToppings.length === 0) break;
     const index = Math.floor(Math.random() * availableToppings.length);
+    // Splice ensures we don't pick the same topping twice
     toppings.push(availableToppings.splice(index, 1)[0]);
   }
 
   return {
-    sweetness: VALID_SWEETNESS_LEVELS[Math.floor(Math.random() * VALID_SWEETNESS_LEVELS.length)],
-    ice: VALID_ICE_LEVELS[Math.floor(Math.random() * VALID_ICE_LEVELS.length)],
-    size: VALID_SIZES[Math.floor(Math.random() * VALID_SIZES.length)],
+    sweetness: SWEETNESS_OPTIONS[Math.floor(Math.random() * SWEETNESS_OPTIONS.length)],
+    ice: ICE_OPTIONS[Math.floor(Math.random() * ICE_OPTIONS.length)],
+    size: SIZE_OPTIONS[Math.floor(Math.random() * SIZE_OPTIONS.length)],
     temperature: Math.random() > 0.3 ? 'cold' : 'hot', // 70% cold, 30% hot
     toppings: toppings.sort() // Sort for consistent ordering
   };
+}
+
+/**
+ * Calculates the real price of a specific item instance based on customization.
+ * Matches the frontend cart logic.
+ */
+function calculateAdjustedPrice(basePrice: number, customization: DrinkCustomization | null): number {
+  if (!customization) return basePrice;
+
+  let price = basePrice;
+
+  // Apply Size Modifier (e.g., -1.00 for small, +1.25 for large)
+  const sizeMod = SIZE_PRICE_MODIFIERS[customization.size];
+  if (sizeMod !== undefined) {
+    price += sizeMod;
+  }
+
+  // Apply Topping Cost
+  if (customization.toppings.length > 0) {
+    price += (customization.toppings.length * TOPPING_PRICE);
+  }
+
+  // Prevent negative prices just in case
+  return Math.max(0, price);
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -53,10 +84,6 @@ function generateRandomCustomization(): DrinkCustomization | null {
 
 type RNG = () => number;
 
-/**
- * Creates a seeded pseudo-random number generator using the Mulberry32 algorithm.
- * Used to ensure consistent "trending" items within a business week.
- */
 function mulberry32(seed: number): RNG {
   return function () {
     let t = (seed += 0x6d2b79f5);
@@ -113,6 +140,7 @@ async function createSyntheticOrder(
   const numItems = 1 + Math.floor(Math.random() * 4);
   const itemsMap = new Map<number, { item: MenuItem; qty: number }>();
 
+  // Consolidate base items first
   for (let i = 0; i < numItems; i++) {
     const item = pickWeightedMenuItem(menu, favoredCategory, favoredItemId);
     const current = itemsMap.get(item.item_id);
@@ -129,7 +157,6 @@ async function createSyntheticOrder(
   const employeeId = employeeIds[Math.floor(Math.random() * employeeIds.length)] || 0;
   const paymentMethod = VALID_PAYMENT_METHODS[Math.floor(Math.random() * VALID_PAYMENT_METHODS.length)]!;
 
-  // Transactional Write with Sequence ID
   return runTransaction(async (client: PoolClient) => {
     // 1. Get next order ID securely
     const seqResult = await client.query<{ new_id: string }>(
@@ -145,27 +172,31 @@ async function createSyntheticOrder(
     const menuIds: number[] = [];
     const names: string[] = [];
     const qtys: number[] = [];
-    const prices: number[] = [];
-    const totals: number[] = [];
+    const prices: number[] = []; // Unit price (adjusted)
+    const totals: number[] = []; // Total price (adjusted * quantity)
     const customizations: (string | null)[] = [];
 
     const deductionRequests: { item_id: number; quantity: number }[] = [];
 
     for (const { item, qty } of itemsMap.values()) {
+      // Generate customization
+      const customization = generateRandomCustomization();
+      
+      // Calculate REAL price including size and toppings
+      const adjustedUnitPrice = calculateAdjustedPrice(item.cost, customization);
+      const lineTotal = adjustedUnitPrice * qty;
+
       orderIds.push(newId);
-      customerIds.push(0);
+      customerIds.push(0); // Anonymous customer
       employeeIdsArr.push(employeeId);
       methods.push(paymentMethod);
       menuIds.push(item.item_id);
       names.push(item.item_name);
       qtys.push(qty);
-      prices.push(item.cost);
-      totals.push(item.cost * qty);
+      prices.push(adjustedUnitPrice); // Corrected unit price
+      totals.push(lineTotal);         // Corrected total
       
-      // Generate realistic customization data
-      const customization = generateRandomCustomization();
       customizations.push(customization ? JSON.stringify(customization) : null);
-
       deductionRequests.push({ item_id: item.item_id, quantity: qty });
     }
 
@@ -191,7 +222,6 @@ async function createSyntheticOrder(
 
 /**
  * Generates fake orders for the current time slot.
- * Determines volume based on peak/off-peak logic and trending items.
  */
 export async function generateFakeOrdersForRun(): Promise<number[]> {
   const { rows: rawMenu } = await db.query<MenuItem>('SELECT item_id, item_name, cost, category FROM menuitems');
