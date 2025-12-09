@@ -67,15 +67,17 @@ export const DEFAULT_SWEETNESS = 100 as const;
 export const DEFAULT_ICE = 'regular' as const;
 export const DEFAULT_SIZE = 'medium' as const;
 
-export const SWEETNESS_OPTIONS = [25, 50, 100] as const;
+export const SWEETNESS_OPTIONS = [0, 25, 50, 75, 100, 125, 150, 200] as const;
 export const ICE_OPTIONS = ['none', 'light', 'regular'] as const;
 export const SIZE_OPTIONS = ['small', 'medium', 'large'] as const;
 
 export const SIZE_PRICE_MODIFIERS: Record<string, number> = {
-  small: -0.50,
+  small: -1.00,
   medium: 0,
-  large: 0.75,
+  large: 1.25,
 } as const;
+
+export const TOPPING_PRICE = 0.50;
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Loyalty / Points

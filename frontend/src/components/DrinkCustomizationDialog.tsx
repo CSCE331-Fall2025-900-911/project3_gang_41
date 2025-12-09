@@ -4,8 +4,11 @@ import {
   type DrinkCustomization,
   DEFAULT_CUSTOMIZATION,
   ICE_OPTIONS,
-  SIZE_OPTIONS
+  SIZE_OPTIONS,
+  SWEETNESS_OPTIONS,
+  TOPPING_PRICE, // Import the constant
 } from "@project3/shared";
+import { formatCurrency } from "@/lib/utils"; // Import formatter
 import {
   Dialog,
   DialogContent,
@@ -16,19 +19,9 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
-import {
-  Collapsible,
-  CollapsibleContent,
-  CollapsibleTrigger,
-} from "@/components/ui/collapsible";
-import { ChevronDown, Check } from "lucide-react";
-import { Badge } from "@/components/ui/badge";
+import { Check } from "lucide-react";
 
-// Local types for display-only options
-type SugarLevel = 'none' | 'less' | 'regular' | 'more';
 type Temperature = 'hot' | 'cold';
-
-const SUGAR_OPTIONS: SugarLevel[] = ['none', 'less', 'regular', 'more'];
 const TEMPERATURE_OPTIONS: Temperature[] = ['hot', 'cold'];
 
 const TOPPING_OPTIONS = [
@@ -42,16 +35,13 @@ const TOPPING_OPTIONS = [
 
 type ToppingOption = typeof TOPPING_OPTIONS[number];
 
-// Extended customization for local state (display only)
-interface ExtendedCustomization extends DrinkCustomization {
-  sugar: SugarLevel;
+interface ExtendedCustomization extends Omit<DrinkCustomization, 'toppings'> {
   temperature: Temperature;
-  toppings: ToppingOption[];
+  toppings: ToppingOption[]; 
 }
 
 const DEFAULT_EXTENDED: ExtendedCustomization = {
   ...DEFAULT_CUSTOMIZATION,
-  sugar: 'regular',
   temperature: 'cold',
   toppings: [],
 };
@@ -73,31 +63,28 @@ export function DrinkCustomizationDialog({
 }: DrinkCustomizationDialogProps) {
   const { t: translate } = useTranslation();
   const [customization, setCustomization] = useState<ExtendedCustomization>(DEFAULT_EXTENDED);
-  const [toppingsOpen, setToppingsOpen] = useState(false);
 
   useEffect(() => {
     if (open) {
       if (defaultCustomization) {
         setCustomization({
+          ...DEFAULT_EXTENDED,
           ...defaultCustomization,
-          sugar: 'regular',
-          temperature: 'cold',
-          toppings: [],
+          toppings: (defaultCustomization.toppings as ToppingOption[]) || [],
+          temperature: 'cold', 
         });
       } else {
         setCustomization(DEFAULT_EXTENDED);
       }
-      setToppingsOpen(false);
     }
   }, [defaultCustomization, open]);
 
   const handleConfirm = () => {
-    // UPDATED: Include toppings in the object sent back to parent
     const baseCustomization: DrinkCustomization = {
       size: customization.size,
       sweetness: customization.sweetness,
       ice: customization.ice,
-      toppings: customization.toppings, // <--- PASS THIS THROUGH
+      toppings: customization.toppings,
     };
     onConfirm(baseCustomization, 1);
     onOpenChange(false);
@@ -124,13 +111,6 @@ export function DrinkCustomizationDialog({
     none: "customization.none",
   };
 
-  const sugarTranslationKeys: Record<SugarLevel, string> = {
-    none: "customization.noSugar",
-    less: "customization.lessSugar",
-    regular: "customization.regularSugar",
-    more: "customization.moreSugar",
-  };
-
   const temperatureTranslationKeys: Record<Temperature, string> = {
     hot: "customization.hot",
     cold: "customization.cold",
@@ -138,7 +118,7 @@ export function DrinkCustomizationDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[480px]">
+      <DialogContent className="sm:max-w-[500px]">
         <DialogHeader>
           <DialogTitle>{translate("customization.title", { item: itemName })}</DialogTitle>
           <DialogDescription>
@@ -146,7 +126,7 @@ export function DrinkCustomizationDialog({
           </DialogDescription>
         </DialogHeader>
 
-        <div className="overflow-y-auto max-h-[50vh] pr-2">
+        <div className="overflow-y-auto max-h-[80vh] pr-2">
           <div className="grid gap-4 py-2">
             {/* Size Selection */}
             <div className="space-y-2">
@@ -169,15 +149,16 @@ export function DrinkCustomizationDialog({
             <div className="space-y-2">
               <Label>{translate("customization.sugar")}</Label>
               <div className="grid grid-cols-4 gap-2">
-                {SUGAR_OPTIONS.map((sugar) => (
+                {SWEETNESS_OPTIONS.map((level) => (
                   <Button
-                    key={sugar}
+                    key={level}
                     type="button"
                     size="sm"
-                    variant={customization.sugar === sugar ? "default" : "outline"}
-                    onClick={() => setCustomization({ ...customization, sugar })}
+                    variant={customization.sweetness === level ? "default" : "outline"}
+                    onClick={() => setCustomization({ ...customization, sweetness: level })}
+                    className="px-0"
                   >
-                    {translate(sugarTranslationKeys[sugar])}
+                    {level}%
                   </Button>
                 ))}
               </div>
@@ -222,53 +203,31 @@ export function DrinkCustomizationDialog({
             {/* Toppings Multi-Select */}
             <div className="space-y-2">
               <Label>{translate("customization.toppings")}</Label>
-              <Collapsible open={toppingsOpen} onOpenChange={setToppingsOpen}>
-                <CollapsibleTrigger asChild>
-                  <Button variant="outline" className="w-full justify-between">
-                    <span className="text-muted-foreground">
-                      {customization.toppings.length === 0
-                        ? translate("customization.selectToppings")
-                        : `${customization.toppings.length} ${translate("customization.selected")}`}
-                    </span>
-                    <ChevronDown className={`h-4 w-4 transition-transform ${toppingsOpen ? 'rotate-180' : ''}`} />
+              <div className="grid grid-cols-2 gap-2">
+                {TOPPING_OPTIONS.map((topping) => (
+                  <Button
+                    key={topping}
+                    type="button"
+                    size="sm"
+                    variant={customization.toppings.includes(topping) ? "default" : "outline"}
+                    className="justify-start h-auto py-2 px-3"
+                    onClick={() => toggleTopping(topping)}
+                  >
+                    {customization.toppings.includes(topping) && (
+                      <Check className="h-4 w-4 mr-2 flex-shrink-0" />
+                    )}
+                    <div className="flex flex-col items-start text-left truncate">
+                        <span className="truncate w-full leading-tight">
+                            {translate(`customization.${topping}`)}
+                        </span>
+                        {/* Show price hint */}
+                        <span className="text-[10px] text-muted-foreground font-normal">
+                            +{formatCurrency(TOPPING_PRICE)}
+                        </span>
+                    </div>
                   </Button>
-                </CollapsibleTrigger>
-                <CollapsibleContent className="mt-2">
-                  <div className="border rounded-lg p-2 flex flex-col gap-1">
-                    {TOPPING_OPTIONS.map((topping) => (
-                      <Button
-                        key={topping}
-                        type="button"
-                        size="sm"
-                        variant={customization.toppings.includes(topping) ? "default" : "ghost"}
-                        className="justify-start h-9"
-                        onClick={() => toggleTopping(topping)}
-                      >
-                        {customization.toppings.includes(topping) && (
-                          <Check className="h-4 w-4 mr-2" />
-                        )}
-                        {translate(`customization.${topping}`)}
-                      </Button>
-                    ))}
-                  </div>
-                </CollapsibleContent>
-              </Collapsible>
-
-              {/* Selected toppings badges */}
-              {customization.toppings.length > 0 && (
-                <div className="flex flex-wrap gap-1 mt-2">
-                  {customization.toppings.map((topping) => (
-                    <Badge
-                      key={topping}
-                      variant="secondary"
-                      className="text-xs cursor-pointer"
-                      onClick={() => toggleTopping(topping)}
-                    >
-                      {translate(`customization.${topping}`)} ×
-                    </Badge>
-                  ))}
-                </div>
-              )}
+                ))}
+              </div>
             </div>
           </div>
         </div>

@@ -36,10 +36,12 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } f
 import { Confetti, type ConfettiRef } from "@/components/ui/confetti";
 
 import type { MenuItem, CartItem, DrinkCustomization } from "@project3/shared";
-import { 
-  TAX_RATE, 
+import {
+  TAX_RATE,
   calculateTax,
-  generateCartItemId
+  generateCartItemId,
+  TOPPING_PRICE,
+  SIZE_PRICE_MODIFIERS
 } from "@project3/shared";
 
 // --- Types ---
@@ -188,15 +190,27 @@ export default function Kiosk() {
   const handleCustomizationConfirm = (customization: DrinkCustomization, quantity: number) => {
     if (!customizationDialog.item) return;
 
+    // 1. Calculate Base Price
+    const basePrice = customizationDialog.item.cost;
+
+    // 2. Calculate Size Adjustment
+    const sizeAdjustment = SIZE_PRICE_MODIFIERS[customization.size] ?? 0;
+
+    // 3. Calculate Topping Cost
+    const toppingCost = (customization.toppings?.length || 0) * TOPPING_PRICE;
+
+    // 4. Sum it up
+    const finalUnitCost = basePrice + sizeAdjustment + toppingCost;
+
     if (customizationDialog.editingCartItem) {
-      updateCartItem(customizationDialog.editingCartItem.uniqueId, { customization });
+      updateCartItem(customizationDialog.editingCartItem.uniqueId, { customization, cost: finalUnitCost });
     } else {
       // Add multiple items based on quantity
       for (let i = 0; i < quantity; i++) {
         const newCartItem: CartItem = {
           item_id: customizationDialog.item.item_id,
           item_name: customizationDialog.item.item_name,
-          cost: customizationDialog.item.cost,
+          cost: finalUnitCost,
           quantity: 1,
           customization,
           // UPDATED: Use Shared ID generator + timestamp + index for uniqueness

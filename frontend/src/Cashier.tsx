@@ -2,11 +2,13 @@ import { useState, useEffect } from "react";
 import { useTranslation } from "react-i18next";
 import { fetchApi } from "@/lib/api";
 import type { MenuItem, CartItem, DrinkCustomization } from "@project3/shared";
-import { 
-  TAX_RATE, 
+import {
+  TAX_RATE,
   generateCartItemId,
   calculateTax,
-  calculateTotal
+  calculateTotal,
+  TOPPING_PRICE, // Import constant
+  SIZE_PRICE_MODIFIERS
 } from "@project3/shared";
 import { useNavigate } from "react-router-dom";
 
@@ -132,21 +134,34 @@ function Cashier() {
   const handleCustomizationConfirm = (customization: DrinkCustomization, quantity: number) => {
     if (!customizationDialog.item) return;
 
+    // 1. Calculate Base Price
+    const basePrice = customizationDialog.item.cost;
+
+    // 2. Calculate Size Adjustment
+    // Default to 0 if size not found (though types ensure it exists)
+    const sizeAdjustment = SIZE_PRICE_MODIFIERS[customization.size] ?? 0;
+
+    // 3. Calculate Topping Cost
+    const toppingCost = (customization.toppings?.length || 0) * TOPPING_PRICE;
+
+    // 4. Sum it up
+    const finalUnitCost = basePrice + sizeAdjustment + toppingCost;
+
     if (customizationDialog.editingCartItem) {
       // Editing existing cart item
       updateCartItem(customizationDialog.editingCartItem.uniqueId, {
         customization,
+        cost: finalUnitCost, // Update the price
       });
     } else {
-      // Adding new items to cart based on quantity
+      // Adding new items
       for (let i = 0; i < quantity; i++) {
         const newCartItem: CartItem = {
           item_id: customizationDialog.item.item_id,
           item_name: customizationDialog.item.item_name,
-          cost: customizationDialog.item.cost,
+          cost: finalUnitCost, // Use calculated price
           quantity: 1,
           customization,
-          // UPDATED: Use Shared ID generator + timestamp + index for unique rows
           uniqueId: `${generateCartItemId(customizationDialog.item.item_id, customization)}-${Date.now()}-${i}`,
         };
         addToCart(newCartItem);

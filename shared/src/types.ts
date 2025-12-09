@@ -42,7 +42,8 @@ export interface OrderItem extends BaseItem {
 // Drink Customization Types
 // ─────────────────────────────────────────────────────────────────────────────
 
-export type SweetnessLevel = 100 | 50 | 25;
+// UPDATED: Added 150 to the union type
+export type SweetnessLevel = 0 | 25 | 50 | 75 | 100 | 125 | 150 | 200;
 export type IceLevel = 'regular' | 'light' | 'none';
 export type DrinkSize = 'small' | 'medium' | 'large';
 
