@@ -7,7 +7,7 @@ export function AppSidebar() {
     { name: "Cashier", path: "/cashier", icon: <CreditCard className="w-5 h-5" /> },
     { name: "Kiosk", path: "/kiosk", icon: <Menu className="w-5 h-5" /> },
     { name: "Manager", path: "/manager", icon: <User className="w-5 h-5" /> },
-    { name: "Menu Board", path: "/menu-board", icon: <Menu className="w-5 h-5" /> },
+    { name: "Menu Board", path: "/menuboards", icon: <Menu className="w-5 h-5" /> },
   ]
 
   return (

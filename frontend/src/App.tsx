@@ -6,6 +6,7 @@ import Cashier from './Cashier';
 import LoginPage from './Login';
 import Kiosk from './Kiosk';
 import Manager from './Manager';
+import Menuboards from './Menuboards';
 
 function App() {
   return (
@@ -17,7 +18,7 @@ function App() {
           <Route path="/" element={<LoginPage />} />
           <Route path="/login" element={<LoginPage />} />
           <Route path="/kiosk" element={<Kiosk />} />
-          <Route path="/menu-board" element={<div>Menu Board</div>} />
+          <Route path="/menuboards" element={<Menuboards />} />
 
           {/* Protected routes - require authentication */}
           <Route
