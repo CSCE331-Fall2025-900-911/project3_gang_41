@@ -94,6 +94,16 @@ export function LoginForm({
                   {translate('login.continueWithout')}
                 </Button>
               </Field>
+              <Field>
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="w-full"
+                  onClick={() => navigate('/menuboards')}
+                >
+                  {'idk where to put this button'}
+                </Button>
+              </Field>
               <FieldSeparator className="*:data-[slot=field-separator-content]:bg-card">
                 {translate('login.orContinueWith')}
               </FieldSeparator>
