@@ -8,7 +8,9 @@ import {
   calculateTax,
   calculateTotal,
   TOPPING_PRICE, // Import constant
-  SIZE_PRICE_MODIFIERS
+  SIZE_PRICE_MODIFIERS,
+  PRODUCT_CATEGORIES,
+  CATEGORY_TRANSLATION_KEYS
 } from "@project3/shared";
 import { useNavigate } from "react-router-dom";
 
@@ -41,23 +43,6 @@ import { useCart } from "@/hooks/useCart";
 import { ModeToggle } from "@/components/ModeToggle";
 import { LanguageToggle } from "@/components/LanguageToggle";
 
-const categories = [
-  "All Items",
-  "Milk Tea",
-  "Matcha",
-  "Fruit Tea",
-  "Slush",
-  "Seasonal",
-];
-
-const categoryTranslationKeys: Record<string, string> = {
-  "All Items": "categories.allItems",
-  "Milk Tea": "categories.milkTea",
-  "Matcha": "categories.matcha",
-  "Fruit Tea": "categories.fruitTea",
-  "Slush": "categories.slush",
-  "Seasonal": "categories.seasonal",
-};
 
 function Cashier() {
   const { t: translate } = useTranslation();
@@ -73,7 +58,7 @@ function Cashier() {
     checkout,
     isSubmitting,
   } = useCart();
-  const [activeCategory, setActiveCategory] = useState("All Items");
+  const [activeCategory, setActiveCategory] = useState<string>(PRODUCT_CATEGORIES[0]);
   const [weather, setWeather] = useState<{
     temperature: number;
     icon: string;
@@ -236,7 +221,7 @@ function Cashier() {
         {/* Category Tabs (non-functional) */}
         <div className="border-b bg-background px-6">
           <div className="flex h-12 items-center space-x-4 overflow-x-auto">
-            {categories.map((category) => (
+            {PRODUCT_CATEGORIES.map((category) => (
               <button
                 key={category}
                 onClick={() => setActiveCategory(category)}
@@ -246,7 +231,7 @@ function Cashier() {
                     : "text-muted-foreground"
                 }`}
               >
-                {translate(categoryTranslationKeys[category])}
+                {translate(CATEGORY_TRANSLATION_KEYS[category])}
               </button>
             ))}
           </div>

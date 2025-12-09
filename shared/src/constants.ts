@@ -87,3 +87,42 @@ export const TOPPING_PRICE = 0.50;
  * Points awarded per dollar spent. Use on both frontend and backend to keep behavior consistent.
  */
 export const POINTS_PER_DOLLAR = 10 as const;
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Menu Categories
+// ─────────────────────────────────────────────────────────────────────────────
+
+export const PRODUCT_CATEGORIES = [
+  'All Items',
+  'Milk Tea',
+  'Matcha',
+  'Fruit Tea',
+  'Slush',
+  'Seasonal',
+] as const;
+
+export type ProductCategory = typeof PRODUCT_CATEGORIES[number];
+
+export const CATEGORY_TRANSLATION_KEYS: Record<ProductCategory, string> = {
+  "All Items": "categories.allItems",
+  "Milk Tea": "categories.milkTea",
+  "Matcha": "categories.matcha",
+  "Fruit Tea": "categories.fruitTea",
+  "Slush": "categories.slush",
+  "Seasonal": "categories.seasonal",
+};
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Toppings
+// ─────────────────────────────────────────────────────────────────────────────
+
+export const TOPPING_OPTIONS = [
+  'tapiocaPearls',
+  'coconutJelly',
+  'aloeVera',
+  'redBean',
+  'lycheeJelly',
+  'crystalBoba'
+] as const;
+
+export type ToppingOption = typeof TOPPING_OPTIONS[number];

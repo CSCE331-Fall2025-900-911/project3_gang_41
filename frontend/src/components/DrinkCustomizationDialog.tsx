@@ -7,6 +7,8 @@ import {
   SIZE_OPTIONS,
   SWEETNESS_OPTIONS,
   TOPPING_PRICE, // Import the constant
+  TOPPING_OPTIONS,
+  type ToppingOption,
 } from "@project3/shared";
 import { formatCurrency } from "@/lib/utils"; // Import formatter
 import {
@@ -24,16 +26,6 @@ import { Check } from "lucide-react";
 type Temperature = 'hot' | 'cold';
 const TEMPERATURE_OPTIONS: Temperature[] = ['hot', 'cold'];
 
-const TOPPING_OPTIONS = [
-  'tapiocaPearls',
-  'coconutJelly',
-  'aloeVera',
-  'redBean',
-  'lycheeJelly',
-  'crystalBoba',
-] as const;
-
-type ToppingOption = typeof TOPPING_OPTIONS[number];
 
 interface ExtendedCustomization extends Omit<DrinkCustomization, 'toppings'> {
   temperature: Temperature;

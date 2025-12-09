@@ -5,6 +5,7 @@ import { formatCurrency } from "@/lib/utils";
 // Types from shared package
 import type { MenuItem, InventoryItem } from "@project3/shared";
 import { toast } from "sonner";
+import { useSoundEffects } from "@/hooks/useSoundEffects";
 import {
   Card,
   CardContent,
@@ -49,131 +50,28 @@ import {
   Loader2,
   RefreshCw,
   Coffee,
-  FlaskConical, 
+  FlaskConical,
   PartyPopper,
   Sparkles,
   Zap,
 } from "lucide-react";
+import confetti from "canvas-confetti";
 
 
 // --- Types are imported from `@project3/shared` ---
 
-
-// --- Sound Effects Engine (Web Audio API) ---
-// Safety check: window is undefined during build time
-const AudioContextConstructor = typeof window !== 'undefined' 
-  ? (window.AudioContext || (window as any).webkitAudioContext) 
-  : null;
-
-const audioCtx: AudioContext | null = AudioContextConstructor ? new AudioContextConstructor() : null;
-
-const playSound = (type: 'success' | 'pop' | 'delete' | 'toggle' | 'error' | 'type' | 'click') => {
-  if (!audioCtx) return;
-  // Resume if suspended due to browser autoplay policies.
-  if (audioCtx.state === 'suspended') {
-    void audioCtx.resume().catch(() => {});
-  }
-
-  const osc = audioCtx.createOscillator();
-  const gain = audioCtx.createGain();
-
-  osc.connect(gain);
-  gain.connect(audioCtx.destination);
-
-  const now = audioCtx.currentTime;
-
-  if (type === 'success') {
-    // Satisfying "Ding!"
-    osc.type = 'sine';
-    osc.frequency.setValueAtTime(523.25, now); // C5
-    osc.frequency.exponentialRampToValueAtTime(1046.5, now + 0.1); // C6
-    gain.gain.setValueAtTime(0.3, now);
-    gain.gain.exponentialRampToValueAtTime(0.01, now + 0.5);
-    osc.start(now);
-    osc.stop(now + 0.5);
-  } else if (type === 'pop') {
-    // Short "Pop"
-    osc.type = 'triangle';
-    osc.frequency.setValueAtTime(200, now);
-    osc.frequency.linearRampToValueAtTime(50, now + 0.05);
-    gain.gain.setValueAtTime(0.3, now);
-    gain.gain.exponentialRampToValueAtTime(0.01, now + 0.1);
-    osc.start(now);
-    osc.stop(now + 0.1);
-  } else if (type === 'delete') {
-    // Descending "Bloop"
-    osc.type = 'sawtooth';
-    osc.frequency.setValueAtTime(300, now);
-    osc.frequency.exponentialRampToValueAtTime(50, now + 0.3);
-    gain.gain.setValueAtTime(0.2, now);
-    gain.gain.exponentialRampToValueAtTime(0.01, now + 0.3);
-    osc.start(now);
-    osc.stop(now + 0.3);
-  } else if (type === 'toggle') {
-    // High pitch "Zip"
-    osc.type = 'square';
-    osc.frequency.setValueAtTime(400, now);
-    osc.frequency.linearRampToValueAtTime(800, now + 0.1);
-    gain.gain.setValueAtTime(0.05, now);
-    gain.gain.linearRampToValueAtTime(0.01, now + 0.1);
-    osc.start(now);
-    osc.stop(now + 0.1);
-  } else if (type === 'error') {
-    // Low pitch "Buzz"
-    osc.type = 'sawtooth';
-    osc.frequency.setValueAtTime(100, now);
-    osc.frequency.linearRampToValueAtTime(50, now + 0.2);
-    gain.gain.setValueAtTime(0.3, now);
-    gain.gain.linearRampToValueAtTime(0.01, now + 0.2);
-    osc.start(now);
-    osc.stop(now + 0.2);
-  } else if (type === 'type') {
-    // Very short, quiet "click" for typing
-    osc.type = 'sine'; 
-    const randomPitch = 800 + Math.random() * 200; 
-    osc.frequency.setValueAtTime(randomPitch, now);
-    gain.gain.setValueAtTime(0.05, now); 
-    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.03); 
-    osc.start(now);
-    osc.stop(now + 0.03);
-  } else if (type === 'click') {
-    // Generic UI click
-    osc.type = 'square';
-    osc.frequency.setValueAtTime(600, now);
-    gain.gain.setValueAtTime(0.05, now);
-    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.05);
-    osc.start(now);
-    osc.stop(now + 0.05);
-  }
-};
-
-// --- Simple Confetti Effect ---
-const fireConfetti = () => {
-  const colors = ['#ff0000', '#00ff00', '#0000ff', '#ffff00', '#00ffff', '#ff00ff'];
-  for (let i = 0; i < 50; i++) {
-    const div = document.createElement('div');
-    div.style.position = 'fixed';
-    div.style.left = Math.random() * 100 + 'vw';
-    div.style.top = '-10px';
-    div.style.width = '10px';
-    div.style.height = '10px';
-    div.style.backgroundColor = colors[Math.floor(Math.random() * colors.length)];
-    div.style.transition = 'transform 2s linear, opacity 2s ease-out';
-    div.style.zIndex = '9999';
-    div.style.pointerEvents = 'none';
-    document.body.appendChild(div);
-    setTimeout(() => {
-      div.style.transform = `translate(${Math.random() * 100 - 50}px, ${window.innerHeight + 20}px) rotate(${Math.random() * 360}deg)`;
-      div.style.opacity = '0';
-    }, 50);
-    setTimeout(() => {
-      div.remove();
-    }, 2000);
-  }
-};
-
 export default function MenuPage() {
   const { t: translate } = useTranslation();
+  const { playSound } = useSoundEffects();
+
+  const fireConfetti = () => {
+    confetti({
+      particleCount: 100,
+      spread: 70,
+      origin: { y: 0.6 }
+    });
+  };
+
   const [menuItems, setMenuItems] = useState<MenuItem[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -200,14 +98,6 @@ export default function MenuPage() {
 
   // --- EXPERIMENTAL MODE STATE ---
   const [isExperimental, setIsExperimental] = useState(false);
-
-  const handleBtnClick = () => {
-    if (isExperimental) playSound('click');
-  };
-
-  const handleTyping = () => {
-    if (isExperimental) playSound('type');
-  };
 
   const loadMenuItems = async () => {
     setIsLoading(true);
@@ -428,7 +318,7 @@ export default function MenuPage() {
                 <Input
                   placeholder={isExperimental ? translate("menu.searchPlaceholderFun") : translate("menu.searchPlaceholder")}
                   value={query}
-                  onChange={(e) => { setQuery(e.target.value); handleTyping(); }}
+                  onChange={(e) => { setQuery(e.target.value); if (isExperimental) playSound('type'); }}
                   className={`w-[260px] ${isExperimental ? "border-purple-300 focus:ring-purple-400 rounded-full bg-white/80" : ""}`}
                 />
               </div>
@@ -451,7 +341,7 @@ export default function MenuPage() {
               <Button
                 variant="outline"
                 className={`gap-2 ${buttonClass} ${isExperimental ? "border-purple-300 hover:bg-purple-50 text-purple-700" : ""}`}
-                onClick={() => { handleBtnClick(); loadMenuItems(); }}
+                onClick={() => { if (isExperimental) playSound('click'); loadMenuItems(); }}
                 disabled={isLoading}
               >
                 {isLoading ? (
@@ -463,7 +353,7 @@ export default function MenuPage() {
               </Button>
               <Button
                 className={`gap-2 ${buttonClass} ${isExperimental ? "bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 border-0" : ""}`}
-                onClick={() => { handleBtnClick(); setAddOpen(true); }}
+                onClick={() => { if (isExperimental) playSound('click'); setAddOpen(true); }}
               >
                 <Plus className="h-4 w-4" />
                 {translate("menu.newItem")}
@@ -589,7 +479,7 @@ export default function MenuPage() {
               <Input
                 id="newName"
                 value={newItemName}
-                onChange={(e) => { setNewItemName(e.target.value); handleTyping(); }}
+                onChange={(e) => { setNewItemName(e.target.value); if (isExperimental) playSound('type'); }}
                 required
                 className={isExperimental ? "border-purple-200 focus-visible:ring-purple-400" : ""}
               />
@@ -599,7 +489,7 @@ export default function MenuPage() {
               <Input
                 id="newCost"
                 value={newItemCost}
-                onChange={(e) => { setNewItemCost(e.target.value); handleTyping(); }}
+                onChange={(e) => { setNewItemCost(e.target.value); if (isExperimental) playSound('type'); }}
                 placeholder={translate("menu.pricePlaceholder")}
                 required
                 className={isExperimental ? "border-purple-200 focus-visible:ring-purple-400" : ""}
@@ -615,7 +505,7 @@ export default function MenuPage() {
                 onChange={(e) => {
                   setNewItemCategory(e.target.value);
                   setShowCategorySuggestions(true);
-                  handleTyping();
+                  if (isExperimental) playSound('type');
                 }}
                 onFocus={() => setShowCategorySuggestions(true)}
                 onBlur={() => setTimeout(() => setShowCategorySuggestions(false), 200)}
@@ -636,7 +526,7 @@ export default function MenuPage() {
                       onClick={() => {
                         setNewItemCategory(category);
                         setShowCategorySuggestions(false);
-                        handleBtnClick();
+                        if (isExperimental) playSound('click');
                       }}
                     >
                       {category}
@@ -652,12 +542,12 @@ export default function MenuPage() {
                 type="checkbox"
                 className={`h-4 w-4 ${isExperimental ? "accent-purple-600" : ""}`}
                 checked={openIngredientsAfterCreate}
-                onChange={(e) => { setOpenIngredientsAfterCreate(e.target.checked); handleBtnClick(); }}
+                onChange={(e) => { setOpenIngredientsAfterCreate(e.target.checked); if (isExperimental) playSound('click'); }}
               />
               <Label htmlFor="afterCreate">{translate("menu.openIngredientsAfter")}</Label>
             </div>
             <DialogFooter className="gap-2">
-              <Button type="button" variant="outline" onClick={() => { setAddOpen(false); handleBtnClick(); }}>
+              <Button type="button" variant="outline" onClick={() => { setAddOpen(false); if (isExperimental) playSound('click'); }}>
                 {translate("menu.cancel")}
               </Button>
               <Button type="submit" className={`gap-2 ${isExperimental ? "bg-purple-600 hover:bg-purple-700" : ""}`}>
@@ -684,7 +574,7 @@ export default function MenuPage() {
               <Input
                 id="editName"
                 value={updateName}
-                onChange={(e) => { setUpdateName(e.target.value); handleTyping(); }}
+                onChange={(e) => { setUpdateName(e.target.value); if (isExperimental) playSound('type'); }}
                 required
                 className={isExperimental ? "border-blue-200 focus-visible:ring-blue-400" : ""}
               />
@@ -694,7 +584,7 @@ export default function MenuPage() {
               <Input
                 id="editPrice"
                 value={updatePrice}
-                onChange={(e) => { setUpdatePrice(e.target.value); handleTyping(); }}
+                onChange={(e) => { setUpdatePrice(e.target.value); if (isExperimental) playSound('type'); }}
                 required
                 className={isExperimental ? "border-blue-200 focus-visible:ring-blue-400" : ""}
               />
@@ -709,7 +599,7 @@ export default function MenuPage() {
                 onChange={(e) => {
                   setUpdateCategory(e.target.value);
                   setShowEditCategorySuggestions(true);
-                  handleTyping();
+                  if (isExperimental) playSound('type');
                 }}
                 onFocus={() => setShowEditCategorySuggestions(true)}
                 onBlur={() => setTimeout(() => setShowEditCategorySuggestions(false), 200)}
@@ -730,7 +620,7 @@ export default function MenuPage() {
                       onClick={() => {
                         setUpdateCategory(category);
                         setShowEditCategorySuggestions(false);
-                        handleBtnClick();
+                        if (isExperimental) playSound('click');
                       }}
                     >
                       {category}
@@ -741,7 +631,7 @@ export default function MenuPage() {
             </div>
 
             <DialogFooter className="gap-2">
-              <Button type="button" variant="outline" onClick={() => { setEditOpen(false); handleBtnClick(); }}>
+              <Button type="button" variant="outline" onClick={() => { setEditOpen(false); if (isExperimental) playSound('click'); }}>
                 {translate("menu.cancel")}
               </Button>
               <Button type="submit" className={editSaveButtonClass}>
@@ -765,7 +655,7 @@ export default function MenuPage() {
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel onClick={handleBtnClick}>{translate("menu.cancel")}</AlertDialogCancel>
+            <AlertDialogCancel onClick={() => { if (isExperimental) playSound('click'); }}>{translate("menu.cancel")}</AlertDialogCancel>
             <AlertDialogAction onClick={handleDeleteItem} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
               {translate("menu.delete")}
             </AlertDialogAction>
