@@ -14,14 +14,13 @@ import { Badge } from "@/components/ui/badge";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
 import { ChevronDown, ChevronUp, Loader2, ReceiptText, Search, X } from "lucide-react";
-// UPDATED: Use shared calc logic
-import { TAX_RATE, calculateTax, calculateTotal } from "@project3/shared";
+import { TAX_RATE, calculateTax, calculateTotal, DrinkCustomization } from "@project3/shared";
 
-// ... (Types and Constants remain exactly the same) ...
 type ApiOrderItem = {
   name: string;
   qty: number | string;
   price: number | string;
+  customization?: DrinkCustomization;
 };
 
 type ApiOrder = {
@@ -34,7 +33,6 @@ type ApiOrder = {
   items: ApiOrderItem[];
 };
 
-// Rename wrapper type to avoid confusion with the shared ApiResponse
 type OrderHistoryData = {
   orders: ApiOrder[];
   totalPages: number;
@@ -52,6 +50,7 @@ type Order = {
     qty: number;
     unitPrice: number;
     lineTotal: number;
+    customization?: DrinkCustomization;
   }[];
   subtotal: number;
   tax: number;
@@ -81,10 +80,9 @@ const normalizeOrder = (o: ApiOrder): Order => {
     const lineTotal =
       typeof it.price === "string" ? parseFloat(it.price) : Number(it.price || 0);
     const unitPrice = qty > 0 ? lineTotal / qty : 0;
-    return { name: it.name, qty, unitPrice, lineTotal };
+    return { name: it.name, qty, unitPrice, lineTotal, customization: it.customization };
   });
 
-  // UPDATED: Use Shared Helper
   const tax = calculateTax(subtotal);
   const total = calculateTotal(subtotal);
   const itemCount = items.reduce((s, i) => s + i.qty, 0);
@@ -105,7 +103,6 @@ const normalizeOrder = (o: ApiOrder): Order => {
 
 export default function HistoryPage() {
   const { t: translate } = useTranslation();
-  // We don't need anything from auth, but call the hook to ensure auth context exists
   useAuth();
 
   const [orders, setOrders] = useState<Order[]>([]);
@@ -125,39 +122,28 @@ export default function HistoryPage() {
       setLoading(true);
       setError(null);
 
-
       let endpoint = `/api/order-history?page=${targetPage}&limit=${PAGE_SIZE}`;
       if (searchTerm.trim()) {
         endpoint += `&id=${encodeURIComponent(searchTerm.trim())}`;
       }
 
       const data = await fetchApi<OrderHistoryData>(endpoint);
-
       const normalized = (data.orders ?? []).map(normalizeOrder);
 
-      // Deduplicate items to prevent duplicate key errors when appending pages
       setOrders((prev) => {
-        // 1. Determine the base list we are adding to
         const baseList = targetPage === 1 ? [] : prev;
-        
-        // 2. Create a Set of IDs currently in the list
         const existingIds = new Set(baseList.map(o => o.id));
-        
-        // 3. Filter the NEW items (deduplicate against existing AND itself)
         const uniqueIncoming: Order[] = [];
         
         for (const item of normalized) {
-          // Only add if we haven't seen this ID in existing state OR in this current batch
           if (!existingIds.has(item.id)) {
             uniqueIncoming.push(item);
-            existingIds.add(item.id); // Mark as seen so we don't add it twice from the same batch
+            existingIds.add(item.id); 
           }
         }
-
         return [...baseList, ...uniqueIncoming];
       });
       setTotalPages(data.totalPages || 1);
-      
       setIsSearching(!!searchTerm.trim());
     } catch (e: any) {
       console.error("Load error:", e);
@@ -193,11 +179,8 @@ export default function HistoryPage() {
   const toggleExpand = (id: number) =>
     setExpanded((prev) => ({ ...prev, [id]: !prev[id] }));
 
-
   return (
     <div className="flex h-full bg-background flex-col overflow-hidden">
-      
-      {/* Header - Fixed height */}
       <div className="border-b bg-white flex-none">
         <div className="flex h-16 items-center px-6 justify-between gap-4">
           <div className="flex items-center gap-2 min-w-fit">
@@ -206,7 +189,6 @@ export default function HistoryPage() {
             <h1 className="text-xl font-bold md:hidden">{translate("history.titleShort")}</h1>
           </div>
 
-          {/* Search Bar */}
           <form onSubmit={handleSearch} className="flex-1 max-w-md flex items-center gap-2 ml-auto">
             <div className="relative flex-1">
               <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
@@ -231,12 +213,9 @@ export default function HistoryPage() {
               {translate("history.search")}
             </Button>
           </form>
-          
-          {/* Removed User Profile section from here */}
         </div>
       </div>
 
-      {/* Content - Scrollable area */}
       <div className="flex-1 overflow-auto p-6 bg-slate-50/50">
         {loading && page === 1 ? (
           <div className="flex h-full items-center justify-center text-muted-foreground">
@@ -346,6 +325,37 @@ export default function HistoryPage() {
                                 <div className="text-xs text-muted-foreground">
                                   @ {formatCurrency(it.unitPrice)} {translate("history.each")}
                                 </div>
+                                {it.customization && (
+                                  <div className="flex flex-wrap gap-1 mt-1">
+                                    {/* Size (Single Letter) */}
+                                    {it.customization.size && (
+                                      <Badge variant="secondary" className="text-xs h-5 px-1.5 uppercase">
+                                        {it.customization.size.charAt(0)}
+                                      </Badge>
+                                    )}
+                                    
+                                    {/* Sweetness (Suffix + Hide Default) */}
+                                    {it.customization.sweetness !== undefined && it.customization.sweetness !== 100 && (
+                                      <Badge variant="secondary" className="text-xs h-5 px-1.5">
+                                        {it.customization.sweetness}% {translate("common.sweet")}
+                                      </Badge>
+                                    )}
+                                    
+                                    {/* Ice (Suffix + Hide Default) */}
+                                    {it.customization.ice && it.customization.ice !== 'regular' && (
+                                      <Badge variant="secondary" className="text-xs h-5 px-1.5 capitalize">
+                                        {it.customization.ice} {translate("common.ice")}
+                                      </Badge>
+                                    )}
+                                    
+                                    {/* Toppings (Translated + Plus Prefix) */}
+                                    {it.customization.toppings?.map((topping, idx) => (
+                                      <Badge key={idx} variant="secondary" className="text-xs h-5 px-1.5 capitalize">
+                                        + {translate(`customization.${topping}`)}
+                                      </Badge>
+                                    ))}
+                                  </div>
+                                )}
                               </div>
                             </div>
                             <div className="font-medium text-sm">

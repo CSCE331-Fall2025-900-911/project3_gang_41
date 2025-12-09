@@ -8,14 +8,25 @@ import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
 import { formatCurrency } from "@/lib/utils";
-// UPDATED: Shared types and ID gen
-import { type CartItem, type MenuItem, generateCartItemId } from "@project3/shared";
+import { 
+    type CartItem, 
+    type MenuItem, 
+    generateCartItemId, 
+    DrinkCustomization, 
+    TOPPING_PRICE, 
+    SIZE_PRICE_MODIFIERS 
+} from "@project3/shared";
 
 interface PastOrder {
   orderid: number;
   order_date: string;
   total_price: number;
-  items: { name: string; qty: number; id?: number }[];
+  items: { 
+    name: string; 
+    qty: number; 
+    id?: number; 
+    customization?: DrinkCustomization 
+  }[];
 }
 
 interface PastOrdersDialogProps {
@@ -65,13 +76,21 @@ export function PastOrdersDialog({ open, onOpenChange, customerId, onReorder }: 
     order.items.forEach(histItem => {
       const menuItem = menuMap.get(histItem.name);
       if (menuItem) {
+        let baseCost = Number(menuItem.cost);
+        // Recalculate price based on customization
+        if (histItem.customization && histItem.customization.size) {
+          baseCost += SIZE_PRICE_MODIFIERS[histItem.customization.size] || 0;
+          if (histItem.customization.toppings) {
+            baseCost += TOPPING_PRICE * histItem.customization.toppings.length;
+          }
+        }
         cartItems.push({
           item_id: menuItem.item_id,
           item_name: menuItem.item_name,
-          cost: Number(menuItem.cost), 
+          cost: baseCost,
           quantity: histItem.qty,
-          // UPDATED: Use Shared ID + Timestamp
-          uniqueId: `${generateCartItemId(menuItem.item_id)}-${Date.now()}-${Math.random()}`,
+          customization: histItem.customization,
+          uniqueId: `${generateCartItemId(menuItem.item_id, histItem.customization)}-${Date.now()}-${Math.random()}`,
         });
       }
     });
@@ -123,7 +142,6 @@ export function PastOrdersDialog({ open, onOpenChange, customerId, onReorder }: 
                     return (
                         <div 
                           key={order.orderid} 
-                          // ADDED: Hover effects restored (border color, shadow, translate)
                           className="border rounded-xl p-4 bg-white shadow-sm border-slate-200 transition-all duration-200 hover:shadow-md hover:border-primary/50 hover:-translate-y-0.5"
                         >
                             {/* Header */}
@@ -140,11 +158,46 @@ export function PastOrdersDialog({ open, onOpenChange, customerId, onReorder }: 
                             {/* Items */}
                             <div className="space-y-2 mb-4">
                                 {order.items.map((item, idx) => (
-                                    <div key={idx} className="flex justify-between text-sm items-center">
-                                      <span className="truncate pr-2 font-medium">{item.name}</span>
-                                      <Badge variant="secondary" className="h-5 px-1.5 min-w-[2rem] justify-center shrink-0">
-                                          x{item.qty}
-                                      </Badge>
+                                    <div key={idx} className="flex flex-col gap-1">
+                                      <div className="flex justify-between text-sm items-center">
+                                        <span className="truncate pr-2 font-medium">{item.name}</span>
+                                        <Badge variant="secondary" className="h-5 px-1.5 min-w-[2rem] justify-center shrink-0">
+                                            x{item.qty}
+                                        </Badge>
+                                      </div>
+                                      
+                                      {/* UPDATED: Customization Badges (Cashier Style) */}
+                                      {item.customization && (
+                                        <div className="flex flex-wrap gap-1 ml-1 mt-1">
+                                          {/* Size */}
+                                          {item.customization.size && (
+                                            <Badge variant="secondary" className="text-[10px] uppercase h-5 px-1.5">
+                                              {item.customization.size.charAt(0)}
+                                            </Badge>
+                                          )}
+                                          
+                                          {/* Sweetness */}
+                                          {item.customization.sweetness !== undefined && item.customization.sweetness !== 100 && (
+                                            <Badge variant="secondary" className="text-[10px] h-5 px-1.5">
+                                              {item.customization.sweetness}% {translate("common.sweet")}
+                                            </Badge>
+                                          )}
+
+                                          {/* Ice */}
+                                          {item.customization.ice && item.customization.ice !== 'regular' && (
+                                            <Badge variant="secondary" className="text-[10px] capitalize h-5 px-1.5">
+                                              {item.customization.ice} {translate("common.ice")}
+                                            </Badge>
+                                          )}
+
+                                          {/* Toppings (Translated & Prefixed) */}
+                                          {item.customization.toppings?.map((topping, tIdx) => (
+                                            <Badge key={tIdx} variant="secondary" className="text-[10px] capitalize h-5 px-1.5">
+                                              + {translate(`customization.${topping}`)}
+                                            </Badge>
+                                          ))}
+                                        </div>
+                                      )}
                                     </div>
                                 ))}
                             </div>

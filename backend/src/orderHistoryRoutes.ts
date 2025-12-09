@@ -7,7 +7,7 @@ import {
   sendBadRequest, 
   sendCreated
 } from './utils/response';
-import { POINTS_PER_DOLLAR } from '@project3/shared';
+import { POINTS_PER_DOLLAR, DrinkCustomization } from '@project3/shared';
 import type { PoolClient } from 'pg';
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -22,6 +22,7 @@ interface OrderItemInput {
   item_name: string;
   cost: number;
   quantity: number;
+  customization?: DrinkCustomization;
 }
 
 interface CreateOrderBody {
@@ -64,7 +65,6 @@ router.post('/', async (req: Request<{}, {}, CreateOrderBody>, res: Response) =>
 
   const validatedItems: OrderItemInput[] = [];
   for (const item of items) {
-    // FIX: Check for undefined specifically so ID 0 is allowed
     if (item.item_id === undefined || item.item_id === null || !item.quantity || item.quantity <= 0) {
       return sendBadRequest(res, 'Invalid item data');
     }
@@ -73,6 +73,8 @@ router.post('/', async (req: Request<{}, {}, CreateOrderBody>, res: Response) =>
       item_name: String(item.item_name).trim(),
       cost: Number(item.cost),
       quantity: Math.floor(Number(item.quantity)),
+      // FIX: Ensure customization is passed through validation
+      customization: item.customization || undefined, 
     });
   }
 
@@ -111,7 +113,8 @@ router.post('/', async (req: Request<{}, {}, CreateOrderBody>, res: Response) =>
       const quantities: number[] = [];
       const unitPrices: number[] = [];
       const totalPrices: number[] = [];
-      
+      const customizations: (string | null)[] = [];
+
       let orderTotal = 0;
 
       for (const item of validatedItems) {
@@ -127,19 +130,21 @@ router.post('/', async (req: Request<{}, {}, CreateOrderBody>, res: Response) =>
         quantities.push(item.quantity);
         unitPrices.push(item.cost);
         totalPrices.push(lineTotal);
+        // Serialize to JSON string, Postgres handles jsonb
+        customizations.push(item.customization ? JSON.stringify(item.customization) : null);
       }
 
       // 5. Bulk Insert using UNNEST
       await client.query(
         `INSERT INTO order_history (
            orderid, customerid, employeeatcheckout, paymentmethod,
-           menuitemid, itemname, quantity, unitprice, totalprice
+           menuitemid, itemname, quantity, unitprice, totalprice, customizations
          )
          SELECT * FROM unnest(
            $1::int[], $2::int[], $3::int[], $4::text[],
-           $5::int[], $6::text[], $7::int[], $8::numeric[], $9::numeric[]
+           $5::int[], $6::text[], $7::int[], $8::numeric[], $9::numeric[], $10::jsonb[]
          )`,
-        [orderIds, customerIds, employeeIds, paymentMethods, menuItemIds, itemNames, quantities, unitPrices, totalPrices]
+        [orderIds, customerIds, employeeIds, paymentMethods, menuItemIds, itemNames, quantities, unitPrices, totalPrices, customizations]
       );
 
       // 6. Atomic Inventory Deduction
@@ -198,9 +203,10 @@ router.get('/', async (req: Request<{}, {}, {}, OrderHistoryQuery>, res: Respons
         SUM(totalprice::numeric)::float AS total_order_price,
         json_agg(
           json_build_object(
-            'name', itemname, 
-            'qty', quantity, 
-            'price', totalprice::numeric::float
+            'name', itemname,
+            'qty', quantity,
+            'price', totalprice::numeric::float,
+            'customization', customizations
           )
         ) AS items
       FROM order_history
@@ -211,7 +217,6 @@ router.get('/', async (req: Request<{}, {}, {}, OrderHistoryQuery>, res: Respons
 
     let totalCount = 0;
     if (!isDashboard) {
-      // FIX: Use 'db' (the global pool), not 'client'
       const countResult = await db.query<{ count: string }>(
         'SELECT COUNT(DISTINCT orderid) AS count FROM order_history'
       );

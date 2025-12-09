@@ -128,9 +128,10 @@ router.get('/:id/orders', async (req: Request, res: Response) => {
         MIN(orderdate) as order_date,
         SUM(totalprice::numeric)::float as total_price,
         json_agg(json_build_object(
-          'name', itemname, 
-          'qty', quantity, 
-          'id', menuitemid
+          'name', itemname,
+          'qty', quantity,
+          'id', menuitemid,
+          'customization', customizations
         )) as items
       FROM order_history
       WHERE customerid = $1

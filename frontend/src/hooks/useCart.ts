@@ -58,7 +58,8 @@ export function useCart() {
             item_id: item.item_id,
             item_name: item.item_name,
             quantity: item.quantity,
-            cost: item.cost
+            cost: item.cost,
+            customization: item.customization
           })),
           paymentmethod: paymentMethod,
           customerId,
