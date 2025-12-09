@@ -5,7 +5,7 @@ import {
   MS_PER_DAY, 
   PaymentMethod, 
   DrinkCustomization,
-  // Import Constants to ensure data matches frontend logic exactly
+  // IMPORT CONSTANTS to ensure data matches frontend logic exactly
   TOPPING_OPTIONS,
   SWEETNESS_OPTIONS,
   ICE_OPTIONS,
@@ -24,10 +24,10 @@ const VALID_PAYMENT_METHODS: PaymentMethod[] = ['cash', 'card', 'digital'];
 
 /**
  * Generates a realistic drink customization for fake orders.
- * Uses the EXACT keys from shared/constants to ensure badges render correctly.
+ * FIX: Uses the EXACT keys from shared/constants so badges translate correctly.
  */
 function generateRandomCustomization(): DrinkCustomization | null {
-  // 70% chance of having customizations, 30% basic drink
+  // 30% chance of basic drink, 70% chance of customization
   if (Math.random() > 0.7) {
     return null;
   }
@@ -56,7 +56,7 @@ function generateRandomCustomization(): DrinkCustomization | null {
 
 /**
  * Calculates the real price of a specific item instance based on customization.
- * Matches the frontend cart logic.
+ * FIX: Matches the Cashier frontend logic exactly.
  */
 function calculateAdjustedPrice(basePrice: number, customization: DrinkCustomization | null): number {
   if (!customization) return basePrice;
@@ -70,11 +70,11 @@ function calculateAdjustedPrice(basePrice: number, customization: DrinkCustomiza
   }
 
   // Apply Topping Cost
-  if (customization.toppings.length > 0) {
+  if (customization.toppings && customization.toppings.length > 0) {
     price += (customization.toppings.length * TOPPING_PRICE);
   }
 
-  // Prevent negative prices just in case
+  // Prevent negative prices
   return Math.max(0, price);
 }
 
@@ -140,7 +140,7 @@ async function createSyntheticOrder(
   const numItems = 1 + Math.floor(Math.random() * 4);
   const itemsMap = new Map<number, { item: MenuItem; qty: number }>();
 
-  // Consolidate base items first
+  // Group items so duplicates increase quantity instead of separate rows
   for (let i = 0; i < numItems; i++) {
     const item = pickWeightedMenuItem(menu, favoredCategory, favoredItemId);
     const current = itemsMap.get(item.item_id);
@@ -158,7 +158,7 @@ async function createSyntheticOrder(
   const paymentMethod = VALID_PAYMENT_METHODS[Math.floor(Math.random() * VALID_PAYMENT_METHODS.length)]!;
 
   return runTransaction(async (client: PoolClient) => {
-    // 1. Get next order ID securely
+    // 1. Get next order ID
     const seqResult = await client.query<{ new_id: string }>(
       "SELECT nextval(pg_get_serial_sequence('order_history', 'orderid')) AS new_id"
     );
@@ -179,7 +179,7 @@ async function createSyntheticOrder(
     const deductionRequests: { item_id: number; quantity: number }[] = [];
 
     for (const { item, qty } of itemsMap.values()) {
-      // Generate customization
+      // Generate customization using shared options
       const customization = generateRandomCustomization();
       
       // Calculate REAL price including size and toppings
@@ -193,8 +193,8 @@ async function createSyntheticOrder(
       menuIds.push(item.item_id);
       names.push(item.item_name);
       qtys.push(qty);
-      prices.push(adjustedUnitPrice); // Corrected unit price
-      totals.push(lineTotal);         // Corrected total
+      prices.push(adjustedUnitPrice); // Save the customized price
+      totals.push(lineTotal);         
       
       customizations.push(customization ? JSON.stringify(customization) : null);
       deductionRequests.push({ item_id: item.item_id, quantity: qty });
