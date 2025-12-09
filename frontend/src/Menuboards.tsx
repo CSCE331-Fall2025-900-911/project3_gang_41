@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { fetchApi } from '@/lib/api';
 import { useNavigate } from "react-router-dom";
@@ -13,7 +13,7 @@ export default function Menuboards() {
   const navigate = useNavigate();
 
   const [menu, setMenu] = useState<MenuItem[]>([]);
-  const [weather, setWeather] = useState<{ temperature: number; icon: string } | null>(null);
+  const [, setWeather] = useState<{ temperature: number; icon: string } | null>(null);
   
 
   useEffect(() => {
