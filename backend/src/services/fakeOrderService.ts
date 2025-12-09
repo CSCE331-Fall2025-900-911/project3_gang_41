@@ -1,6 +1,6 @@
 import db, { runTransaction } from '../db';
 import { executeInventoryDeduction } from './inventoryService';
-import { MenuItem, MS_PER_DAY, PaymentMethod } from '@project3/shared';
+import { MenuItem, MS_PER_DAY, PaymentMethod, DrinkCustomization } from '@project3/shared';
 import type { PoolClient } from 'pg';
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -11,6 +11,41 @@ const BUSINESS_TZ = 'America/Chicago';
 
 // Explicitly typed array matching Shared Type
 const VALID_PAYMENT_METHODS: PaymentMethod[] = ['cash', 'card', 'digital'];
+
+// Customization options for realistic fake orders
+const VALID_SWEETNESS_LEVELS: DrinkCustomization['sweetness'][] = [0, 25, 50, 75, 100, 125, 150];
+const VALID_ICE_LEVELS: DrinkCustomization['ice'][] = ['regular', 'light', 'none'];
+const VALID_SIZES: DrinkCustomization['size'][] = ['small', 'medium', 'large'];
+const VALID_TOPPINGS: string[] = ['Boba', 'Jelly', 'Coconut Flakes', 'Pudding', 'Red Bean'];
+
+/**
+ * Generates a realistic drink customization for fake orders.
+ * Most drinks will have customizations, but some will be basic.
+ */
+function generateRandomCustomization(): DrinkCustomization | null {
+  // 70% chance of having customizations, 30% basic drink
+  if (Math.random() > 0.7) {
+    return null;
+  }
+
+  const numToppings = Math.floor(Math.random() * 3); // 0-2 toppings
+  const toppings: string[] = [];
+  const availableToppings = [...VALID_TOPPINGS];
+  
+  for (let i = 0; i < numToppings; i++) {
+    if (availableToppings.length === 0) break;
+    const index = Math.floor(Math.random() * availableToppings.length);
+    toppings.push(availableToppings.splice(index, 1)[0]);
+  }
+
+  return {
+    sweetness: VALID_SWEETNESS_LEVELS[Math.floor(Math.random() * VALID_SWEETNESS_LEVELS.length)],
+    ice: VALID_ICE_LEVELS[Math.floor(Math.random() * VALID_ICE_LEVELS.length)],
+    size: VALID_SIZES[Math.floor(Math.random() * VALID_SIZES.length)],
+    temperature: Math.random() > 0.3 ? 'cold' : 'hot', // 70% cold, 30% hot
+    toppings: toppings.sort() // Sort for consistent ordering
+  };
+}
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Helpers (Mulberry32 & Date Logic)
@@ -112,6 +147,7 @@ async function createSyntheticOrder(
     const qtys: number[] = [];
     const prices: number[] = [];
     const totals: number[] = [];
+    const customizations: (string | null)[] = [];
 
     const deductionRequests: { item_id: number; quantity: number }[] = [];
 
@@ -125,6 +161,10 @@ async function createSyntheticOrder(
       qtys.push(qty);
       prices.push(item.cost);
       totals.push(item.cost * qty);
+      
+      // Generate realistic customization data
+      const customization = generateRandomCustomization();
+      customizations.push(customization ? JSON.stringify(customization) : null);
 
       deductionRequests.push({ item_id: item.item_id, quantity: qty });
     }
@@ -133,13 +173,13 @@ async function createSyntheticOrder(
     await client.query(
       `INSERT INTO order_history (
          orderid, customerid, employeeatcheckout, paymentmethod,
-         menuitemid, itemname, quantity, unitprice, totalprice
+         menuitemid, itemname, quantity, unitprice, totalprice, customizations
        )
        SELECT * FROM unnest(
          $1::int[], $2::int[], $3::int[], $4::text[],
-         $5::int[], $6::text[], $7::int[], $8::numeric[], $9::numeric[]
+         $5::int[], $6::text[], $7::int[], $8::numeric[], $9::numeric[], $10::jsonb[]
        )`,
-      [orderIds, customerIds, employeeIdsArr, methods, menuIds, names, qtys, prices, totals]
+      [orderIds, customerIds, employeeIdsArr, methods, menuIds, names, qtys, prices, totals, customizations]
     );
 
     // 4. Atomic Inventory Deduction
