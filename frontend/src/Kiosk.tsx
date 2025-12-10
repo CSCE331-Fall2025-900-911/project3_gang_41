@@ -13,7 +13,7 @@ import {
 } from '@/components/ui/drawer';
 import { 
   Minus, Plus, ShoppingCart, Trash2, Edit, Loader2, FlaskConical, ChevronDown, 
-  CreditCard, Banknote, LogIn, User, Star, LogOut, CheckCircle, History, Eye
+  CreditCard, Banknote, User, Star, LogOut, CheckCircle, History, Eye
 } from 'lucide-react';
 import { WeatherDisplay } from '@/components/WeatherDisplay';
 import { DrinkCustomizationDialog } from "@/components/DrinkCustomizationDialog";
@@ -32,7 +32,6 @@ import {
 import { Switch } from "@/components/ui/switch";
 import { SmoothCursor } from "@/components/ui/smooth-cursor";
 import { LanguageToggle } from "@/components/LanguageToggle";
-import { useNavigate } from "react-router-dom";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Confetti, type ConfettiRef } from "@/components/ui/confetti";
 
@@ -75,7 +74,6 @@ const CONFETTI_GLOBAL_OPTIONS = { resize: true, useWorker: true };
 
 export default function Kiosk() {
   const { t: translate } = useTranslation();
-  const navigate = useNavigate();
   const confettiRef = useRef<ConfettiRef>(null);
   
   // -- AUDIO / TTS LOGIC --
@@ -308,24 +306,25 @@ export default function Kiosk() {
       />
 
       {/* Sidebar */}
-      <nav className="w-72 bg-gray-100 dark:bg-gray-900 border-r p-4 flex flex-col gap-2" aria-label="Main Navigation">
+      <nav className="w-80 bg-gray-50/50 dark:bg-gray-900/50 border-r p-5 flex flex-col gap-4" aria-label="Main Navigation">
 
         {/* Logo Header */}
-        <div className="mb-4 flex items-center justify-center px-2">
-          <img src="/logo.jpg" alt="Logo" className="h-12 w-auto" />
+        <div className="mb-2 flex items-center justify-center">
+          <img src="/logo.jpg" alt="Logo" className="h-14 w-auto rounded-full shadow-sm" />
         </div>
 
-        {/* MEMBER LOGIN BUTTON */}
-        <div className="px-2 pb-2">
+        {/* MEMBER LOGIN BUTTON - REDESIGNED */}
+        <div className="pb-2">
           {customer ? (
-            <Card className="bg-primary/5 border-primary/20 shadow-sm">
-              <CardContent className="p-3">
+            <Card className="bg-gradient-to-br from-primary/5 to-primary/10 border-primary/20 shadow-md">
+              <CardContent className="p-4">
                 <div className="space-y-3">
                   <div className="flex justify-between items-start">
                     <div className='overflow-hidden'>
-                      <h3 className="font-bold text-sm truncate w-40">{customer.customer_name}</h3>
-                      <div className="flex items-center gap-1 text-amber-500 font-bold text-sm">
-                        <Star className="h-3 w-3 fill-current" />
+                      <p className="text-xs text-primary font-bold uppercase tracking-wider mb-1">Welcome Back</p>
+                      <h3 className="font-bold text-lg truncate">{customer.customer_name}</h3>
+                      <div className="flex items-center gap-1 text-amber-500 font-bold text-sm mt-1">
+                        <Star className="h-4 w-4 fill-current" />
                         {customer.points} {translate("kioskCheckout.pts")}
                       </div>
                     </div>
@@ -335,7 +334,7 @@ export default function Kiosk() {
                     <Button 
                       variant="outline" 
                       size="sm" 
-                      className="h-8 text-xs gap-1 px-1" 
+                      className="h-9 text-xs gap-1 px-1 bg-background hover:bg-white" 
                       onClick={() => setHistoryOpen(true)}
                     >
                       <History className="h-4 w-4" /> {translate("manager.categories.history")}
@@ -343,7 +342,7 @@ export default function Kiosk() {
                     <Button 
                       variant="ghost" 
                       size="sm" 
-                      className="h-8 text-xs gap-1 px-1 text-muted-foreground hover:text-destructive hover:bg-destructive/10" 
+                      className="h-9 text-xs gap-1 px-1 text-muted-foreground hover:text-destructive hover:bg-destructive/10" 
                       onClick={logoutCustomer}
                     >
                       <LogOut className="h-4 w-4" /> {translate('common.logout')}
@@ -355,52 +354,61 @@ export default function Kiosk() {
           ) : (
             <Button 
               variant="outline"
-              className={`w-full justify-start gap-2 border-2 border-dashed transition-all duration-300
-                ${memberBtnFlash 
-                  ? "border-gray-900 text-gray-900 bg-gray-100/50 scale-[1.02]" 
-                  : "border-gray-300 text-gray-600 hover:border-gray-900 hover:text-gray-900 hover:bg-transparent" 
-                }
+              className={`w-full justify-start gap-3 h-16 px-4 rounded-xl border bg-white dark:bg-card shadow-sm hover:shadow-md hover:bg-accent hover:border-primary/30 transition-all duration-300 relative overflow-hidden group
+                ${memberBtnFlash ? "ring-2 ring-primary ring-offset-2" : ""}
               `}
               onClick={() => setLoginOpen(true)}
             >
-              <User className="h-5 w-5" />
-              {translate("member.loginTitle")}
+              <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center group-hover:bg-primary/20 transition-colors">
+                 <User className="h-5 w-5 text-primary" />
+              </div>
+              <div className="flex flex-col items-start">
+                <span className="font-bold text-sm">{translate("member.loginTitle")}</span>
+                <span className="text-xs text-muted-foreground">{translate("member.earnRewards")}</span>
+              </div>
             </Button>
           )}
         </div>
 
-        {categories.map((category, index) => (
-          <Button
-            key={index}
-            variant={activeCategory === category ? "default" : "ghost"}
-            className="w-full justify-start text-left"
-            onClick={() => setActiveCategory(category)}
-          >
-            {translate(categoryTranslationKeys[category])}
-          </Button>
-        ))}
+        <div className="space-y-2 flex-1 overflow-y-auto pr-1">
+          {categories.map((category, index) => (
+            <Button
+              key={index}
+              variant={activeCategory === category ? "default" : "ghost"}
+              className={`w-full justify-start text-left h-12 px-4 rounded-xl text-base transition-all duration-200
+                ${activeCategory === category 
+                  ? "shadow-md" 
+                  : "hover:bg-gray-200/50 dark:hover:bg-gray-800"
+                }`}
+              onClick={() => setActiveCategory(category)}
+            >
+              {translate(categoryTranslationKeys[category])}
+            </Button>
+          ))}
+        </div>
+
         {weather && (
-          <div className="px-2 py-2">
+          <div className="px-1 py-1">
             <WeatherDisplay temperature={weather.temperature} icon={weather.icon} />
           </div>
         )}
 
-        <div className="px-2 py-2">
+        <div className="px-1">
           <LanguageToggle />
         </div>
 
-        <div className="mt-auto pt-4 border-t border-gray-300 dark:border-gray-700">
+        <div className="mt-auto pt-4 border-t border-gray-200 dark:border-gray-800">
           <Collapsible>
             <CollapsibleTrigger asChild>
-              <Button variant="ghost" className="w-full justify-between">
+              <Button variant="ghost" className="w-full justify-between h-10 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800">
                 <div className="flex items-center gap-2">
-                  <FlaskConical className="h-5 w-5" />
+                  <FlaskConical className="h-4 w-4" />
                   <span className="text-sm">{translate('kiosk.experimental')}</span>
                 </div>
                 <ChevronDown className="h-4 w-4 transition-transform duration-200 group-data-[state=open]:rotate-180" />
               </Button>
             </CollapsibleTrigger>
-            <CollapsibleContent className="px-2 py-3 space-y-3">
+            <CollapsibleContent className="px-2 py-3 space-y-3 bg-gray-50 dark:bg-gray-900/50 rounded-lg mt-2">
               <div className="flex items-center justify-between">
                 <label htmlFor="smooth-cursor" className="text-sm text-muted-foreground">
                   {translate('kiosk.smoothCursor')}
@@ -452,49 +460,66 @@ export default function Kiosk() {
               </div>
             </CollapsibleContent>
           </Collapsible>
-
-          <Button
-            variant="ghost"
-            className="w-full justify-start text-left"
-            onClick={() => navigate('/login')}
-          >
-            <LogIn className="h-5 w-5 mr-2" />
-            {translate('common.login')}
-          </Button>
         </div>
       </nav>
 
       {/* Main content */}
-      <main className="flex-1 flex flex-col overflow-hidden">
+      <main className="flex-1 flex flex-col overflow-hidden relative">
         <h1 className="sr-only">Boba Tea Kiosk Menu and Ordering</h1>
-        <div className="flex-1 overflow-auto p-8">
-          <div className="max-w-5xl mx-auto">
-            <div className="grid grid-cols-3 gap-6">
+        
+        {/* Scrollable Grid */}
+        <div className="flex-1 overflow-auto p-8 pb-32">
+          <div className="max-w-7xl mx-auto">
+            <h2 className="text-3xl font-bold mb-6 text-gray-800 dark:text-gray-100 tracking-tight">
+              {translate(categoryTranslationKeys[activeCategory])}
+            </h2>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
               {menu
                 .filter((item) => activeCategory === 'All Items' || item.category === activeCategory)
                 .map(item => (
                 <Card
                   key={item.item_id}
-                  className="cursor-pointer transition-all duration-150 hover:shadow-xl hover:scale-105 active:scale-95 active:shadow-md h-72"
+                  className="cursor-pointer transition-all duration-200 hover:shadow-2xl hover:-translate-y-1 active:scale-95 active:shadow-md flex flex-col overflow-hidden border-border/50 bg-card/50 backdrop-blur-sm group"
                   onClick={() => openCustomizationDialog(item)}
                   role="button"
                   tabIndex={0}
                   aria-label={translate('aria.addToCart', { item: item.item_name })}
                   onKeyDown={(e) => e.key === 'Enter' && openCustomizationDialog(item)}
                 >
-                  <CardHeader className="p-4 pb-1">
-                    <CardTitle className="text-lg text-center line-clamp-2 min-h-[3rem]">
+                  <CardHeader className="p-4 pb-2">
+                    <CardTitle className="text-lg text-center line-clamp-1 group-hover:text-primary transition-colors">
                       {item.item_name}
                     </CardTitle>
                   </CardHeader>
-                  <CardContent className="p-4 pt-1 flex flex-col items-center justify-between h-[calc(100%-5rem)]">
-                    <img
-                      src={item.image_url || "/brownsugarboba.jpg"}
-                      alt={item.item_name}
-                      className="w-36 h-36 object-cover rounded-lg shadow-md"
-                    />
-                    <div className="text-2xl font-bold text-primary mt-2">
-                      ${item.cost.toFixed(2)}
+                  <CardContent className="p-4 pt-0 flex flex-col flex-1">
+                    <div className="relative w-full aspect-square mb-4 overflow-hidden rounded-xl bg-gray-100 dark:bg-gray-800">
+                      <img
+                        src={item.image_url || "/brownsugarboba.jpg"}
+                        alt={item.item_name}
+                        className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
+                      />
+                    </div>
+                    
+                    {/* Item Details Container */}
+                    <div className="space-y-2 mb-3 flex-1">
+                      {/* Manual Description */}
+                      {item.description && (
+                        <p className="text-sm text-muted-foreground line-clamp-2">
+                          {translate(item.description)}
+                        </p>
+                      )}
+                      
+                      {/* Highlight Ingredients */}
+                      {item.ingredients_list && item.ingredients_list.length > 0 && (
+                        <div className="text-xs text-muted-foreground/80">
+                          <span className="font-semibold">{translate("common.contains")}</span> {item.ingredients_list.map((i: any) => translate(i)).join(", ")}
+                        </div>
+                      )}
+                    </div>
+
+                    <div className="mt-auto pt-3 border-t flex items-center justify-between">
+                      <span className="text-2xl font-bold text-primary">${item.cost.toFixed(2)}</span>
+                      <Button size="sm" className="rounded-full px-4" variant="secondary">{translate("common.addToCart")}</Button>
                     </div>
                   </CardContent>
                 </Card>
@@ -503,88 +528,96 @@ export default function Kiosk() {
           </div>
         </div>
 
-        {/* Drawer Trigger */}
-        <div className="p-4">
-          <Button
-            size="lg"
-            className={`w-64 mx-auto flex items-center gap-2 transition-transform duration-500 ${
-              buttonPulse ? 'scale-110' : 'scale-100'
-            }`}
-            variant={cart.length > 0 ? "default" : "outline"}
-            onClick={handleMainCheckoutClick}
-          >
-            <ShoppingCart className="h-5 w-5" aria-hidden="true" />
-            {translate('common.checkout')}
-            {cart.length > 0 && (
-              <Badge variant="secondary" className="ml-2">
-                {cart.reduce((sum: number, item: CartItem) => sum + item.quantity, 0)}
-              </Badge>
-            )}
-          </Button>
+        {/* Floating Checkout Button Area */}
+        <div className="absolute bottom-8 left-0 right-0 flex justify-center pointer-events-none z-10">
+          <div className="pointer-events-auto">
+             <Button
+                size="lg"
+                className={`h-20 px-12 rounded-full shadow-xl text-xl font-bold flex items-center gap-3 transition-all duration-500 ${
+                  buttonPulse ? 'scale-110 bg-green-600' : 'scale-100'
+                } ${cart.length > 0 ? 'animate-in fade-in slide-in-from-bottom-4' : 'opacity-90'}`}
+                variant={cart.length > 0 ? "default" : "secondary"}
+                onClick={handleMainCheckoutClick}
+              >
+                <div className="relative">
+                  <ShoppingCart className="h-8 w-8" aria-hidden="true" />
+                  {cart.length > 0 && (
+                    <Badge variant="destructive" className="absolute -top-2 -right-2 h-6 w-6 flex items-center justify-center p-0 text-xs rounded-full border-2 border-background">
+                      {cart.reduce((sum: number, item: CartItem) => sum + item.quantity, 0)}
+                    </Badge>
+                  )}
+                </div>
+                <span>{translate('common.checkout')}</span>
+                {cart.length > 0 && (
+                  <span className="bg-primary-foreground/20 px-3 py-1 rounded text-lg ml-2">
+                    ${total.toFixed(2)}
+                  </span>
+                )}
+              </Button>
+          </div>
         </div>
       </main>
 
       {/* CHECKOUT DRAWER */}
       <Drawer open={drawerOpen} onOpenChange={setDrawerOpen}>
-        <DrawerContent className="max-h-[85vh] flex flex-col">
-          <DrawerHeader className="flex-none">
-            <DrawerTitle>{translate('kiosk.yourOrder')}</DrawerTitle>
-            <DrawerDescription>{translate('kiosk.reviewItems')}</DrawerDescription>
+        <DrawerContent className="max-h-[90vh] flex flex-col rounded-t-[2rem]">
+          <DrawerHeader className="flex-none text-center pb-2">
+            <DrawerTitle className="text-2xl font-bold">{translate('kiosk.yourOrder')}</DrawerTitle>
+            <DrawerDescription className="text-base">{translate('kiosk.reviewItems')}</DrawerDescription>
           </DrawerHeader>
 
-          <div className="flex-1 flex gap-8 px-10 pb-8 min-h-0">
+          <div className="flex-1 flex flex-col md:flex-row gap-8 px-6 md:px-12 pb-8 min-h-0">
             {/* Left: Cart Items */}
-            <div className="flex-1 overflow-y-auto pr-4">
+            <div className="flex-1 overflow-y-auto pr-2 custom-scrollbar">
                {cart.length === 0 ? (
-                  <div className="py-8 text-center text-muted-foreground">
-                    <ShoppingCart className="h-12 w-12 mx-auto mb-4 opacity-30" aria-hidden="true" />
-                    <p>{translate('kiosk.cartEmpty')}</p>
-                    <p className="text-sm mt-1">{translate('kiosk.addItemsToStart')}</p>
+                  <div className="h-full flex flex-col items-center justify-center text-muted-foreground opacity-50">
+                    <ShoppingCart className="h-20 w-20 mb-4 stroke-1" aria-hidden="true" />
+                    <p className="text-xl font-medium">{translate('kiosk.cartEmpty')}</p>
+                    <p className="mt-2">{translate('kiosk.addItemsToStart')}</p>
                   </div>
                ) : (
-                 <div className="space-y-3">
+                 <div className="space-y-4">
                    {cart.map((item: CartItem) => (
-                     <div key={item.uniqueId} className="border rounded-lg p-3">
-                        <div className="flex gap-3 mb-2">
+                     <div key={item.uniqueId} className="bg-card border rounded-2xl p-4 shadow-sm flex gap-4">
                           <img 
                             src={menu.find(m => m.item_id === item.item_id)?.image_url || "/brownsugarboba.jpg"} 
                             alt={item.item_name}
-                            className="w-16 h-16 rounded object-cover flex-shrink-0" 
+                            className="w-24 h-24 rounded-xl object-cover flex-shrink-0 bg-muted" 
                           />
-                          <div className="flex-1">
+                          <div className="flex-1 flex flex-col justify-between">
                             <div className="flex justify-between items-start">
                                <div>
-                                  <h4 className="font-medium text-sm">{item.item_name}</h4>
-                                  <p className="text-xs text-muted-foreground">
+                                  <h4 className="font-bold text-lg">{item.item_name}</h4>
+                                  <p className="text-sm text-muted-foreground font-medium">
                                     ${item.cost.toFixed(2)} {translate('common.each')}
                                   </p>
                                </div>
-                               <span className="font-bold">${(item.cost * item.quantity).toFixed(2)}</span>
+                               <span className="font-bold text-lg">${(item.cost * item.quantity).toFixed(2)}</span>
                             </div>
                             
                             {item.customization && (
-                              <CustomizationBadges customization={item.customization} size="sm" />
+                              <div className="mt-1 mb-2">
+                                <CustomizationBadges customization={item.customization} size="sm" />
+                              </div>
                             )}
-                          </div>
-                        </div>
 
-                        {/* Controls */}
-                        <div className="flex items-center justify-between mt-2 pt-2 border-t">
-                           <div className="flex items-center gap-2">
-                              <Button size="icon" variant="outline" className="h-7 w-7" onClick={() => updateQuantity(item.uniqueId, item.quantity - 1)}><Minus className="h-3 w-3"/></Button>
-                              <span className="text-sm font-medium w-6 text-center">{item.quantity}</span>
-                              <Button size="icon" variant="outline" className="h-7 w-7" onClick={() => updateQuantity(item.uniqueId, item.quantity + 1)}><Plus className="h-3 w-3"/></Button>
-                           </div>
-                           
-                           <div className="flex gap-1">
-                              <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => openEditDialog(item)}>
-                                <Edit className="h-3 w-3" />
-                              </Button>
-                              <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive" onClick={() => removeFromCart(item.uniqueId)}>
-                                <Trash2 className="h-3 w-3" />
-                              </Button>
-                           </div>
-                        </div>
+                            <div className="flex items-center justify-between pt-2 border-t border-dashed">
+                               <div className="flex items-center bg-muted/50 rounded-lg p-1">
+                                  <Button size="icon" variant="ghost" className="h-8 w-8 rounded-md" onClick={() => updateQuantity(item.uniqueId, item.quantity - 1)}><Minus className="h-4 w-4"/></Button>
+                                  <span className="text-base font-bold w-8 text-center tabular-nums">{item.quantity}</span>
+                                  <Button size="icon" variant="ghost" className="h-8 w-8 rounded-md" onClick={() => updateQuantity(item.uniqueId, item.quantity + 1)}><Plus className="h-4 w-4"/></Button>
+                               </div>
+                               
+                               <div className="flex gap-1">
+                                  <Button variant="ghost" size="sm" className="h-8 text-xs font-medium" onClick={() => openEditDialog(item)}>
+                                    <Edit className="h-3 w-3 mr-1" /> Edit
+                                  </Button>
+                                  <Button variant="ghost" size="sm" className="h-8 text-xs font-medium text-destructive hover:text-destructive hover:bg-destructive/10" onClick={() => removeFromCart(item.uniqueId)}>
+                                    <Trash2 className="h-3 w-3 mr-1" /> Remove
+                                  </Button>
+                               </div>
+                            </div>
+                          </div>
                      </div>
                    ))}
                  </div>
@@ -592,15 +625,17 @@ export default function Kiosk() {
             </div>
 
             {/* Right: Payment & Points */}
-            <div className="w-[400px] flex-none flex flex-col justify-end pl-4">
-              <div className="space-y-4">
+            <div className="w-full md:w-[400px] flex-none flex flex-col justify-end bg-muted/30 p-6 rounded-2xl border">
+              <div className="space-y-5">
                 
                 {customer && customer.points >= 100 && (
-                  <div className="bg-amber-50 p-4 rounded-lg border border-amber-200 animate-in fade-in slide-in-from-bottom-2">
+                  <div className="bg-white dark:bg-card p-4 rounded-xl border border-amber-200/50 shadow-sm animate-in fade-in slide-in-from-bottom-2">
                       <div className="flex items-center justify-between mb-2">
                         <div className="flex items-center gap-2">
-                            <Star className="h-4 w-4 text-amber-500 fill-current" />
-                            <span className="font-semibold text-amber-900">{translate("kioskCheckout.usePoints")}</span>
+                            <div className="bg-amber-100 p-1.5 rounded-full">
+                              <Star className="h-4 w-4 text-amber-600 fill-current" />
+                            </div>
+                            <span className="font-bold text-amber-900 dark:text-amber-100">{translate("kioskCheckout.usePoints")}</span>
                         </div>
                         <Switch 
                             checked={usePoints} 
@@ -608,14 +643,14 @@ export default function Kiosk() {
                             className="data-[state=checked]:bg-amber-500"
                         />
                       </div>
-                      <div className="text-sm text-amber-800">
-                        {translate("kioskCheckout.balance")} <strong>{customer.points}</strong> {translate("kioskCheckout.pts")}
+                      <div className="text-sm text-amber-800 dark:text-amber-200/80 pl-1">
+                        {translate("kioskCheckout.balance")} <strong className="text-amber-600">{customer.points}</strong> {translate("kioskCheckout.pts")}
                         {usePoints ? (
-                            <div className="mt-1 font-bold text-green-600">
-                              {translate("kioskCheckout.saving")} ${discountAmount.toFixed(2)} (-{pointsToBurn} {translate("kioskCheckout.pts")})
+                            <div className="mt-2 font-bold text-green-600 bg-green-50 dark:bg-green-900/20 p-2 rounded text-center">
+                              {translate("kioskCheckout.saving")} ${discountAmount.toFixed(2)} (-{pointsToBurn} pts)
                             </div>
                         ) : (
-                            <div className="mt-1">
+                            <div className="mt-1 text-xs opacity-80">
                               {translate("kioskCheckout.maxDiscount")} <strong>${maxDiscount.toFixed(2)}</strong>
                             </div>
                         )}
@@ -623,37 +658,39 @@ export default function Kiosk() {
                   </div>
                 )}
 
-                <div className="text-center">
-                  <div className="text-6xl font-bold">${finalTotal.toFixed(2)}</div>
-                  <div className="text-sm text-muted-foreground mt-2 space-y-1">
-                    <div className="flex justify-between"><span>Subtotal:</span> <span>${total.toFixed(2)}</span></div>
-                    {usePoints && (
-                        <div className="flex justify-between text-green-600 font-medium">
-                          <span>Points Discount:</span> <span>-${discountAmount.toFixed(2)}</span>
-                        </div>
-                    )}
-                    <div className="flex justify-between"><span>Tax ({(TAX_RATE * 100).toFixed(2)}%):</span> <span>${tax.toFixed(2)}</span></div>
-                  </div>
+                <div className="space-y-3 pb-4 border-b border-dashed">
+                  <div className="flex justify-between text-muted-foreground"><span>Subtotal</span> <span>${total.toFixed(2)}</span></div>
+                  {usePoints && (
+                      <div className="flex justify-between text-green-600 font-medium">
+                        <span>Points Discount</span> <span>-${discountAmount.toFixed(2)}</span>
+                      </div>
+                  )}
+                  <div className="flex justify-between text-muted-foreground"><span>Tax ({(TAX_RATE * 100).toFixed(0)}%)</span> <span>${tax.toFixed(2)}</span></div>
+                  <div className="flex justify-between text-3xl font-bold pt-2"><span>Total</span> <span>${finalTotal.toFixed(2)}</span></div>
                 </div>
 
-                <div className="flex gap-3">
-                  <Button variant={paymentMethod === 'card' ? 'default' : 'outline'} className="flex-1 h-12" onClick={() => setPaymentMethod('card')}>
-                    <CreditCard className="mr-2 h-4 w-4" /> Card
+                <div className="grid grid-cols-2 gap-3">
+                  <Button 
+                    variant={paymentMethod === 'card' ? 'default' : 'outline'} 
+                    className={`h-14 rounded-xl border-2 ${paymentMethod === 'card' ? 'border-primary' : 'border-transparent bg-white dark:bg-card hover:border-gray-300'}`}
+                    onClick={() => setPaymentMethod('card')}
+                  >
+                    <CreditCard className="mr-2 h-5 w-5" /> Card
                   </Button>
                   <Button 
                     variant={paymentMethod === 'cash' ? 'default' : 'outline'} 
-                    className="flex-1 h-12" 
+                    className={`h-14 rounded-xl border-2 ${paymentMethod === 'cash' ? 'border-primary' : 'border-transparent bg-white dark:bg-card hover:border-gray-300'}`} 
                     onClick={() => {
                       setPaymentMethod('cash');
                       if (ttsEnabled) play('cash');
                     }}
                   >
-                    <Banknote className="mr-2 h-4 w-4" /> Cash
+                    <Banknote className="mr-2 h-5 w-5" /> Cash
                   </Button>
                 </div>
 
-                <Button size="lg" className="w-full h-14 text-xl" onClick={handleCheckout} disabled={isSubmitting}>
-                  {isSubmitting ? <Loader2 className="animate-spin" /> : translate("kioskCheckout.payNow")}
+                <Button size="lg" className="w-full h-16 text-xl rounded-xl font-bold shadow-lg shadow-primary/20" onClick={handleCheckout} disabled={isSubmitting || cart.length === 0}>
+                  {isSubmitting ? <Loader2 className="animate-spin h-6 w-6" /> : translate("kioskCheckout.payNow")}
                 </Button>
               </div>
             </div>

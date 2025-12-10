@@ -18,6 +18,8 @@ export interface MenuItem extends BaseItem {
   category: string;
   image_url?: string | null;
   is_available?: boolean;
+  description?: string | null;
+  ingredients_list?: InventoryItem[];
 }
 
 /**
@@ -29,6 +31,7 @@ export interface InventoryItem extends Omit<BaseItem, 'cost'> {
   unit: string | null;
   cost: number | string;
   reorder_threshold?: number;
+  show_in_description?: boolean;
 }
 
 /**

@@ -40,8 +40,9 @@ router.post('/deduct', async (req: Request, res: Response) => {
  */
 router.get('/', async (_req: Request, res: Response) => {
   try {
+    // Added show_in_description to SELECT
     const sql = `
-      SELECT item_id, item_name, supply, unit, cost
+      SELECT item_id, item_name, supply, unit, cost, show_in_description
       FROM inventory 
       ORDER BY item_name ASC
     `;
@@ -58,7 +59,7 @@ router.get('/', async (_req: Request, res: Response) => {
  * Creates a new inventory item.
  */
 router.post('/', async (req: Request, res: Response) => {
-  const { item_name, quantity, cost, unit } = req.body;
+  const { item_name, quantity, cost, unit, show_in_description } = req.body;
 
   if (!item_name || quantity === undefined || cost === undefined) {
     return sendBadRequest(res, 'Missing required fields');
@@ -69,7 +70,9 @@ router.post('/', async (req: Request, res: Response) => {
       item_name: String(item_name).trim(),
       supply: Number(quantity),
       unit: unit || null,
-      cost: Number(cost)
+      cost: Number(cost),
+      // Added show_in_description to Insert
+      show_in_description: typeof show_in_description === 'boolean' ? show_in_description : false
     });
     
     if (!query) return sendBadRequest(res, 'Invalid data');
@@ -85,7 +88,6 @@ router.post('/', async (req: Request, res: Response) => {
 /**
  * GET /api/inventory/:id/menu-usage
  * Get menu items that use a specific inventory ingredient.
- * (Restored Feature)
  */
 router.get('/:id/menu-usage', async (req: Request, res: Response) => {
   let id: number;
@@ -123,13 +125,15 @@ router.put('/:id', async (req: Request, res: Response) => {
     return sendBadRequest(res, 'Invalid item ID');
   }
 
-  const { item_name, quantity, unit, cost } = req.body;
+  const { item_name, quantity, unit, cost, show_in_description } = req.body;
 
+  // Added show_in_description to Update
   const query = buildUpdateQuery('inventory', 'item_id', id, {
     item_name,
     supply: quantity,
     unit,
-    cost
+    cost,
+    show_in_description
   });
 
   if (!query) return sendBadRequest(res, 'No valid fields to update');
