@@ -2,7 +2,6 @@ import React, { useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { fetchApi } from "@/lib/api";
 import { formatCurrency } from "@/lib/utils";
-// Types from shared package
 import type { MenuItem, InventoryItem } from "@project3/shared";
 import { toast } from "sonner";
 import { useSoundEffects } from "@/hooks/useSoundEffects";
@@ -57,9 +56,6 @@ import {
 } from "lucide-react";
 import confetti from "canvas-confetti";
 
-
-// --- Types are imported from `@project3/shared` ---
-
 export default function MenuPage() {
   const { t: translate } = useTranslation();
   const { playSound } = useSoundEffects();
@@ -78,21 +74,25 @@ export default function MenuPage() {
 
   const [query, setQuery] = useState("");
 
+  // --- Add State ---
   const [addOpen, setAddOpen] = useState(false);
   const [newItemName, setNewItemName] = useState("");
   const [newItemCost, setNewItemCost] = useState("");
   const [newItemCategory, setNewItemCategory] = useState("");
+  const [newItemDescription, setNewItemDescription] = useState(""); // NEW
   const [openIngredientsAfterCreate, setOpenIngredientsAfterCreate] = useState(true);
   const [showCategorySuggestions, setShowCategorySuggestions] = useState(false);
 
+  // --- Edit State ---
   const [editOpen, setEditOpen] = useState(false);
   const [selectedItem, setSelectedItem] = useState<MenuItem | null>(null);
   const [updateName, setUpdateName] = useState("");
   const [updatePrice, setUpdatePrice] = useState("");
-  // NEW: State for editing category
   const [updateCategory, setUpdateCategory] = useState("");
+  const [updateDescription, setUpdateDescription] = useState(""); // NEW
   const [showEditCategorySuggestions, setShowEditCategorySuggestions] = useState(false);
 
+  // --- Other Dialogs ---
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [ingredientsOpen, setIngredientsOpen] = useState(false);
 
@@ -175,6 +175,7 @@ export default function MenuPage() {
           item_name: newItemName,
           cost: newItemCost,
           category: newItemCategory,
+          description: newItemDescription, // Send description
         }),
       });
 
@@ -188,6 +189,7 @@ export default function MenuPage() {
       setNewItemName("");
       setNewItemCost("");
       setNewItemCategory("");
+      setNewItemDescription(""); // Reset
       setShowCategorySuggestions(false);
       await loadMenuItems();
 
@@ -214,7 +216,8 @@ export default function MenuPage() {
         body: JSON.stringify({
           item_name: updateName,
           cost: updatePrice,
-          category: updateCategory, // NEW: Send updated category
+          category: updateCategory,
+          description: updateDescription, // Send description
         }),
       });
       toast.success(translate("menu.itemUpdated"));
@@ -227,6 +230,7 @@ export default function MenuPage() {
       setUpdateName("");
       setUpdatePrice("");
       setUpdateCategory("");
+      setUpdateDescription(""); // Reset
       await loadMenuItems();
     } catch (e: any) {
       toast.error(e?.message ?? translate("menu.errorUpdating"));
@@ -257,7 +261,8 @@ export default function MenuPage() {
     setSelectedItem(item);
     setUpdateName(item.item_name);
     setUpdatePrice(parseFloat(String(item.cost ?? "0")).toFixed(2));
-    setUpdateCategory(item.category || ""); // Pre-fill category
+    setUpdateCategory(item.category || "");
+    setUpdateDescription(item.description || ""); // Load existing
     setEditOpen(true);
   };
 
@@ -404,6 +409,12 @@ export default function MenuPage() {
                           </TableCell>
                           <TableCell className={`font-medium ${isExperimental ? "text-lg text-slate-700" : ""}`}>
                             {item.item_name}
+                            {/* Short Preview of Description if exists */}
+                            {item.description && (
+                              <div className="text-xs text-muted-foreground truncate max-w-[200px] mt-0.5">
+                                {item.description}
+                              </div>
+                            )}
                           </TableCell>
                           <TableCell>
                             {isExperimental ? (
@@ -484,6 +495,29 @@ export default function MenuPage() {
                 className={isExperimental ? "border-purple-200 focus-visible:ring-purple-400" : ""}
               />
             </div>
+
+            {/* NEW DESCRIPTION FIELD */}
+            <div className="grid gap-2">
+              <div className="flex justify-between items-center">
+                <Label htmlFor="newDesc">Description</Label>
+                <span className={`text-xs ${newItemDescription.length >= 100 ? 'text-red-500 font-bold' : 'text-muted-foreground'}`}>
+                  {newItemDescription.length}/100
+                </span>
+              </div>
+              <textarea
+                id="newDesc"
+                value={newItemDescription}
+                onChange={(e) => {
+                  if (e.target.value.length <= 100) {
+                    setNewItemDescription(e.target.value); 
+                    if (isExperimental) playSound('type');
+                  }
+                }}
+                className={`flex w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 min-h-[80px] resize-none ${isExperimental ? "border-purple-200 focus-visible:ring-purple-400" : ""}`}
+                placeholder="e.g. Refreshing jasmine green tea with natural honey..."
+              />
+            </div>
+
             <div className="grid gap-2">
               <Label htmlFor="newCost">{translate("menu.price")}</Label>
               <Input
@@ -515,7 +549,6 @@ export default function MenuPage() {
                 className={isExperimental ? "border-purple-200 focus-visible:ring-purple-400" : ""}
               />
               
-              {/* Suggestions List */}
               {showCategorySuggestions && filteredCategoryOptions.length > 0 && (
                 <div className="absolute top-[70px] left-0 right-0 z-10 max-h-48 overflow-y-auto rounded-md border bg-popover text-popover-foreground shadow-md animate-in fade-in-0 zoom-in-95">
                   {filteredCategoryOptions.map((category) => (
@@ -579,6 +612,29 @@ export default function MenuPage() {
                 className={isExperimental ? "border-blue-200 focus-visible:ring-blue-400" : ""}
               />
             </div>
+
+            {/* NEW DESCRIPTION FIELD IN EDIT */}
+            <div className="grid gap-2">
+              <div className="flex justify-between items-center">
+                <Label htmlFor="editDesc">Description</Label>
+                <span className={`text-xs ${updateDescription.length >= 100 ? 'text-red-500 font-bold' : 'text-muted-foreground'}`}>
+                  {updateDescription.length}/100
+                </span>
+              </div>
+              <textarea
+                id="editDesc"
+                value={updateDescription}
+                onChange={(e) => {
+                  if (e.target.value.length <= 100) {
+                    setUpdateDescription(e.target.value); 
+                    if (isExperimental) playSound('type');
+                  }
+                }}
+                className={`flex w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 min-h-[80px] resize-none ${isExperimental ? "border-blue-200 focus-visible:ring-blue-400" : ""}`}
+                placeholder="Description..."
+              />
+            </div>
+
             <div className="grid gap-2">
               <Label htmlFor="editPrice">{translate("menu.price")}</Label>
               <Input
@@ -723,7 +779,6 @@ function IngredientsDialog({ open, onOpenChange, item, onSaved, isExperimental, 
 
   const loadInventory = async () => {
     try {
-      // Changed to fetchApi
       const data = await fetchApi<InventoryItem[]>('/api/inventory');
       setInventory(data);
     } catch {
@@ -748,7 +803,6 @@ function IngredientsDialog({ open, onOpenChange, item, onSaved, isExperimental, 
 
   const loadExisting = async () => {
     try {
-      // Changed to fetchApi
       // Note: fetchApi unwraps the response, so 'payload' is the actual data object
       const payload = await fetchApi<any>(`/api/menu/${item.item_id}/ingredients`);
       // The backend returns { ingredients: [...] } inside the data wrapper
@@ -810,7 +864,7 @@ function IngredientsDialog({ open, onOpenChange, item, onSaved, isExperimental, 
         id: Number(id),
         quantity,
       }));
-      // Changed to fetchApi
+      
       await fetchApi(`/api/menu/${item.item_id}/ingredients`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -829,7 +883,6 @@ function IngredientsDialog({ open, onOpenChange, item, onSaved, isExperimental, 
     e.preventDefault();
     handleClick();
     try {
-      // Changed to fetchApi
       await fetchApi('/api/inventory', {
         method: "POST",
         headers: { "Content-Type": "application/json" },

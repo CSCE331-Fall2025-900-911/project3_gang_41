@@ -30,13 +30,13 @@ export function LanguageToggle({ fullWidth = false }: LanguageToggleProps) {
         aria-pressed={currentLang === "en" || currentLang.startsWith("en-")}
         className={cn(
           "py-1.5 rounded-full text-sm font-medium transition-all duration-200",
-          fullWidth ? "flex-1" : "px-3",
+          fullWidth ? "flex-1" : "px-4",
           currentLang === "en" || currentLang.startsWith("en-")
             ? "bg-primary text-primary-foreground shadow-sm"
             : "text-muted-foreground hover:text-foreground hover:bg-muted"
         )}
       >
-        {fullWidth ? t("language.english") : "EN"}
+        English
       </button>
       <button
         onClick={() => changeLanguage("es")}
@@ -44,13 +44,13 @@ export function LanguageToggle({ fullWidth = false }: LanguageToggleProps) {
         aria-pressed={currentLang === "es" || currentLang.startsWith("es-")}
         className={cn(
           "py-1.5 rounded-full text-sm font-medium transition-all duration-200",
-          fullWidth ? "flex-1" : "px-3",
+          fullWidth ? "flex-1" : "px-4",
           currentLang === "es" || currentLang.startsWith("es-")
             ? "bg-primary text-primary-foreground shadow-sm"
             : "text-muted-foreground hover:text-foreground hover:bg-muted"
         )}
       >
-        {fullWidth ? t("language.spanish") : "ES"}
+        Español
       </button>
     </div>
   );
