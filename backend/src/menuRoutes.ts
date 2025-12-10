@@ -76,6 +76,38 @@ router.post('/', async (req: Request, res: Response) => {
 });
 
 /**
+ * GET /api/menu/:itemId/ingredients
+ * Retrieves the list of inventory items (ingredients) for a specific menu item.
+ */
+router.get('/:itemId/ingredients', async (req: Request, res: Response) => {
+  let itemId: number;
+  try {
+    itemId = validateIdValue(parseInt(req.params.itemId, 10));
+  } catch {
+    return sendBadRequest(res, 'Invalid Item ID');
+  }
+
+  try {
+    // We select inventory_id and quantity directly from the join table
+    // Matches the schema shown in your screenshot (drink_id, inventory_id, quantity)
+    const sql = `
+      SELECT inventory_id, quantity 
+      FROM drinkjointable 
+      WHERE drink_id = $1
+    `;
+    
+    const result = await db.query(sql, [itemId]);
+    
+    // Return the raw array. 
+    // The updated MenuPage.tsx I gave you handles "inventory_id" automatically.
+    return sendSuccess(res, result.rows);
+  } catch (error) {
+    console.error(`[Menu] Ingredients fetch error for ID ${itemId}:`, error);
+    return sendError(res, 'Failed to load ingredients');
+  }
+});
+
+/**
  * PUT /api/menu/:itemId
  * Updates a menu item.
  */
