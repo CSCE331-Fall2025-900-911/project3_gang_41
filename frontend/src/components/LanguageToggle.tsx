@@ -52,6 +52,20 @@ export function LanguageToggle({ fullWidth = false }: LanguageToggleProps) {
       >
         Español
       </button>
+      <button
+        onClick={() => changeLanguage("ko")}
+        aria-label={t("aria.selectLanguage", { language: t("language.korean") })}
+        aria-pressed={currentLang === "ko" || currentLang.startsWith("ko-")}
+        className={cn(
+          "py-1.5 rounded-full text-sm font-medium transition-all duration-200",
+          fullWidth ? "flex-1" : "px-3",
+          currentLang === "ko" || currentLang.startsWith("ko-")
+            ? "bg-primary text-primary-foreground shadow-sm"
+            : "text-muted-foreground hover:text-foreground hover:bg-muted"
+        )}
+      >
+        {fullWidth ? t("language.korean") : "KO"}
+      </button>
     </div>
   );
 }

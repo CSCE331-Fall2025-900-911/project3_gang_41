@@ -19,6 +19,8 @@ interface AuthContextType {
   isAuthenticated: boolean;
   isLoading: boolean;
   verifyGoogleToken: (credential: string) => Promise<void>;
+  login: (email: string, password: string) => Promise<void>;
+  signup: (email: string, password: string, name: string) => Promise<void>;
   logout: () => Promise<void>;
   checkAuthStatus: () => Promise<void>;
 }
@@ -70,6 +72,44 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
     }
   };
 
+  const login = async (email: string, password: string) => {
+    try {
+      setIsLoading(true);
+      const data = await fetchApi<AuthResponse>('/auth/login', {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ email, password }),
+      });
+
+      setUser(data.user);
+    } catch (error) {
+      console.error("Login failed:", error);
+      throw error;
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const signup = async (email: string, password: string, name: string) => {
+    try {
+      setIsLoading(true);
+      const data = await fetchApi<AuthResponse>('/auth/signup', {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ email, password, name }),
+      });
+
+      setUser(data.user);
+    } catch (error) {
+      console.error("Signup failed:", error);
+      throw error;
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   const logout = async () => {
     try {
       await fetchApi('/auth/logout', {
@@ -92,6 +132,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
     isAuthenticated,
     isLoading,
     verifyGoogleToken,
+    login,
+    signup,
     logout,
     checkAuthStatus,
   };
