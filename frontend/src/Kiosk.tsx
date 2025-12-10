@@ -13,7 +13,7 @@ import {
 } from '@/components/ui/drawer';
 import { 
   Minus, Plus, ShoppingCart, Trash2, Edit, Loader2, FlaskConical, ChevronDown, 
-  CreditCard, Banknote, LogIn, User, Star, LogOut, CheckCircle, History, Eye
+  CreditCard, Banknote, User, Star, LogOut, CheckCircle, History, Eye
 } from 'lucide-react';
 import { WeatherDisplay } from '@/components/WeatherDisplay';
 import { DrinkCustomizationDialog } from "@/components/DrinkCustomizationDialog";
@@ -32,7 +32,6 @@ import {
 import { Switch } from "@/components/ui/switch";
 import { SmoothCursor } from "@/components/ui/smooth-cursor";
 import { LanguageToggle } from "@/components/LanguageToggle";
-import { useNavigate } from "react-router-dom";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Confetti, type ConfettiRef } from "@/components/ui/confetti";
 
@@ -75,7 +74,6 @@ const CONFETTI_GLOBAL_OPTIONS = { resize: true, useWorker: true };
 
 export default function Kiosk() {
   const { t: translate } = useTranslation();
-  const navigate = useNavigate();
   const confettiRef = useRef<ConfettiRef>(null);
   
   // -- AUDIO / TTS LOGIC --
@@ -462,15 +460,6 @@ export default function Kiosk() {
               </div>
             </CollapsibleContent>
           </Collapsible>
-
-          <Button
-            variant="ghost"
-            className="w-full justify-start text-left mt-2 text-muted-foreground hover:text-foreground h-10 rounded-lg"
-            onClick={() => navigate('/login')}
-          >
-            <LogIn className="h-4 w-4 mr-2" />
-            {translate('common.login')}
-          </Button>
         </div>
       </nav>
 
