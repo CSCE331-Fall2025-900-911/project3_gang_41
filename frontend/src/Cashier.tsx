@@ -43,6 +43,7 @@ import { CustomizationBadges } from "@/components/CustomizationBadges";
 import { useCart } from "@/hooks/useCart";
 import { ModeToggle } from "@/components/ModeToggle";
 import { LanguageToggle } from "@/components/LanguageToggle";
+import { useWeather } from "@/hooks/useWeather";
 
 
 function Cashier() {
@@ -60,10 +61,10 @@ function Cashier() {
     isSubmitting,
   } = useCart();
   const [activeCategory, setActiveCategory] = useState<string>(PRODUCT_CATEGORIES[0]);
-  const [weather, setWeather] = useState<{
-    temperature: number;
-    icon: string;
-  } | null>(null);
+  
+  // [UPDATED] Use hook
+  const weather = useWeather();
+  
   const [customizationDialog, setCustomizationDialog] = useState<{
     open: boolean;
     item: MenuItem | null;
@@ -92,10 +93,7 @@ function Cashier() {
       })
       .catch(() => setMenu([]));
 
-    // FIX: Use fetchApi<Type> to automatically unwrap API responses
-    fetchApi<{ temperature: number; icon: string }>(`/api/weather/current`)
-      .then((data) => setWeather(data))
-      .catch(() => setWeather(null));
+    // [UPDATED] Weather fetch removed from here (handled by hook)
   }, []);
 
   const openCustomizationDialog = (item: MenuItem) => {

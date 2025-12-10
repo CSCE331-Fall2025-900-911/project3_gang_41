@@ -32,7 +32,7 @@ import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Progress } from "@/components/ui/progress"
 import { cn } from "@/lib/utils"
-import type { DashboardData } from "@project3/shared";
+import { type DashboardData, CATEGORY_TRANSLATION_KEYS } from "@project3/shared";
 
 // Type definitions
 type ExtendedDashboardData = DashboardData & {
@@ -127,21 +127,15 @@ export default function DashboardPage() {
   const revenueConfig = getRevenueConfig(translate);
   const categoryConfig = getCategoryConfig(translate);
 
-  // Category name translation mapping
-  const categoryTranslationKeys: Record<string, string> = {
-    "All Items": "categories.allItems",
-    "Milk Tea": "categories.milkTea",
-    "Matcha": "categories.matcha",
-    "Fruit Tea": "categories.fruitTea",
-    "Slush": "categories.slush",
-    "Seasonal": "categories.seasonal",
-  };
-
-  // Translate category names for the chart
-  const translatedCategorySales = categorySales?.map(item => ({
-    ...item,
-    name: categoryTranslationKeys[item.name] ? translate(categoryTranslationKeys[item.name]) : item.name
-  }));
+  // Translate category names for the chart using shared keys
+  const translatedCategorySales = categorySales?.map(item => {
+    // FIX: Safely cast the item name to the key type
+    const key = item.name as keyof typeof CATEGORY_TRANSLATION_KEYS;
+    return {
+      ...item,
+      name: CATEGORY_TRANSLATION_KEYS[key] ? translate(CATEGORY_TRANSLATION_KEYS[key]) : item.name
+    };
+  });
 
   // --- KPI Extraction ---
   const totalRevenue = Number(kpi?.total_revenue || 0);
@@ -173,9 +167,6 @@ export default function DashboardPage() {
   // Peak Info
   const peakLabel = kpi?.peak_time_label || "N/A";
   const prevPeakLabel = kpi?.prev_peak_time_label || "N/A";
-
-  // const peakHourData = [...(trend || [])].sort((a, b) => Number(b.revenue) - Number(a.revenue))[0];
-  // const peakHourValue = peakHourData ? Number(peakHourData.revenue) : 0;
 
   const activeAlerts = (lowStock || [])
     .map(item => {
@@ -239,7 +230,6 @@ export default function DashboardPage() {
           </div>
 
           {/* Enhanced KPI Cards */}
-          {/* KPI GRID: Changed to 4 columns on XL to fit 8 cards nicely */}
           <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
             
             {/* 1. Total Revenue (Standard) */}
@@ -297,13 +287,13 @@ export default function DashboardPage() {
               color="orange"
             />
 
-            {/* 6. Active Staff (Badge Removed) */}
+            {/* 6. Active Staff */}
             <EnhancedKpiCard
               title={translate("dashboard.totalUniqueStaff")}
               icon={Users}
               value={activeStaff}
               sub={translate("dashboard.clockedInToday")}
-              trend={undefined} // Hide badge
+              trend={undefined} 
               previousValue={undefined}
               color="pink"
             />
@@ -319,14 +309,14 @@ export default function DashboardPage() {
               color="emerald"
             />
 
-            {/* 8. Peak Time (Comparison Label Only) */}
+            {/* 8. Peak Time */}
             <EnhancedKpiCard
               title={translate("dashboard.peakTime")}
               icon={Clock}
               value={peakLabel}
               sub={translate("dashboard.busiestPeriod")}
               previousValue={`vs ${prevPeakLabel}`}
-              trend={undefined} // Hide badge
+              trend={undefined}
               color="blue"
             />
 
@@ -575,7 +565,6 @@ export default function DashboardPage() {
                                 value={Math.min((item.supply / thresholds.warn) * 100, 100)}
                                 className={cn(
                                   "h-1.5 flex-1 bg-slate-200 dark:bg-slate-700",
-                                  // Using [&>*] to target the inner indicator div of Shadcn Progress component
                                   item.status === 'critical' ? "[&>*]:bg-red-500" : "[&>*]:bg-amber-500"
                                 )}
                               />
@@ -712,7 +701,6 @@ function EnhancedKpiCard({
             <div className="flex items-center gap-2">
               {previousValue !== undefined && (
                 <span className="text-[10px] text-muted-foreground/70 font-medium">
-                  {/* If trend is undefined, assume previousValue is a label like "vs 12PM" */}
                   {typeof previousValue === 'string' && previousValue.startsWith('vs')
                     ? previousValue
                     : `vs ${previousValue}`}

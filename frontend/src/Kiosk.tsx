@@ -34,9 +34,14 @@ import { SmoothCursor } from "@/components/ui/smooth-cursor";
 import { LanguageToggle } from "@/components/LanguageToggle";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Confetti, type ConfettiRef } from "@/components/ui/confetti";
+import { useWeather } from "@/hooks/useWeather";
 
-import type { MenuItem, CartItem, DrinkCustomization } from "@project3/shared";
 import {
+  PRODUCT_CATEGORIES, 
+  CATEGORY_TRANSLATION_KEYS, 
+  type MenuItem, 
+  type CartItem, 
+  type DrinkCustomization,
   TAX_RATE,
   calculateTax,
   generateCartItemId,
@@ -50,24 +55,6 @@ interface SuccessData {
   pointsEarned: number;
   customerName?: string;
 }
-
-const categories = [
-  'All Items',
-  'Milk Tea',
-  'Matcha',
-  'Fruit Tea',
-  'Slush',
-  'Seasonal',
-];
-
-const categoryTranslationKeys: Record<string, string> = {
-  "All Items": "categories.allItems",
-  "Milk Tea": "categories.milkTea",
-  "Matcha": "categories.matcha",
-  "Fruit Tea": "categories.fruitTea",
-  "Slush": "categories.slush",
-  "Seasonal": "categories.seasonal",
-};
 
 // FIX: Define options outside component to prevent re-creation on re-renders
 const CONFETTI_GLOBAL_OPTIONS = { resize: true, useWorker: true };
@@ -94,11 +81,16 @@ export default function Kiosk() {
 
   const [menu, setMenu] = useState<MenuItem[]>([]);
   const { cart, addToCart, removeFromCart, updateQuantity, updateCartItem, checkout, isSubmitting } = useCart();
-  const [activeCategory, setActiveCategory] = useState('All Items');
+  
+  // [UPDATED] Initialize with first category from shared constant
+  const [activeCategory, setActiveCategory] = useState<string>(PRODUCT_CATEGORIES[0]);
+  
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [buttonPulse, setButtonPulse] = useState(false);
-  const [weather, setWeather] = useState<{ temperature: number; icon: string } | null>(null);
   
+  // [UPDATED] Use the hook instead of local state/effect
+  const weather = useWeather();
+
   // -- EXPERIMENTAL MODES --
   const [experimentalMode, setExperimentalMode] = useState(false);
   const [highContrast, setHighContrast] = useState(false);
@@ -115,6 +107,7 @@ export default function Kiosk() {
     });
   const [paymentMethod, setPaymentMethod] = useState<'cash' | 'card'>('card');
 
+  // [UPDATED] Remove the weather fetch useEffect here
   useEffect(() => {
     fetchApi<MenuItem[]>('/api/menu')
       .then((data) => {
@@ -126,9 +119,7 @@ export default function Kiosk() {
       })
       .catch(() => setMenu([]));
 
-    fetchApi<{ temperature: number; icon: string }>('/api/weather/current')
-      .then((data) => setWeather(data))
-      .catch(() => setWeather(null));
+    // Weather fetch moved to hook
   }, []);
 
   // --- MEMBER BUTTON FLASH EFFECT ---
@@ -371,7 +362,8 @@ export default function Kiosk() {
         </div>
 
         <div className="space-y-2 flex-1 overflow-y-auto pr-1">
-          {categories.map((category, index) => (
+          {/* [UPDATED] Use PRODUCT_CATEGORIES and CATEGORY_TRANSLATION_KEYS */}
+          {PRODUCT_CATEGORIES.map((category, index) => (
             <Button
               key={index}
               variant={activeCategory === category ? "default" : "ghost"}
@@ -382,7 +374,7 @@ export default function Kiosk() {
                 }`}
               onClick={() => setActiveCategory(category)}
             >
-              {translate(categoryTranslationKeys[category])}
+              {translate(CATEGORY_TRANSLATION_KEYS[category])}
             </Button>
           ))}
         </div>
@@ -471,8 +463,8 @@ export default function Kiosk() {
         <div className="flex-1 overflow-auto p-8 pb-32">
           <div className="max-w-7xl mx-auto">
             <h2 className="text-3xl font-bold mb-6 text-gray-800 dark:text-gray-100 tracking-tight">
-              {translate(categoryTranslationKeys[activeCategory])}
-            </h2>
+              {translate(CATEGORY_TRANSLATION_KEYS[activeCategory as keyof typeof CATEGORY_TRANSLATION_KEYS])}           
+              </h2>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
               {menu
                 .filter((item) => activeCategory === 'All Items' || item.category === activeCategory)
