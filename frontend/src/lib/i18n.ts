@@ -1,18 +1,15 @@
 import i18n from 'i18next';
 import { initReactI18next } from 'react-i18next';
 import LanguageDetector from 'i18next-browser-languagedetector';
-import en from '@/locales/en.json';
-import es from '@/locales/es.json';
+import GoogleTranslateBackend from './i18nBackend';
 
 i18n
+  .use(GoogleTranslateBackend)
   .use(LanguageDetector)
   .use(initReactI18next)
   .init({
-    resources: {
-      en: { translation: en },
-      es: { translation: es },
-    },
     fallbackLng: 'en',
+    supportedLngs: ['en', 'es'],
     detection: {
       order: ['sessionStorage', 'navigator'],
       caches: ['sessionStorage'],
@@ -23,12 +20,10 @@ i18n
     },
   });
 
-// Update HTML lang attribute when language changes
 i18n.on('languageChanged', (lng) => {
   document.documentElement.lang = lng;
 });
 
-// Set initial lang attribute
 document.documentElement.lang = i18n.language;
 
 export default i18n;

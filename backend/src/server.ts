@@ -17,6 +17,7 @@ import salesReportRoutes from './salesReportRoutes';
 import employeeRoutes from './employeeRoutes';
 import reportsRoutes from './reportsRoutes';
 import customerRoutes from './customerRoutes';
+import translateRoutes from './translateRoutes';
 import { generateFakeOrdersForRun } from './services/fakeOrderService';
 import { sendSuccess, sendError } from './utils/response';
 
@@ -213,6 +214,7 @@ app.use('/api/sales-report', salesReportRoutes);
 app.use('/api/employees', employeeRoutes);
 app.use('/api/reports', reportsRoutes);
 app.use('/api/customers', customerRoutes);
+app.use('/api/translate', translateRoutes);
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Weather Proxy Route (with caching)
