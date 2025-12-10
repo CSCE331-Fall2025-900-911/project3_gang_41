@@ -76,6 +76,7 @@ export async function translateObject(
   const response = await fetchApi<TranslateResponse>('/api/translate', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
+    credentials: 'include',
     body: JSON.stringify({ texts, targetLang }),
   });
 

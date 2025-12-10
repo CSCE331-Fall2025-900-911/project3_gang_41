@@ -1,13 +1,19 @@
 import { Router, Request, Response } from 'express';
-import translate from 'google-translate-api-x';
+import { v2 } from '@google-cloud/translate';
 import { sendSuccess, sendError } from './utils/response';
 
 const router = Router();
+
+const translateClient = new v2.Translate({
+  key: process.env.GOOGLE_TRANSLATE_API_KEY,
+});
 
 interface TranslateRequestBody {
   texts: string[];
   targetLang: string;
 }
+
+const BATCH_SIZE = 100;
 
 function extractPlaceholders(text: string): { text: string; placeholders: Map<string, string> } {
   const placeholders = new Map<string, string>();
@@ -47,28 +53,33 @@ router.post('/', async (req: Request<{}, {}, TranslateRequestBody>, res: Respons
       return sendError(res, 'Maximum 1000 texts per request', 400);
     }
 
-    const translations: string[] = [];
-
-    for (const text of texts) {
-      if (!text || typeof text !== 'string') {
-        translations.push(text || '');
-        continue;
-      }
-
-      const { text: textWithTokens, placeholders } = extractPlaceholders(text);
-
-      try {
-        const result = await translate(textWithTokens, {
-          from: 'en',
-          to: targetLang,
-        });
-
-        const translatedText = restorePlaceholders(result.text, placeholders);
-        translations.push(translatedText);
-      } catch {
-        translations.push(text);
-      }
+    if (!process.env.GOOGLE_TRANSLATE_API_KEY) {
+      return sendError(res, 'Translation API not configured', 503);
     }
+
+    const allPlaceholders: Map<string, string>[] = [];
+    const tokenizedTexts = texts.map(text => {
+      if (!text || typeof text !== 'string') {
+        allPlaceholders.push(new Map());
+        return '';
+      }
+      const { text: tokenized, placeholders } = extractPlaceholders(text);
+      allPlaceholders.push(placeholders);
+      return tokenized;
+    });
+
+    const allResults: string[] = [];
+
+    for (let i = 0; i < tokenizedTexts.length; i += BATCH_SIZE) {
+      const batch = tokenizedTexts.slice(i, i + BATCH_SIZE);
+      const [results] = await translateClient.translate(batch, targetLang);
+      const resultsArray = Array.isArray(results) ? results : [results];
+      allResults.push(...resultsArray);
+    }
+
+    const translations = allResults.map((translatedText, i) => {
+      return restorePlaceholders(translatedText || texts[i] || '', allPlaceholders[i] || new Map());
+    });
 
     return sendSuccess(res, { translations });
   } catch (error) {

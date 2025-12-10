@@ -94,16 +94,6 @@ export function LoginForm({
                   {translate('login.continueWithout')}
                 </Button>
               </Field>
-              <Field>
-                <Button
-                  type="button"
-                  variant="outline"
-                  className="w-full"
-                  onClick={() => navigate('/menuboards')}
-                >
-                  {'idk where to put this button'}
-                </Button>
-              </Field>
               <FieldSeparator className="*:data-[slot=field-separator-content]:bg-card">
                 {translate('login.orContinueWith')}
               </FieldSeparator>
@@ -145,6 +135,13 @@ export function LoginForm({
       <FieldDescription className="text-center text-xs">
         {translate('login.agreement')}
       </FieldDescription>
+      <button
+        type="button"
+        onClick={() => navigate('/menuboards')}
+        className="text-xs text-muted-foreground hover:text-foreground underline-offset-2 hover:underline transition-colors"
+      >
+        View Menu Board
+      </button>
     </div>
   )
 }

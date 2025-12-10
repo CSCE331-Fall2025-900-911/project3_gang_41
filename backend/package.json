@@ -8,6 +8,7 @@
     "start": "node dist/server.js"
   },
   "dependencies": {
+    "@google-cloud/translate": "^9.3.0",
     "@project3/shared": "*",
     "@react-oauth/google": "^0.12.2",
     "@types/compression": "^1.8.1",
@@ -24,7 +25,6 @@
     "express-rate-limit": "^8.2.1",
     "express-session": "^1.18.2",
     "google-auth-library": "^10.5.0",
-    "google-translate-api-x": "^10.7.2",
     "helmet": "^8.1.0",
     "pg": "^8.11.3",
     "typescript": "^5.2.2"
