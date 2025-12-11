@@ -22,6 +22,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Check } from "lucide-react";
+import { useSpeech } from "@/hooks/useSpeech";
 
 type Temperature = "hot" | "cold";
 const TEMPERATURE_OPTIONS: Temperature[] = ["hot", "cold"];
@@ -53,6 +54,7 @@ export function DrinkCustomizationDialog({
   onConfirm,
 }: DrinkCustomizationDialogProps) {
   const { t: translate } = useTranslation();
+  const { speak } = useSpeech();
   const [customization, setCustomization] = useState<ExtendedCustomization>(
     DEFAULT_EXTENDED
   );
@@ -268,6 +270,7 @@ export function DrinkCustomizationDialog({
                       key={size}
                       type="button"
                       variant={customization.size === size ? "default" : "outline"}
+                      onMouseEnter={() => speak(translate(sizeTranslationKeys[size]))}
                       onClick={() => setCustomization({ ...customization, size })}
                     >
                       {translate(sizeTranslationKeys[size])}
@@ -286,6 +289,7 @@ export function DrinkCustomizationDialog({
                       type="button"
                       size="sm"
                       variant={customization.sweetness === level ? "default" : "outline"}
+                      onMouseEnter={() => speak(`${level}% ${translate("customization.sugar")}`)}
                       onClick={() => setCustomization({ ...customization, sweetness: level })}
                       className="px-0"
                     >
@@ -304,6 +308,7 @@ export function DrinkCustomizationDialog({
                       key={temp}
                       type="button"
                       variant={customization.temperature === temp ? "default" : "outline"}
+                      onMouseEnter={() => speak(translate(temperatureTranslationKeys[temp]))}
                       onClick={() => setTemperatureAnimated(temp)}
                     >
                       {translate(temperatureTranslationKeys[temp])}
@@ -332,6 +337,7 @@ export function DrinkCustomizationDialog({
                       key={ice}
                       type="button"
                       variant={customization.ice === ice ? "default" : "outline"}
+                      onMouseEnter={() => speak(`${translate(iceTranslationKeys[ice])} ${translate("customization.ice")}`)}
                       onClick={() => setCustomization({ ...customization, ice })}
                     >
                       {translate(iceTranslationKeys[ice])}
@@ -352,6 +358,7 @@ export function DrinkCustomizationDialog({
                         type="button"
                         size="default"
                         variant={selected ? "default" : "outline"}
+                        onMouseEnter={() => speak(translate(`customization.${topping}`))}
                         onClick={() => toggleTopping(topping)}
                         className={`relative justify-start px-3 h-12 transition-all ${selected ? "pl-9" : "pl-3"}`}
                       >
@@ -379,10 +386,19 @@ export function DrinkCustomizationDialog({
         </div>
 
         <DialogFooter className="mt-1">
-          <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
+          <Button
+            type="button"
+            variant="outline"
+            onMouseEnter={() => speak(translate("common.cancel"))}
+            onClick={() => onOpenChange(false)}
+          >
             {translate("common.cancel")}
           </Button>
-          <Button type="button" onClick={handleConfirm}>
+          <Button
+            type="button"
+            onMouseEnter={() => speak(translate("common.addToCart"))}
+            onClick={handleConfirm}
+          >
             {translate("common.addToCart")}
           </Button>
         </DialogFooter>

@@ -551,6 +551,18 @@
     "closeDialog": "Close dialog",
     "openCheckout": "Open checkout drawer"
   },
+  "tts": {
+    "enabled": "Screen reader enabled. Hover over items to hear them.",
+    "disabled": "Screen reader disabled.",
+    "itemAdded": "{{item}} added to cart",
+    "cartSummary": "Your cart. {{count}} items. Total ${{total}}",
+    "orderConfirmed": "Order confirmed. Your order number is {{number}}",
+    "showing": "Showing {{category}}",
+    "selected": "Selected {{option}}",
+    "customize": "Customize {{item}}. Select your options.",
+    "toppingAdded": "{{topping}} added",
+    "toppingRemoved": "{{topping}} removed"
+  },
   "Traditional black tea with fresh milk and chewy boba.": "Traditional black tea with fresh milk and chewy boba.",
   "Rich coffee blended with fresh milk and boba for a caffeine kick.": "Rich coffee blended with fresh milk and boba for a caffeine kick.",
   "Rich milk tea with a deep, creamy caramel toffee flavor.": "Rich milk tea with a deep, creamy caramel toffee flavor.",

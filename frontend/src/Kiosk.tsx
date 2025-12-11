@@ -22,7 +22,7 @@ import { useCustomer } from "@/contexts/CustomerContext";
 import { MemberLoginDialog } from "@/components/MemberLoginDialog";
 import { PastOrdersDialog } from "@/components/PastOrdersDialog";
 import { CustomizationBadges } from "@/components/CustomizationBadges";
-import { useAudio } from "@/hooks/useAudio";
+import { useSpeech } from "@/hooks/useSpeech";
 import { useFontSize, type FontSize } from "@/hooks/useFontSize"; 
 import {
   Collapsible,
@@ -64,8 +64,7 @@ export default function Kiosk() {
   const confettiRef = useRef<ConfettiRef>(null);
   
   // -- AUDIO / TTS LOGIC --
-  const { play } = useAudio();
-  const [ttsEnabled, setTtsEnabled] = useState(false);
+  const { enabled: ttsEnabled, setEnabled: setTtsEnabled, speak } = useSpeech();
 
   // -- CUSTOMER LOGIC --
   const { customer, logoutCustomer } = useCustomer();
@@ -162,7 +161,7 @@ export default function Kiosk() {
   }, [successData]);
 
   const openCustomizationDialog = (item: MenuItem) => {
-    if (ttsEnabled) play('options');
+    speak(translate('tts.customize', { item: item.item_name }));
     setCustomizationDialog({ open: true, item, editingCartItem: null });
   };
 
@@ -208,7 +207,7 @@ export default function Kiosk() {
         };
         addToCart(newCartItem);
       }
-      if (ttsEnabled) play('drink');
+      speak(translate('tts.itemAdded', { item: customizationDialog.item.item_name }));
 
       setButtonPulse(true);
       setTimeout(() => setButtonPulse(false), 500);
@@ -219,7 +218,7 @@ export default function Kiosk() {
   // --- REORDER HANDLER ---
   const handleReorder = (items: CartItem[]) => {
     items.forEach(item => addToCart(item));
-    if (ttsEnabled) play('drink');
+    speak(translate('tts.itemAdded', { item: `${items.length} items` }));
     // Delay drawer opening to prevent animation glitches
     setTimeout(() => {
       setDrawerOpen(true);
@@ -246,9 +245,9 @@ export default function Kiosk() {
     const name = customer?.customer_name;
 
     checkout(
-      paymentMethod, 
+      paymentMethod,
       (orderId) => {
-        if (ttsEnabled) play('confirmed');
+        speak(translate('tts.orderConfirmed', { number: orderId }));
         setDrawerOpen(false);
         setUsePoints(false);
         setSuccessData({
@@ -368,11 +367,15 @@ export default function Kiosk() {
               key={index}
               variant={activeCategory === category ? "default" : "ghost"}
               className={`w-full justify-start text-left h-12 px-4 rounded-xl text-base transition-all duration-200
-                ${activeCategory === category 
-                  ? "shadow-md" 
+                ${activeCategory === category
+                  ? "shadow-md"
                   : "hover:bg-gray-200/50 dark:hover:bg-gray-800"
                 }`}
-              onClick={() => setActiveCategory(category)}
+              onMouseEnter={() => speak(translate(CATEGORY_TRANSLATION_KEYS[category]))}
+              onClick={() => {
+                setActiveCategory(category);
+                speak(translate('tts.showing', { category: translate(CATEGORY_TRANSLATION_KEYS[category]) }));
+              }}
             >
               {translate(CATEGORY_TRANSLATION_KEYS[category])}
             </Button>
@@ -386,7 +389,7 @@ export default function Kiosk() {
         )}
 
         <div className="px-1">
-          <LanguageToggle />
+          <LanguageToggle onSpeak={speak} />
         </div>
 
         <div className="mt-auto pt-4 border-t border-gray-200 dark:border-gray-800">
@@ -420,7 +423,12 @@ export default function Kiosk() {
                   checked={ttsEnabled}
                   onCheckedChange={(checked) => {
                     setTtsEnabled(checked);
-                    if (checked) play('intro');
+                    if (checked) {
+                      // Speak immediately after enabling (bypass the hook's enabled check)
+                      const utterance = new SpeechSynthesisUtterance(translate('tts.enabled'));
+                      utterance.lang = 'en-US';
+                      speechSynthesis.speak(utterance);
+                    }
                   }}
                 />
               </div>
@@ -473,6 +481,8 @@ export default function Kiosk() {
                   key={item.item_id}
                   className="cursor-pointer transition-all duration-200 hover:shadow-2xl hover:-translate-y-1 active:scale-95 active:shadow-md flex flex-col overflow-hidden border-border/50 bg-card/50 backdrop-blur-sm group"
                   onClick={() => openCustomizationDialog(item)}
+                  onMouseEnter={() => speak(`${item.item_name}, $${item.cost.toFixed(2)}`)}
+                  onFocus={() => speak(`${item.item_name}, $${item.cost.toFixed(2)}`)}
                   role="button"
                   tabIndex={0}
                   aria-label={translate('aria.addToCart', { item: item.item_name })}
@@ -662,19 +672,22 @@ export default function Kiosk() {
                 </div>
 
                 <div className="grid grid-cols-2 gap-3">
-                  <Button 
-                    variant={paymentMethod === 'card' ? 'default' : 'outline'} 
+                  <Button
+                    variant={paymentMethod === 'card' ? 'default' : 'outline'}
                     className={`h-14 rounded-xl border-2 ${paymentMethod === 'card' ? 'border-primary' : 'border-transparent bg-white dark:bg-card hover:border-gray-300'}`}
-                    onClick={() => setPaymentMethod('card')}
+                    onClick={() => {
+                      setPaymentMethod('card');
+                      speak(translate('tts.selected', { option: 'Card' }));
+                    }}
                   >
                     <CreditCard className="mr-2 h-5 w-5" /> Card
                   </Button>
-                  <Button 
-                    variant={paymentMethod === 'cash' ? 'default' : 'outline'} 
-                    className={`h-14 rounded-xl border-2 ${paymentMethod === 'cash' ? 'border-primary' : 'border-transparent bg-white dark:bg-card hover:border-gray-300'}`} 
+                  <Button
+                    variant={paymentMethod === 'cash' ? 'default' : 'outline'}
+                    className={`h-14 rounded-xl border-2 ${paymentMethod === 'cash' ? 'border-primary' : 'border-transparent bg-white dark:bg-card hover:border-gray-300'}`}
                     onClick={() => {
                       setPaymentMethod('cash');
-                      if (ttsEnabled) play('cash');
+                      speak(translate('tts.selected', { option: 'Cash' }));
                     }}
                   >
                     <Banknote className="mr-2 h-5 w-5" /> Cash
