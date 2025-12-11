@@ -6,12 +6,14 @@ interface TranslateResponse {
   translations: string[];
 }
 
-function getCacheKey(lang: string): string {
-  return `${CACHE_KEY_PREFIX}${lang}`;
+// UPDATED: Accept an optional customKey
+function getCacheKey(lang: string, customKey?: string): string {
+  return `${CACHE_KEY_PREFIX}${customKey ? customKey + '_' : ''}${lang}`;
 }
 
-export function getCachedTranslations(lang: string): Record<string, unknown> | null {
-  const cached = sessionStorage.getItem(getCacheKey(lang));
+// UPDATED: Accept an optional customKey
+export function getCachedTranslations(lang: string, customKey?: string): Record<string, unknown> | null {
+  const cached = sessionStorage.getItem(getCacheKey(lang, customKey));
   if (!cached) return null;
   try {
     return JSON.parse(cached);
@@ -20,8 +22,9 @@ export function getCachedTranslations(lang: string): Record<string, unknown> | n
   }
 }
 
-export function setCachedTranslations(lang: string, translations: Record<string, unknown>): void {
-  sessionStorage.setItem(getCacheKey(lang), JSON.stringify(translations));
+// UPDATED: Accept an optional customKey
+export function setCachedTranslations(lang: string, translations: Record<string, unknown>, customKey?: string): void {
+  sessionStorage.setItem(getCacheKey(lang, customKey), JSON.stringify(translations));
 }
 
 function flattenObject(obj: Record<string, unknown>, prefix = ''): Record<string, string> {
@@ -62,16 +65,21 @@ function unflattenObject(flat: Record<string, string>): Record<string, unknown> 
   return result;
 }
 
+// UPDATED: Accept an optional cacheKey
 export async function translateObject(
   sourceObj: Record<string, unknown>,
-  targetLang: string
+  targetLang: string,
+  cacheKey?: string 
 ): Promise<Record<string, unknown>> {
-  const cached = getCachedTranslations(targetLang);
+  const cached = getCachedTranslations(targetLang, cacheKey);
   if (cached) return cached;
 
   const flattened = flattenObject(sourceObj);
   const keys = Object.keys(flattened);
   const texts = Object.values(flattened);
+
+  // If object is empty, return immediately
+  if (keys.length === 0) return {};
 
   const response = await fetchApi<TranslateResponse>('/api/translate', {
     method: 'POST',
@@ -86,7 +94,7 @@ export async function translateObject(
   });
 
   const result = unflattenObject(translatedFlat);
-  setCachedTranslations(targetLang, result);
+  setCachedTranslations(targetLang, result, cacheKey);
 
   return result;
 }

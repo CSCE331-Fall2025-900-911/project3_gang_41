@@ -7,7 +7,7 @@ import {
   generateCartItemId,
   calculateTax,
   calculateTotal,
-  TOPPING_PRICE, // Import constant
+  TOPPING_PRICE,
   SIZE_PRICE_MODIFIERS,
   PRODUCT_CATEGORIES,
   CATEGORY_TRANSLATION_KEYS
@@ -44,6 +44,7 @@ import { useCart } from "@/hooks/useCart";
 import { ModeToggle } from "@/components/ModeToggle";
 import { LanguageToggle } from "@/components/LanguageToggle";
 import { useWeather } from "@/hooks/useWeather";
+import { useMenuTranslation } from "@/hooks/useMenuTranslation"; // IMPORT HOOK
 
 
 function Cashier() {
@@ -51,6 +52,10 @@ function Cashier() {
   const navigate = useNavigate();
   const { logout, user } = useAuth();
   const [menu, setMenu] = useState<MenuItem[]>([]);
+  
+  // USE THE TRANSLATION HOOK
+  const { translatedMenu } = useMenuTranslation(menu);
+
   const {
     cart,
     addToCart,
@@ -62,7 +67,6 @@ function Cashier() {
   } = useCart();
   const [activeCategory, setActiveCategory] = useState<string>(PRODUCT_CATEGORIES[0]);
   
-  // [UPDATED] Use hook
   const weather = useWeather();
   
   const [customizationDialog, setCustomizationDialog] = useState<{
@@ -82,18 +86,15 @@ function Cashier() {
   };
 
   useEffect(() => {
-    // 1. Menu Fetch - use fetchApi which unwraps { success, data }
     fetchApi<MenuItem[]>("/api/menu")
       .then((data) => {
         const menuWithNumbers = data.map((item) => ({
           ...item,
-          cost: parseFloat(String(item.cost)), // Ensure number
+          cost: parseFloat(String(item.cost)),
         }));
         setMenu(menuWithNumbers);
       })
       .catch(() => setMenu([]));
-
-    // [UPDATED] Weather fetch removed from here (handled by hook)
   }, []);
 
   const openCustomizationDialog = (item: MenuItem) => {
@@ -105,7 +106,8 @@ function Cashier() {
   };
 
   const openEditDialog = (cartItem: CartItem) => {
-    const menuItem = menu.find((m) => m.item_id === cartItem.item_id);
+    // Find item in TRANSLATED menu
+    const menuItem = translatedMenu.find((m) => m.item_id === cartItem.item_id);
     if (menuItem) {
       setCustomizationDialog({
         open: true,
@@ -118,32 +120,22 @@ function Cashier() {
   const handleCustomizationConfirm = (customization: DrinkCustomization, quantity: number) => {
     if (!customizationDialog.item) return;
 
-    // 1. Calculate Base Price
     const basePrice = customizationDialog.item.cost;
-
-    // 2. Calculate Size Adjustment
-    // Default to 0 if size not found (though types ensure it exists)
     const sizeAdjustment = SIZE_PRICE_MODIFIERS[customization.size] ?? 0;
-
-    // 3. Calculate Topping Cost
     const toppingCost = (customization.toppings?.length || 0) * TOPPING_PRICE;
-
-    // 4. Sum it up
     const finalUnitCost = basePrice + sizeAdjustment + toppingCost;
 
     if (customizationDialog.editingCartItem) {
-      // Editing existing cart item
       updateCartItem(customizationDialog.editingCartItem.uniqueId, {
         customization,
-        cost: finalUnitCost, // Update the price
+        cost: finalUnitCost,
       });
     } else {
-      // Adding new items
       for (let i = 0; i < quantity; i++) {
         const newCartItem: CartItem = {
           item_id: customizationDialog.item.item_id,
           item_name: customizationDialog.item.item_name,
-          cost: finalUnitCost, // Use calculated price
+          cost: finalUnitCost,
           quantity: 1,
           customization,
           uniqueId: `${generateCartItemId(customizationDialog.item.item_id, customization)}-${Date.now()}-${i}`,
@@ -155,7 +147,6 @@ function Cashier() {
     setCustomizationDialog({ open: false, item: null, editingCartItem: null });
   };
 
-  // UPDATED: Use shared calculation helpers
   const total = cart.reduce((sum, item) => sum + item.cost * item.quantity, 0);
   const taxAmount = calculateTax(total);
   const finalTotal = calculateTotal(total);
@@ -217,7 +208,7 @@ function Cashier() {
           </div>
         </div>
 
-        {/* Category Tabs (non-functional) */}
+        {/* Category Tabs */}
         <div className="border-b bg-background px-6">
           <div className="flex h-12 items-center space-x-4 overflow-x-auto">
             {PRODUCT_CATEGORIES.map((category) => (
@@ -236,10 +227,10 @@ function Cashier() {
           </div>
         </div>
 
-        {/* Menu Grid */}
+        {/* Menu Grid - USING TRANSLATED MENU */}
         <div className="flex-1 overflow-auto p-6">
           <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
-            {menu
+            {translatedMenu
               .filter(
                 (item) =>
                   activeCategory === "All Items" ||
@@ -296,84 +287,90 @@ function Cashier() {
               <p className="text-sm">{translate("cashier.addItemsToStart")}</p>
             </div>
           ) : (
-            cart.map((item) => (
-              <Card key={item.uniqueId}>
-                <CardContent className="p-4">
-                  <div className="flex flex-col gap-3">
-                    <div className="flex justify-between items-start">
-                      <div className="flex-1">
-                        <h3 className="font-medium leading-tight">
-                          {item.item_name}
-                        </h3>
-                        <p className="text-sm text-muted-foreground mt-1">
-                          ${item.cost.toFixed(2)} {translate("common.each")}
-                        </p>
-                        {item.customization && (
-                          <CustomizationBadges customization={item.customization} size="sm" />
-                        )}
+            cart.map((item) => {
+              // CART TRANSLATION LOOKUP LOGIC
+              const displayItem = translatedMenu.find(m => m.item_id === item.item_id);
+              const displayName = displayItem ? displayItem.item_name : item.item_name;
+
+              return (
+                <Card key={item.uniqueId}>
+                  <CardContent className="p-4">
+                    <div className="flex flex-col gap-3">
+                      <div className="flex justify-between items-start">
+                        <div className="flex-1">
+                          <h3 className="font-medium leading-tight">
+                            {displayName}
+                          </h3>
+                          <p className="text-sm text-muted-foreground mt-1">
+                            ${item.cost.toFixed(2)} {translate("common.each")}
+                          </p>
+                          {item.customization && (
+                            <CustomizationBadges customization={item.customization} size="sm" />
+                          )}
+                        </div>
+                        <div className="flex gap-1">
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-8 w-8"
+                            onClick={() => openEditDialog(item)}
+                            aria-label={translate("aria.editItem", { item: displayName })}
+                          >
+                            <Edit className="h-4 w-4" aria-hidden="true" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-8 w-8 text-destructive"
+                            onClick={() => removeFromCart(item.uniqueId)}
+                            aria-label={translate("aria.removeFromCart", { item: displayName })}
+                          >
+                            <Trash2 className="h-4 w-4" aria-hidden="true" />
+                          </Button>
+                        </div>
                       </div>
-                      <div className="flex gap-1">
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="h-8 w-8"
-                          onClick={() => openEditDialog(item)}
-                          aria-label={translate("aria.editItem", { item: item.item_name })}
-                        >
-                          <Edit className="h-4 w-4" aria-hidden="true" />
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="h-8 w-8 text-destructive"
-                          onClick={() => removeFromCart(item.uniqueId)}
-                          aria-label={translate("aria.removeFromCart", { item: item.item_name })}
-                        >
-                          <Trash2 className="h-4 w-4" aria-hidden="true" />
-                        </Button>
+
+                      <Separator />
+
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <Button
+                            variant="outline"
+                            size="icon"
+                            className="h-8 w-8"
+                            onClick={() =>
+                              updateQuantity(item.uniqueId, item.quantity - 1)
+                            }
+                            aria-label={translate("aria.decreaseQuantity", { item: displayName })}
+                          >
+                            <Minus className="h-4 w-4" aria-hidden="true" />
+                          </Button>
+                          <span className="w-8 text-center font-medium" aria-live="polite">
+                            {item.quantity}
+                          </span>
+                          <Button
+                            variant="outline"
+                            size="icon"
+                            className="h-8 w-8"
+                            onClick={() =>
+                              updateQuantity(item.uniqueId, item.quantity + 1)
+                            }
+                            aria-label={translate("aria.increaseQuantity", { item: displayName })}
+                          >
+                            <Plus className="h-4 w-4" aria-hidden="true" />
+                          </Button>
+                        </div>
+                        <div className="text-right">
+                          <p className="font-bold text-lg">
+                            ${(item.cost * item.quantity).toFixed(2)}
+                          </p>
+                        </div>
                       </div>
                     </div>
-
-                    <Separator />
-
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-2">
-                        <Button
-                          variant="outline"
-                          size="icon"
-                          className="h-8 w-8"
-                          onClick={() =>
-                            updateQuantity(item.uniqueId, item.quantity - 1)
-                          }
-                          aria-label={translate("aria.decreaseQuantity", { item: item.item_name })}
-                        >
-                          <Minus className="h-4 w-4" aria-hidden="true" />
-                        </Button>
-                        <span className="w-8 text-center font-medium" aria-live="polite">
-                          {item.quantity}
-                        </span>
-                        <Button
-                          variant="outline"
-                          size="icon"
-                          className="h-8 w-8"
-                          onClick={() =>
-                            updateQuantity(item.uniqueId, item.quantity + 1)
-                          }
-                          aria-label={translate("aria.increaseQuantity", { item: item.item_name })}
-                        >
-                          <Plus className="h-4 w-4" aria-hidden="true" />
-                        </Button>
-                      </div>
-                      <div className="text-right">
-                        <p className="font-bold text-lg">
-                          ${(item.cost * item.quantity).toFixed(2)}
-                        </p>
-                      </div>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            ))
+                  </CardContent>
+                </Card>
+              );
+            })
           )}
         </div>
 
@@ -389,13 +386,11 @@ function Cashier() {
                 <span className="text-muted-foreground">
                   {translate("common.tax")} ({(TAX_RATE * 100).toFixed(2)}%)
                 </span>
-                {/* Use calculated tax amount */}
                 <span className="font-medium">${taxAmount.toFixed(2)}</span>
               </div>
               <Separator />
               <div className="flex justify-between text-lg font-bold">
                 <span>{translate("common.total")}</span>
-                {/* Use calculated final total */}
                 <span>${finalTotal.toFixed(2)}</span>
               </div>
             </div>
@@ -431,7 +426,6 @@ function Cashier() {
         )}
       </div>
 
-      {/* Customization Dialog */}
       <DrinkCustomizationDialog
         open={customizationDialog.open}
         onOpenChange={(open) => {

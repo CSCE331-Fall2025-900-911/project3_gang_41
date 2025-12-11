@@ -35,6 +35,7 @@ import { LanguageToggle } from "@/components/LanguageToggle";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Confetti, type ConfettiRef } from "@/components/ui/confetti";
 import { useWeather } from "@/hooks/useWeather";
+import { useMenuTranslation } from "@/hooks/useMenuTranslation"; // IMPORT HOOK
 
 import {
   PRODUCT_CATEGORIES, 
@@ -49,25 +50,21 @@ import {
   SIZE_PRICE_MODIFIERS
 } from "@project3/shared";
 
-// --- Types ---
 interface SuccessData {
   orderId: number;
   pointsEarned: number;
   customerName?: string;
 }
 
-// FIX: Define options outside component to prevent re-creation on re-renders
 const CONFETTI_GLOBAL_OPTIONS = { resize: true, useWorker: true };
 
 export default function Kiosk() {
   const { t: translate } = useTranslation();
   const confettiRef = useRef<ConfettiRef>(null);
   
-  // -- AUDIO / TTS LOGIC --
   const { play } = useAudio();
   const [ttsEnabled, setTtsEnabled] = useState(false);
 
-  // -- CUSTOMER LOGIC --
   const { customer, logoutCustomer } = useCustomer();
   const [loginOpen, setLoginOpen] = useState(false);
   const [guestDialog, setGuestDialog] = useState(false);
@@ -75,23 +72,22 @@ export default function Kiosk() {
   const [usePoints, setUsePoints] = useState(false);
   const [memberBtnFlash, setMemberBtnFlash] = useState(false);
   
-  // -- SUCCESS SCREEN STATE --
   const [successData, setSuccessData] = useState<SuccessData | null>(null);
-  // ------------------------
 
   const [menu, setMenu] = useState<MenuItem[]>([]);
+  
+  // USE THE TRANSLATION HOOK
+  const { translatedMenu } = useMenuTranslation(menu);
+
   const { cart, addToCart, removeFromCart, updateQuantity, updateCartItem, checkout, isSubmitting } = useCart();
   
-  // [UPDATED] Initialize with first category from shared constant
   const [activeCategory, setActiveCategory] = useState<string>(PRODUCT_CATEGORIES[0]);
   
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [buttonPulse, setButtonPulse] = useState(false);
   
-  // [UPDATED] Use the hook instead of local state/effect
   const weather = useWeather();
 
-  // -- EXPERIMENTAL MODES --
   const [experimentalMode, setExperimentalMode] = useState(false);
   const [highContrast, setHighContrast] = useState(false);
   const { fontSize, setFontSize } = useFontSize();
@@ -107,7 +103,6 @@ export default function Kiosk() {
     });
   const [paymentMethod, setPaymentMethod] = useState<'cash' | 'card'>('card');
 
-  // [UPDATED] Remove the weather fetch useEffect here
   useEffect(() => {
     fetchApi<MenuItem[]>('/api/menu')
       .then((data) => {
@@ -118,45 +113,33 @@ export default function Kiosk() {
         setMenu(menuWithNumbers);
       })
       .catch(() => setMenu([]));
-
-    // Weather fetch moved to hook
   }, []);
 
-  // --- MEMBER BUTTON FLASH EFFECT ---
   useEffect(() => {
     if (customer) return;
-
     const interval = setInterval(() => {
       setMemberBtnFlash(true);
       setTimeout(() => setMemberBtnFlash(false), 500);
     }, 1000);
-
     return () => clearInterval(interval);
   }, [customer]);
 
-  // --- CONFETTI EFFECT ---
   useEffect(() => {
     if (successData) {
       const timer = setTimeout(() => {
         const defaults = { startVelocity: 60, spread: 70, ticks: 120, zIndex: 200 };
         const particleCount = 80;
-
         confettiRef.current?.fire({ ...defaults, particleCount, origin: { x: 0, y: 0 }, angle: -45 });
-
         setTimeout(() => {
           confettiRef.current?.fire({ ...defaults, particleCount, origin: { x: 1, y: 0 }, angle: 225 });
         }, 150);
-
         setTimeout(() => {
           confettiRef.current?.fire({ ...defaults, particleCount, origin: { x: 0, y: 1 }, angle: 45 });
         }, 300);
-
         setTimeout(() => {
           confettiRef.current?.fire({ ...defaults, particleCount, origin: { x: 1, y: 1 }, angle: 135 });
         }, 450);
-
       }, 300);
-
       return () => clearTimeout(timer);
     }
   }, [successData]);
@@ -167,7 +150,8 @@ export default function Kiosk() {
   };
 
   const openEditDialog = (cartItem: CartItem) => {
-    const menuItem = menu.find((m) => m.item_id === cartItem.item_id);
+    // Find item in TRANSLATED menu to ensure dialog shows translated name
+    const menuItem = translatedMenu.find((m) => m.item_id === cartItem.item_id);
     if (menuItem) {
       setCustomizationDialog({
         open: true,
@@ -180,22 +164,14 @@ export default function Kiosk() {
   const handleCustomizationConfirm = (customization: DrinkCustomization, quantity: number) => {
     if (!customizationDialog.item) return;
 
-    // 1. Calculate Base Price
     const basePrice = customizationDialog.item.cost;
-
-    // 2. Calculate Size Adjustment
     const sizeAdjustment = SIZE_PRICE_MODIFIERS[customization.size] ?? 0;
-
-    // 3. Calculate Topping Cost
     const toppingCost = (customization.toppings?.length || 0) * TOPPING_PRICE;
-
-    // 4. Sum it up
     const finalUnitCost = basePrice + sizeAdjustment + toppingCost;
 
     if (customizationDialog.editingCartItem) {
       updateCartItem(customizationDialog.editingCartItem.uniqueId, { customization, cost: finalUnitCost });
     } else {
-      // Add multiple items based on quantity
       for (let i = 0; i < quantity; i++) {
         const newCartItem: CartItem = {
           item_id: customizationDialog.item.item_id,
@@ -203,48 +179,38 @@ export default function Kiosk() {
           cost: finalUnitCost,
           quantity: 1,
           customization,
-          // UPDATED: Use Shared ID generator + timestamp + index for uniqueness
           uniqueId: `${generateCartItemId(customizationDialog.item.item_id, customization)}-${Date.now()}-${i}`,
         };
         addToCart(newCartItem);
       }
       if (ttsEnabled) play('drink');
-
       setButtonPulse(true);
       setTimeout(() => setButtonPulse(false), 500);
     }
     setCustomizationDialog({ open: false, item: null, editingCartItem: null });
   };
 
-  // --- REORDER HANDLER ---
   const handleReorder = (items: CartItem[]) => {
     items.forEach(item => addToCart(item));
     if (ttsEnabled) play('drink');
-    // Delay drawer opening to prevent animation glitches
     setTimeout(() => {
       setDrawerOpen(true);
     }, 200);
   };
 
-  // --- CALCULATION LOGIC ---
   const total = cart.reduce((sum, item: CartItem) => sum + (item.cost * item.quantity), 0);
-  
   const POINTS_PER_DOLLAR = 100;
   const maxDiscount = customer ? Math.floor(customer.points / POINTS_PER_DOLLAR) : 0;
   const discountAmount = usePoints ? Math.min(maxDiscount, total) : 0;
   const pointsToBurn = discountAmount * POINTS_PER_DOLLAR;
-
   const taxableAmount = Math.max(0, total - discountAmount);
-  // UPDATED: Use Shared Calculation
   const tax = calculateTax(taxableAmount);
   const finalTotal = taxableAmount + tax;
-
   const estimatedPointsEarned = Math.floor(total * 10);
 
   const handleCheckout = () => {
     const wasCustomer = !!customer;
     const name = customer?.customer_name;
-
     checkout(
       paymentMethod, 
       (orderId) => {
@@ -275,36 +241,29 @@ export default function Kiosk() {
   return (
     <div className={`flex h-screen bg-background ${experimentalMode ? 'cursor-none' : ''}`}>
       
-      {/* High Contrast Style Injection */}
       {highContrast && (
         <style>{`
-          /* Force higher contrast for common text classes */
           .text-muted-foreground { color: #0f172a !important; }
           .text-gray-400, .text-gray-500, .text-gray-600 { color: #000000 !important; font-weight: 500 !important; }
           .bg-muted { background-color: #f1f5f9 !important; border: 1px solid #94a3b8; }
           .border { border-color: #000000 !important; }
-          /* Ensure icons are visible */
           .lucide { color: #000000 !important; }
         `}</style>
       )}
 
-      {/* GLOBAL CONFETTI CANVAS */}
       <Confetti 
         ref={confettiRef} 
         manualstart={true}
-        globalOptions={CONFETTI_GLOBAL_OPTIONS} // FIX: Pass stable options
+        globalOptions={CONFETTI_GLOBAL_OPTIONS} 
         className="fixed inset-0 z-[200] w-screen h-screen pointer-events-none" 
       />
 
       {/* Sidebar */}
       <nav className="w-80 bg-gray-50/50 dark:bg-gray-900/50 border-r p-5 flex flex-col gap-4" aria-label="Main Navigation">
-
-        {/* Logo Header */}
         <div className="mb-2 flex items-center justify-center">
           <img src="/logo.jpg" alt="Logo" className="h-14 w-auto rounded-full shadow-sm" />
         </div>
 
-        {/* MEMBER LOGIN BUTTON - REDESIGNED */}
         <div className="pb-2">
           {customer ? (
             <Card className="bg-gradient-to-br from-primary/5 to-primary/10 border-primary/20 shadow-md">
@@ -362,7 +321,6 @@ export default function Kiosk() {
         </div>
 
         <div className="space-y-2 flex-1 overflow-y-auto pr-1">
-          {/* [UPDATED] Use PRODUCT_CATEGORIES and CATEGORY_TRANSLATION_KEYS */}
           {PRODUCT_CATEGORIES.map((category, index) => (
             <Button
               key={index}
@@ -459,14 +417,14 @@ export default function Kiosk() {
       <main className="flex-1 flex flex-col overflow-hidden relative">
         <h1 className="sr-only">Boba Tea Kiosk Menu and Ordering</h1>
         
-        {/* Scrollable Grid */}
+        {/* Scrollable Grid - USING TRANSLATED MENU */}
         <div className="flex-1 overflow-auto p-8 pb-32">
           <div className="max-w-7xl mx-auto">
             <h2 className="text-3xl font-bold mb-6 text-gray-800 dark:text-gray-100 tracking-tight">
               {translate(CATEGORY_TRANSLATION_KEYS[activeCategory as keyof typeof CATEGORY_TRANSLATION_KEYS])}           
               </h2>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-              {menu
+              {translatedMenu
                 .filter((item) => activeCategory === 'All Items' || item.category === activeCategory)
                 .map(item => (
                 <Card
@@ -492,16 +450,14 @@ export default function Kiosk() {
                       />
                     </div>
                     
-                    {/* Item Details Container */}
                     <div className="space-y-2 mb-3 flex-1">
-                      {/* Manual Description */}
+                      {/* Using translated description */}
                       {item.description && (
                         <p className="text-sm text-muted-foreground line-clamp-2">
-                          {translate(item.description)}
+                          {item.description}
                         </p>
                       )}
                       
-                      {/* Highlight Ingredients */}
                       {item.ingredients_list && item.ingredients_list.length > 0 && (
                         <div className="text-xs text-muted-foreground/80">
                           <span className="font-semibold">{translate("common.contains")}</span> {item.ingredients_list.map((i: any) => translate(i)).join(", ")}
@@ -569,49 +525,56 @@ export default function Kiosk() {
                   </div>
                ) : (
                  <div className="space-y-4">
-                   {cart.map((item: CartItem) => (
-                     <div key={item.uniqueId} className="bg-card border rounded-2xl p-4 shadow-sm flex gap-4">
-                          <img 
-                            src={menu.find(m => m.item_id === item.item_id)?.image_url || "/brownsugarboba.jpg"} 
-                            alt={item.item_name}
-                            className="w-24 h-24 rounded-xl object-cover flex-shrink-0 bg-muted" 
-                          />
-                          <div className="flex-1 flex flex-col justify-between">
-                            <div className="flex justify-between items-start">
-                               <div>
-                                  <h4 className="font-bold text-lg">{item.item_name}</h4>
-                                  <p className="text-sm text-muted-foreground font-medium">
-                                    ${item.cost.toFixed(2)} {translate('common.each')}
-                                  </p>
-                               </div>
-                               <span className="font-bold text-lg">${(item.cost * item.quantity).toFixed(2)}</span>
-                            </div>
-                            
-                            {item.customization && (
-                              <div className="mt-1 mb-2">
-                                <CustomizationBadges customization={item.customization} size="sm" />
-                              </div>
-                            )}
+                   {cart.map((item: CartItem) => {
+                     // CART TRANSLATION LOOKUP LOGIC
+                     const displayItem = translatedMenu.find(m => m.item_id === item.item_id);
+                     const displayName = displayItem ? displayItem.item_name : item.item_name;
+                     const displayImage = displayItem?.image_url || "/brownsugarboba.jpg";
 
-                            <div className="flex items-center justify-between pt-2 border-t border-dashed">
-                               <div className="flex items-center bg-muted/50 rounded-lg p-1">
-                                  <Button size="icon" variant="ghost" className="h-8 w-8 rounded-md" onClick={() => updateQuantity(item.uniqueId, item.quantity - 1)}><Minus className="h-4 w-4"/></Button>
-                                  <span className="text-base font-bold w-8 text-center tabular-nums">{item.quantity}</span>
-                                  <Button size="icon" variant="ghost" className="h-8 w-8 rounded-md" onClick={() => updateQuantity(item.uniqueId, item.quantity + 1)}><Plus className="h-4 w-4"/></Button>
-                               </div>
-                               
-                               <div className="flex gap-1">
-                                  <Button variant="ghost" size="sm" className="h-8 text-xs font-medium" onClick={() => openEditDialog(item)}>
-                                    <Edit className="h-3 w-3 mr-1" /> Edit
-                                  </Button>
-                                  <Button variant="ghost" size="sm" className="h-8 text-xs font-medium text-destructive hover:text-destructive hover:bg-destructive/10" onClick={() => removeFromCart(item.uniqueId)}>
-                                    <Trash2 className="h-3 w-3 mr-1" /> Remove
-                                  </Button>
-                               </div>
+                     return (
+                       <div key={item.uniqueId} className="bg-card border rounded-2xl p-4 shadow-sm flex gap-4">
+                            <img 
+                              src={displayImage} 
+                              alt={displayName}
+                              className="w-24 h-24 rounded-xl object-cover flex-shrink-0 bg-muted" 
+                            />
+                            <div className="flex-1 flex flex-col justify-between">
+                              <div className="flex justify-between items-start">
+                                 <div>
+                                    <h4 className="font-bold text-lg">{displayName}</h4>
+                                    <p className="text-sm text-muted-foreground font-medium">
+                                      ${item.cost.toFixed(2)} {translate('common.each')}
+                                    </p>
+                                 </div>
+                                 <span className="font-bold text-lg">${(item.cost * item.quantity).toFixed(2)}</span>
+                              </div>
+                              
+                              {item.customization && (
+                                <div className="mt-1 mb-2">
+                                  <CustomizationBadges customization={item.customization} size="sm" />
+                                </div>
+                              )}
+
+                              <div className="flex items-center justify-between pt-2 border-t border-dashed">
+                                 <div className="flex items-center bg-muted/50 rounded-lg p-1">
+                                    <Button size="icon" variant="ghost" className="h-8 w-8 rounded-md" onClick={() => updateQuantity(item.uniqueId, item.quantity - 1)}><Minus className="h-4 w-4"/></Button>
+                                    <span className="text-base font-bold w-8 text-center tabular-nums">{item.quantity}</span>
+                                    <Button size="icon" variant="ghost" className="h-8 w-8 rounded-md" onClick={() => updateQuantity(item.uniqueId, item.quantity + 1)}><Plus className="h-4 w-4"/></Button>
+                                 </div>
+                                 
+                                 <div className="flex gap-1">
+                                    <Button variant="ghost" size="sm" className="h-8 text-xs font-medium" onClick={() => openEditDialog(item)}>
+                                      <Edit className="h-3 w-3 mr-1" /> Edit
+                                    </Button>
+                                    <Button variant="ghost" size="sm" className="h-8 text-xs font-medium text-destructive hover:text-destructive hover:bg-destructive/10" onClick={() => removeFromCart(item.uniqueId)}>
+                                      <Trash2 className="h-3 w-3 mr-1" /> Remove
+                                    </Button>
+                                 </div>
+                              </div>
                             </div>
-                          </div>
-                     </div>
-                   ))}
+                       </div>
+                     );
+                   })}
                  </div>
                )}
             </div>
@@ -690,7 +653,6 @@ export default function Kiosk() {
         </DrawerContent>
       </Drawer>
 
-      {/* GUEST CHECKOUT INTERCEPTION DIALOG */}
       <Dialog open={guestDialog} onOpenChange={setGuestDialog}>
          <DialogContent className="sm:max-w-md">
             <DialogHeader>
@@ -735,7 +697,6 @@ export default function Kiosk() {
         onConfirm={handleCustomizationConfirm}
       />
 
-      {/* SUCCESS DIALOG */}
       <SuccessDialog 
         data={successData} 
         open={!!successData} 
@@ -749,14 +710,11 @@ export default function Kiosk() {
   );
 }
 
-// --- Success Dialog Component ---
 function SuccessDialog({ data, open, onOpenChange }: { data: SuccessData | null, open: boolean, onOpenChange: (open: boolean) => void }) {
-  // UseRef for callback stability
   const closeRef = useRef(onOpenChange);
   const { t: translate } = useTranslation();
   useEffect(() => { closeRef.current = onOpenChange; }, [onOpenChange]);
 
-  // COUNTDOWN STATE
   const [countdown, setCountdown] = useState(15);
 
   useEffect(() => {
@@ -766,13 +724,12 @@ function SuccessDialog({ data, open, onOpenChange }: { data: SuccessData | null,
         setCountdown((prev) => {
           if (prev <= 1) {
             clearInterval(interval);
-            closeRef.current(false); // Use ref to prevent dependency loop
+            closeRef.current(false);
             return 0;
           }
           return prev - 1;
         });
       }, 1000);
-
       return () => clearInterval(interval);
     }
   }, [open]);
