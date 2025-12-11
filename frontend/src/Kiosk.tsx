@@ -657,7 +657,7 @@ export default function Kiosk() {
                         <span>Points Discount</span> <span>-${discountAmount.toFixed(2)}</span>
                       </div>
                   )}
-                  <div className="flex justify-between text-muted-foreground"><span>Tax ({(TAX_RATE * 100).toFixed(0)}%)</span> <span>${tax.toFixed(2)}</span></div>
+                  <div className="flex justify-between text-muted-foreground"><span>Tax ({(TAX_RATE * 100).toFixed(2)}%)</span> <span>${tax.toFixed(2)}</span></div>
                   <div className="flex justify-between text-3xl font-bold pt-2"><span>Total</span> <span>${finalTotal.toFixed(2)}</span></div>
                 </div>
 
