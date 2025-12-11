@@ -651,14 +651,14 @@ export default function Kiosk() {
                 )}
 
                 <div className="space-y-3 pb-4 border-b border-dashed">
-                  <div className="flex justify-between text-muted-foreground"><span>Subtotal</span> <span>${total.toFixed(2)}</span></div>
+                  <div className="flex justify-between text-muted-foreground"><span>{translate('common.subtotal')}</span> <span>${total.toFixed(2)}</span></div>
                   {usePoints && (
                       <div className="flex justify-between text-green-600 font-medium">
-                        <span>Points Discount</span> <span>-${discountAmount.toFixed(2)}</span>
+                        <span>{translate('kioskCheckout.pointsDiscount')}</span> <span>-${discountAmount.toFixed(2)}</span>
                       </div>
                   )}
-                  <div className="flex justify-between text-muted-foreground"><span>Tax ({(TAX_RATE * 100).toFixed(2)}%)</span> <span>${tax.toFixed(2)}</span></div>
-                  <div className="flex justify-between text-3xl font-bold pt-2"><span>Total</span> <span>${finalTotal.toFixed(2)}</span></div>
+                  <div className="flex justify-between text-muted-foreground"><span>{translate('common.tax')} ({(TAX_RATE * 100).toFixed(2)}%)</span> <span>${tax.toFixed(2)}</span></div>
+                  <div className="flex justify-between text-3xl font-bold pt-2"><span>{translate('common.total')}</span> <span>${finalTotal.toFixed(2)}</span></div>
                 </div>
 
                 <div className="grid grid-cols-2 gap-3">
@@ -667,7 +667,7 @@ export default function Kiosk() {
                     className={`h-14 rounded-xl border-2 ${paymentMethod === 'card' ? 'border-primary' : 'border-transparent bg-white dark:bg-card hover:border-gray-300'}`}
                     onClick={() => setPaymentMethod('card')}
                   >
-                    <CreditCard className="mr-2 h-5 w-5" /> Card
+                    <CreditCard className="mr-2 h-5 w-5" /> {translate('checkout.card')}
                   </Button>
                   <Button 
                     variant={paymentMethod === 'cash' ? 'default' : 'outline'} 
@@ -677,7 +677,7 @@ export default function Kiosk() {
                       if (ttsEnabled) play('cash');
                     }}
                   >
-                    <Banknote className="mr-2 h-5 w-5" /> Cash
+                    <Banknote className="mr-2 h-5 w-5" /> {translate('checkout.cash')}
                   </Button>
                 </div>
 
