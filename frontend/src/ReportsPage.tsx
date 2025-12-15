@@ -48,7 +48,8 @@ import {
   Coins,
   Receipt,
   Loader2,
-  Clock
+  Clock,
+  RotateCcw
 } from "lucide-react";
 
 // --- TYPES ---
@@ -163,6 +164,20 @@ export default function ReportsPage() {
     else loadXReport();
   };
 
+  const handleResetDay = async () => {
+    if (!confirm("Unlock the day? This will delete today's Z-Report.")) return;
+    setLoading(true);
+    try {
+      await fetchApi('/api/reports/reset-day', { method: 'POST' });
+      toast.success("Day unlocked");
+      loadXReport(); // Reload data
+    } catch (error) {
+      toast.error("Failed to unlock day");
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const handleCloseDay = async () => {
     if (!countedCash) return;
     setIsSubmitting(true);
@@ -232,6 +247,11 @@ export default function ReportsPage() {
             <h1 className="text-2xl font-bold">{translate("reports.title")}</h1>
           </div>
           <div className="flex items-center gap-3">
+             <Button variant="ghost" size="sm" onClick={handleResetDay} className="text-destructive hover:bg-destructive/10 hidden md:flex">
+                <RotateCcw className="h-4 w-4 mr-2" />
+                {translate("reports.resetDay") || "Reset Day"}
+             </Button>
+
              <div className="hidden md:flex items-center gap-2 text-sm text-muted-foreground bg-slate-100 px-3 py-1.5 rounded-md">
                 <Calendar className="h-4 w-4" />
                 <span>{new Date().toLocaleDateString(undefined, { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}</span>
@@ -493,10 +513,10 @@ export default function ReportsPage() {
                                         <Label htmlFor="countedCash">{translate("reports.totalCashCounted")}</Label>
                                         <div className="relative">
                                             <DollarSign className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
-                                            <Input
-                                                id="countedCash"
-                                                placeholder="0.00"
-                                                className="pl-9 text-lg"
+                                            <Input 
+                                                id="countedCash" 
+                                                placeholder="0.00" 
+                                                className="pl-9 text-lg" 
                                                 value={countedCash}
                                                 onChange={(e) => setCountedCash(e.target.value)}
                                                 type="number"

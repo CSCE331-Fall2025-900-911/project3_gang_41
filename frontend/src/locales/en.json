@@ -78,6 +78,7 @@
   "reports": {
     "title": "Reports",
     "refreshData": "Refresh Data",
+    "resetDay": "Reset Day",
     "xReport": "X-Report",
     "zReport": "Z-Report",
     "archives": "Archives",

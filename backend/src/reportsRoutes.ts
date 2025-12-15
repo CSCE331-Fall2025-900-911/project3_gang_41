@@ -13,7 +13,8 @@ router.get('/dashboard', async (req: Request, res: Response) => {
     try {
     const { range } = req.query;
 
-    const localTs = `(orderdate AT TIME ZONE '${BUSINESS_TZ}')`;
+    // FIX: Explicitly cast to timestamptz to ensure UTC interpretation before TZ conversion
+    const localTs = `(orderdate::timestamptz AT TIME ZONE '${BUSINESS_TZ}')`;
     const nowLocal = `(NOW() AT TIME ZONE '${BUSINESS_TZ}')`;
 
     let boundarySplit = ''; 
@@ -175,6 +176,7 @@ const getShiftStartTime = async () => {
 router.get('/x-report', async (req: Request, res: Response) => {
   try {
     // 1. Check for End-of-Day Lock (Z-Report exists for today)
+    // FIX: Ensure NOW() comparisons use Business Timezone
     const checkLockQuery = `
         SELECT report_id FROM z_reports 
         WHERE DATE(date_created AT TIME ZONE '${BUSINESS_TZ}') = DATE(NOW() AT TIME ZONE '${BUSINESS_TZ}')
@@ -201,11 +203,11 @@ router.get('/x-report', async (req: Request, res: Response) => {
       FROM order_history WHERE orderdate > $1
     `;
 
-    // Hourly Breakdown Query
+    // FIX: Added ::timestamptz to force interpretation as UTC timestamp before rotating to Chicago
     const hourlyQuery = `
       SELECT
-        TO_CHAR(orderdate AT TIME ZONE '${BUSINESS_TZ}', 'FMHH12AM') as hour_label,
-        EXTRACT(HOUR FROM orderdate AT TIME ZONE '${BUSINESS_TZ}')::int as hour_sort,
+        TO_CHAR(orderdate::timestamptz AT TIME ZONE '${BUSINESS_TZ}', 'FMHH12AM') as hour_label,
+        EXTRACT(HOUR FROM orderdate::timestamptz AT TIME ZONE '${BUSINESS_TZ}')::int as hour_sort,
         COUNT(DISTINCT orderid)::int as count,
         COALESCE(SUM(totalprice), 0)::float as sales
       FROM order_history 
@@ -255,10 +257,6 @@ router.post('/z-report', async (req: Request, res: Response) => {
       FROM order_history WHERE orderdate > $1
     `;
 
-    // Hourly Breakdown for Z-Report Snapshot (Optional storage, but good for verification)
-    // For now, we only store the totals in z_reports table as per schema, 
-    // but we can log or return the hourly data if the frontend wants to display it immediately.
-
     const aggRes = await db.query(aggQuery, [startTime]);
     const totals = aggRes.rows[0];
     const expectedCash = Number(openingFloat) + Number(totals.cashsales);
@@ -289,6 +287,21 @@ router.post('/z-report', async (req: Request, res: Response) => {
   } catch (error) {
     console.error('Z-Report Error:', error);
     sendError(res, 'Failed to close shift');
+  }
+});
+
+// NEW ENDPOINT: Unlock Day (Delete today's Z-Report)
+router.post('/reset-day', async (req: Request, res: Response) => {
+  try {
+    const query = `
+      DELETE FROM z_reports 
+      WHERE DATE(date_created AT TIME ZONE '${BUSINESS_TZ}') = DATE(NOW() AT TIME ZONE '${BUSINESS_TZ}')
+    `;
+    await db.query(query);
+    sendSuccess(res, { message: 'Day unlocked successfully' });
+  } catch (error) {
+    console.error('Reset Day Error:', error);
+    sendError(res, 'Failed to reset day');
   }
 });
 
