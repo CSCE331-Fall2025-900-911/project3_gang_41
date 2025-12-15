@@ -29,11 +29,12 @@ export default function Menuboards() {
   useEffect(() => {
     fetchApi<MenuItem[]>('/api/menu')
       .then((data) => {
-        const menuWithNumbers = data.map((item) => ({
-          ...item,
-          cost: parseFloat(String(item.cost)),
-        }));
-        setMenu(menuWithNumbers);
+        // Group/Sort by Category first
+        const sortedMenu = data
+            .map((item) => ({ ...item, cost: parseFloat(String(item.cost)) }))
+            .sort((a, b) => a.category.localeCompare(b.category) || a.item_name.localeCompare(b.item_name));
+        
+        setMenu(sortedMenu);
       })
       .catch(() => setMenu([]));
   }, []);
@@ -64,6 +65,9 @@ export default function Menuboards() {
   const startIndex = currentPage * ITEMS_PER_PAGE;
   const currentItems = menu.slice(startIndex, startIndex + ITEMS_PER_PAGE);
 
+  // Determine current category name
+  const currentCategory = currentItems.length > 0 ? currentItems[0].category : "Menu";
+
   return (
     <div className="flex h-screen w-full bg-slate-50 overflow-hidden font-sans">
       
@@ -79,6 +83,19 @@ export default function Menuboards() {
                 </div>
             ) : (
                 <>
+                    {/* Category Header */}
+                    <div 
+                        className="mb-6 transition-opacity ease-in-out"
+                        style={{ 
+                            opacity: fade ? 1 : 0, 
+                            transitionDuration: `${TRANSITION_DURATION}ms` 
+                        }}
+                    >
+                        <h1 className="text-4xl font-extrabold text-primary uppercase tracking-tight border-b-4 border-primary/20 pb-2 inline-block">
+                            {currentCategory}
+                        </h1>
+                    </div>
+
                     {/* Grid Container with Fade Transition */}
                     <div 
                       className={`grid grid-cols-2 gap-x-8 gap-y-6 content-start transition-opacity ease-in-out`}

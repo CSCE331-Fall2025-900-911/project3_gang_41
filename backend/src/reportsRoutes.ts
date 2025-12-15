@@ -174,6 +174,21 @@ const getShiftStartTime = async () => {
 
 router.get('/x-report', async (req: Request, res: Response) => {
   try {
+    // 1. Check for End-of-Day Lock (Z-Report exists for today)
+    const checkLockQuery = `
+        SELECT report_id FROM z_reports 
+        WHERE DATE(date_created AT TIME ZONE '${BUSINESS_TZ}') = DATE(NOW() AT TIME ZONE '${BUSINESS_TZ}')
+        LIMIT 1
+    `;
+    const lockRes = await db.query(checkLockQuery);
+    if (lockRes.rows.length > 0) {
+        return res.status(403).json({
+            success: false,
+            message: "Shift Closed: Z-Report has already been run for today.",
+            locked: true
+        });
+    }
+
     const startTime = await getShiftStartTime();
 
     const query = `
@@ -186,8 +201,25 @@ router.get('/x-report', async (req: Request, res: Response) => {
       FROM order_history WHERE orderdate > $1
     `;
 
-    const result = await db.query(query, [startTime]);
-    const row = result.rows[0];
+    // Hourly Breakdown Query
+    const hourlyQuery = `
+      SELECT
+        TO_CHAR(orderdate AT TIME ZONE '${BUSINESS_TZ}', 'FMHH12AM') as hour_label,
+        EXTRACT(HOUR FROM orderdate AT TIME ZONE '${BUSINESS_TZ}')::int as hour_sort,
+        COUNT(DISTINCT orderid)::int as count,
+        COALESCE(SUM(totalprice), 0)::float as sales
+      FROM order_history 
+      WHERE orderdate > $1
+      GROUP BY 1, 2
+      ORDER BY 2 ASC
+    `;
+
+    const [totalRes, hourlyRes] = await Promise.all([
+        db.query(query, [startTime]),
+        db.query(hourlyQuery, [startTime])
+    ]);
+    
+    const row = totalRes.rows[0];
 
     sendSuccess(res, {
       transactions: row.transactions,
@@ -196,7 +228,8 @@ router.get('/x-report', async (req: Request, res: Response) => {
       cardSales: row.cardsales,
       netSales: row.grosssales - row.tax,
       tax: row.tax,
-      discounts: 0
+      discounts: 0,
+      hourlyTotals: hourlyRes.rows
     });
 
   } catch (error) {
@@ -211,6 +244,7 @@ router.post('/z-report', async (req: Request, res: Response) => {
     const prevEndTimeRaw = (await db.query('SELECT end_time FROM z_reports ORDER BY date_created DESC LIMIT 1')).rows[0]?.end_time;
     const startTime = prevEndTimeRaw ? new Date(prevEndTimeRaw) : new Date(new Date().setHours(0,0,0,0));
 
+    // Aggregate Totals
     const aggQuery = `
       SELECT 
         COUNT(DISTINCT orderid)::int as transactions,
@@ -220,6 +254,10 @@ router.post('/z-report', async (req: Request, res: Response) => {
         (COALESCE(SUM(totalprice), 0) - (COALESCE(SUM(totalprice), 0) / ${TAX_DIVISOR}))::float as tax
       FROM order_history WHERE orderdate > $1
     `;
+
+    // Hourly Breakdown for Z-Report Snapshot (Optional storage, but good for verification)
+    // For now, we only store the totals in z_reports table as per schema, 
+    // but we can log or return the hourly data if the frontend wants to display it immediately.
 
     const aggRes = await db.query(aggQuery, [startTime]);
     const totals = aggRes.rows[0];

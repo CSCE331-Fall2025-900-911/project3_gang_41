@@ -270,6 +270,8 @@ export function DrinkCustomizationDialog({
                       key={size}
                       type="button"
                       variant={customization.size === size ? "default" : "outline"}
+                      // ADDED data-state for High Contrast CSS targeting
+                      data-state={customization.size === size ? "checked" : "unchecked"}
                       onMouseEnter={() => speak(translate(sizeTranslationKeys[size]))}
                       onClick={() => setCustomization({ ...customization, size })}
                     >
@@ -289,6 +291,8 @@ export function DrinkCustomizationDialog({
                       type="button"
                       size="sm"
                       variant={customization.sweetness === level ? "default" : "outline"}
+                      // ADDED data-state for High Contrast CSS targeting
+                      data-state={customization.sweetness === level ? "checked" : "unchecked"}
                       onMouseEnter={() => speak(`${level}% ${translate("customization.sugar")}`)}
                       onClick={() => setCustomization({ ...customization, sweetness: level })}
                       className="px-0"
@@ -308,6 +312,8 @@ export function DrinkCustomizationDialog({
                       key={temp}
                       type="button"
                       variant={customization.temperature === temp ? "default" : "outline"}
+                      // ADDED data-state for High Contrast CSS targeting
+                      data-state={customization.temperature === temp ? "checked" : "unchecked"}
                       onMouseEnter={() => speak(translate(temperatureTranslationKeys[temp]))}
                       onClick={() => setTemperatureAnimated(temp)}
                     >
@@ -337,6 +343,8 @@ export function DrinkCustomizationDialog({
                       key={ice}
                       type="button"
                       variant={customization.ice === ice ? "default" : "outline"}
+                      // ADDED data-state for High Contrast CSS targeting
+                      data-state={customization.ice === ice ? "checked" : "unchecked"}
                       onMouseEnter={() => speak(`${translate(iceTranslationKeys[ice])} ${translate("customization.ice")}`)}
                       onClick={() => setCustomization({ ...customization, ice })}
                     >
@@ -358,6 +366,9 @@ export function DrinkCustomizationDialog({
                         type="button"
                         size="default"
                         variant={selected ? "default" : "outline"}
+                        // ADDED data-state for High Contrast CSS targeting
+                        // This fixes the text contrast issue on selection!
+                        data-state={selected ? "checked" : "unchecked"}
                         onMouseEnter={() => speak(translate(`customization.${topping}`))}
                         onClick={() => toggleTopping(topping)}
                         className={`relative justify-start px-3 h-12 transition-all ${selected ? "pl-9" : "pl-3"}`}

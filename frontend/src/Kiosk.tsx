@@ -35,7 +35,7 @@ import { LanguageToggle } from "@/components/LanguageToggle";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Confetti, type ConfettiRef } from "@/components/ui/confetti";
 import { useWeather } from "@/hooks/useWeather";
-import { useMenuTranslation } from "@/hooks/useMenuTranslation"; // IMPORT HOOK
+import { useMenuTranslation } from "@/hooks/useMenuTranslation";
 
 import {
   PRODUCT_CATEGORIES, 
@@ -89,7 +89,18 @@ export default function Kiosk() {
   const weather = useWeather();
 
   const [experimentalMode, setExperimentalMode] = useState(false);
+  
+  // High Contrast Logic with Transition Freeze
   const [highContrast, setHighContrast] = useState(false);
+  const [isSwitchingTheme, setIsSwitchingTheme] = useState(false);
+
+  useEffect(() => {
+    // When high contrast toggles, freeze transitions temporarily
+    setIsSwitchingTheme(true);
+    const timer = setTimeout(() => setIsSwitchingTheme(false), 300); // 300ms freeze
+    return () => clearTimeout(timer);
+  }, [highContrast]);
+
   const { fontSize, setFontSize } = useFontSize();
   
   const [customizationDialog, setCustomizationDialog] = useState<{
@@ -150,7 +161,6 @@ export default function Kiosk() {
   };
 
   const openEditDialog = (cartItem: CartItem) => {
-    // Find item in TRANSLATED menu to ensure dialog shows translated name
     const menuItem = translatedMenu.find((m) => m.item_id === cartItem.item_id);
     if (menuItem) {
       setCustomizationDialog({
@@ -194,7 +204,6 @@ export default function Kiosk() {
   const handleReorder = (items: CartItem[]) => {
     items.forEach(item => addToCart(item));
     speak(translate('tts.itemAdded', { item: `${items.length} items` }));
-    // Delay drawer opening to prevent animation glitches
     setTimeout(() => {
       setDrawerOpen(true);
     }, 200);
@@ -243,13 +252,97 @@ export default function Kiosk() {
   return (
     <div className={`flex h-screen bg-background ${experimentalMode ? 'cursor-none' : ''}`}>
       
+      {/* 1. TEMPORARY FREEZE: Kills transitions ONLY during the switch */}
+      {isSwitchingTheme && (
+        <style>{`
+          *, *::before, *::after {
+            transition: none !important;
+            animation: none !important;
+          }
+        `}</style>
+      )}
+
+      {/* 2. HIGH CONTRAST STYLES */}
       {highContrast && (
         <style>{`
-          .text-muted-foreground { color: #0f172a !important; }
-          .text-gray-400, .text-gray-500, .text-gray-600 { color: #000000 !important; font-weight: 500 !important; }
-          .bg-muted { background-color: #f1f5f9 !important; border: 1px solid #94a3b8; }
-          .border { border-color: #000000 !important; }
-          .lucide { color: #000000 !important; }
+          /*
+             TEXT CONTRAST:
+             Forces descriptions, ingredients, and muted text to be black and bold.
+          */
+          .text-muted-foreground, .text-gray-500, .text-gray-400, p, span {
+            color: #000000 !important;
+            font-weight: 700 !important;
+            opacity: 1 !important;
+          }
+
+          /*
+             BUTTONS & CONTROLS:
+             Applies a thick 3px border to all interactive elements.
+          */
+          button, [role="button"], [role="switch"], select {
+             border: 3px solid #000000 !important;
+          }
+
+          /* Hover State */
+          button:hover {
+             background-color: #000000 !important;
+             color: #ffffff !important;
+          }
+          
+          /*
+             SELECTED STATE FIX (Toppings, Toggles, etc.):
+             When an item is selected, the background becomes black.
+             We explicitly force the text to WHITE so it's readable.
+          */
+          button[data-state="checked"],
+          button[data-state="on"],
+          button[aria-pressed="true"],
+          button[aria-checked="true"] {
+             background-color: #000000 !important;
+             color: #ffffff !important;
+          }
+          
+          /* Force inner text elements (like spans) to white when parent is selected */
+          button[data-state="checked"] *,
+          button[data-state="on"] *,
+          button[aria-pressed="true"] * {
+             color: #ffffff !important;
+          }
+
+          /*
+             DRINK ITEM CARDS:
+             Increases the border strength by ~2x (6px)
+          */
+          .grid .bg-card, .card {
+            border: 6px solid #000000 !important;
+          }
+
+          /*
+             IMAGE CONTAINER BORDER:
+             Apply border to the container (.aspect-square) instead of the img.
+          */
+          .aspect-square {
+             border: 4px solid #000000 !important;
+             box-sizing: border-box !important;
+             z-index: 10;
+          }
+          /* Remove default border from image to prevent doubling up */
+          img {
+            border: none !important;
+            filter: contrast(125%);
+          }
+
+          /*
+             TRANSLATION OPTIONS:
+             Adds borders to individual English, Espanol, KO items in the dropdown
+          */
+          [role="menuitem"], [role="option"] {
+            border: 2px solid #000000 !important;
+            margin-bottom: 2px !important;
+          }
+
+          /* Icons: Make them bold/black */
+          .lucide { stroke: #000000 !important; stroke-width: 2.5px !important; }
         `}</style>
       )}
 
@@ -498,6 +591,11 @@ export default function Kiosk() {
                   buttonPulse ? 'scale-110 bg-green-600' : 'scale-100'
                 } ${cart.length > 0 ? 'animate-in fade-in slide-in-from-bottom-4' : 'opacity-90'}`}
                 variant={cart.length > 0 ? "default" : "secondary"}
+                
+                // ADD THIS LINE:
+                // This forces the High Contrast CSS to apply white text when the cart has items
+                data-state={cart.length > 0 ? "checked" : "unchecked"}
+                
                 onClick={handleMainCheckoutClick}
               >
                 <div className="relative">

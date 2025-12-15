@@ -1,10 +1,10 @@
 import { useEffect, useState, useCallback } from "react";
 import { useTranslation } from "react-i18next";
-import { fetchApi } from "@/lib/api";
-import { formatCurrency } from "@/lib/utils";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
+import { fetchApi } from '@/lib/api';
+import { formatCurrency } from '@/lib/utils';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import { toast } from "sonner";
 import {
   Card,
@@ -47,10 +47,17 @@ import {
   CreditCard,
   Coins,
   Receipt,
-  Loader2
+  Loader2,
+  Clock
 } from "lucide-react";
 
 // --- TYPES ---
+
+type HourlyTotal = {
+    hour_label: string;
+    count: number;
+    sales: number;
+};
 
 type XReportData = {
   transactions: number;
@@ -60,6 +67,7 @@ type XReportData = {
   cardSales: number;
   tax: number;
   discounts: number;
+  hourlyTotals: HourlyTotal[];
 };
 
 type ZReportHistoryItem = {
@@ -87,6 +95,7 @@ export default function ReportsPage() {
   
   // Data States
   const [xReport, setXReport] = useState<XReportData | null>(null);
+  const [reportLocked, setReportLocked] = useState(false); // New locked state
   const [history, setHistory] = useState<ZReportHistoryItem[]>([]);
 
   // Z-Report Form State
@@ -105,15 +114,21 @@ export default function ReportsPage() {
 
   const loadXReport = useCallback(async () => {
     setLoading(true);
-            try {
-            const data = await fetchApi<XReportData>('/api/reports/x-report');
-            setXReport(data);
-        } catch (error) {
+    setReportLocked(false);
+    try {
+        const data = await fetchApi<XReportData>('/api/reports/x-report');
+        setXReport(data);
+    } catch (error: any) {
+        if (error.message && error.message.includes("Shift Closed")) {
+            setReportLocked(true);
+            setXReport(null);
+        } else {
             console.error(error);
             toast.error(translate("reports.failedToLoad") || "Failed to load X-Report data");
-        } finally {
-            setLoading(false);
         }
+    } finally {
+        setLoading(false);
+    }
   }, []);
 
   const loadHistory = useCallback(async () => {
@@ -239,6 +254,17 @@ export default function ReportsPage() {
                          <div className="flex h-64 items-center justify-center">
                             <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
                          </div>
+                    ) : reportLocked ? (
+                         <div className="flex flex-col items-center justify-center h-64 border-2 border-dashed border-slate-300 rounded-lg bg-slate-50">
+                            <Lock className="h-12 w-12 text-slate-400 mb-4" />
+                            <h3 className="text-lg font-semibold text-slate-700">Daily Report Locked</h3>
+                            <p className="text-slate-500 max-w-sm text-center mt-2">
+                                A Z-Report has already been generated for today. The current shift is closed.
+                            </p>
+                            <Button className="mt-6" variant="outline" onClick={() => setActiveTab("history")}>
+                                View Past Reports
+                            </Button>
+                         </div>
                     ) : (
                     <>
                         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
@@ -292,48 +318,102 @@ export default function ReportsPage() {
                             </Card>
                         </div>
 
-                        {/* --- PRINTABLE SECTION --- */}
-                        <Card className="border-dashed border-2 print-section">
-                            <CardHeader>
-                                <CardTitle className="flex items-center gap-2">
-                                    <Receipt className="h-5 w-5" />
-                                    {translate("reports.currentShiftSnapshot")}
-                                </CardTitle>
-                                <CardDescription>{translate("reports.xReportDesc")}</CardDescription>
-                            </CardHeader>
-                            <CardContent className="space-y-2">
-                                <div className="bg-white border rounded-md p-6 max-w-md mx-auto shadow-sm font-mono text-sm">
-                                    <div className="text-center font-bold text-lg mb-4">{translate("print.xReport")}</div>
-                                    <div className="flex justify-between py-1 border-b"><span>{translate("print.date")}</span><span>{new Date().toLocaleDateString()}</span></div>
-                                    <div className="flex justify-between py-1 border-b"><span>{translate("print.time")}</span><span>{new Date().toLocaleTimeString()}</span></div>
-                                    
-                                    <div className="py-4 space-y-1">
-                                        <div className="flex justify-between"><span>{translate("print.salesGross")}</span><span>{formatCurrency(xReport?.grossSales || 0)}</span></div>
-                                        <div className="flex justify-between text-muted-foreground"><span>- {translate("print.discounts")}</span><span>{formatCurrency(xReport?.discounts || 0)}</span></div>
-                                        <div className="flex justify-between font-bold pt-2"><span>{translate("print.netSales")}</span><span>{formatCurrency(xReport?.netSales || 0)}</span></div>
-                                        <div className="flex justify-between"><span>{translate("print.plusTax")}</span><span>{formatCurrency(xReport?.tax || 0)}</span></div>
-                                        <div className="flex justify-between font-bold border-t border-black pt-2 mt-2"><span>{translate("print.totalCap")}</span><span>{formatCurrency(xReport?.grossSales || 0)}</span></div>
+                        {/* --- HOURLY BREAKDOWN --- */}
+                        <div className="grid gap-4 md:grid-cols-2">
+                            <Card className="h-full">
+                                <CardHeader>
+                                    <CardTitle className="flex items-center gap-2">
+                                        <Clock className="h-5 w-5" />
+                                        Hourly Breakdown
+                                    </CardTitle>
+                                    <CardDescription>Sales activity by hour for current shift</CardDescription>
+                                </CardHeader>
+                                <CardContent className="p-0">
+                                    <div className="h-[300px] overflow-auto">
+                                        <Table>
+                                            <TableHeader>
+                                                <TableRow>
+                                                    <TableHead>Time</TableHead>
+                                                    <TableHead>Orders</TableHead>
+                                                    <TableHead className="text-right">Sales</TableHead>
+                                                </TableRow>
+                                            </TableHeader>
+                                            <TableBody>
+                                                {xReport?.hourlyTotals?.map((row, idx) => (
+                                                    <TableRow key={idx}>
+                                                        <TableCell className="font-medium">{row.hour_label}</TableCell>
+                                                        <TableCell>{row.count}</TableCell>
+                                                        <TableCell className="text-right font-bold">{formatCurrency(row.sales)}</TableCell>
+                                                    </TableRow>
+                                                ))}
+                                                {(!xReport?.hourlyTotals || xReport.hourlyTotals.length === 0) && (
+                                                    <TableRow>
+                                                        <TableCell colSpan={3} className="text-center text-muted-foreground py-8">
+                                                            No hourly data available
+                                                        </TableCell>
+                                                    </TableRow>
+                                                )}
+                                            </TableBody>
+                                        </Table>
                                     </div>
-                                    <div className="py-2 border-t border-dashed">
-                                        <div className="flex justify-between"><span>{translate("print.cashCalc")}</span><span>{formatCurrency(expectedCash)}</span></div>
+                                </CardContent>
+                            </Card>
+
+                            {/* --- PRINTABLE SECTION --- */}
+                            <Card className="border-dashed border-2 print-section h-full flex flex-col">
+                                <CardHeader>
+                                    <CardTitle className="flex items-center gap-2">
+                                        <Receipt className="h-5 w-5" />
+                                        {translate("reports.currentShiftSnapshot")}
+                                    </CardTitle>
+                                    <CardDescription>{translate("reports.xReportDesc")}</CardDescription>
+                                </CardHeader>
+                                <CardContent className="space-y-2 flex-1">
+                                    <div className="bg-white border rounded-md p-6 max-w-md mx-auto shadow-sm font-mono text-sm">
+                                        <div className="text-center font-bold text-lg mb-4">{translate("print.xReport")}</div>
+                                        <div className="flex justify-between py-1 border-b"><span>{translate("print.date")}</span><span>{new Date().toLocaleDateString()}</span></div>
+                                        <div className="flex justify-between py-1 border-b"><span>{translate("print.time")}</span><span>{new Date().toLocaleTimeString()}</span></div>
+                                        
+                                        <div className="py-4 space-y-1">
+                                            <div className="flex justify-between"><span>{translate("print.salesGross")}</span><span>{formatCurrency(xReport?.grossSales || 0)}</span></div>
+                                            <div className="flex justify-between text-muted-foreground"><span>- {translate("print.discounts")}</span><span>{formatCurrency(xReport?.discounts || 0)}</span></div>
+                                            <div className="flex justify-between font-bold pt-2"><span>{translate("print.netSales")}</span><span>{formatCurrency(xReport?.netSales || 0)}</span></div>
+                                            <div className="flex justify-between"><span>{translate("print.plusTax")}</span><span>{formatCurrency(xReport?.tax || 0)}</span></div>
+                                            <div className="flex justify-between font-bold border-t border-black pt-2 mt-2"><span>{translate("print.totalCap")}</span><span>{formatCurrency(xReport?.grossSales || 0)}</span></div>
+                                        </div>
+                                        <div className="py-2 border-t border-dashed">
+                                            <div className="flex justify-between"><span>{translate("print.cashCalc")}</span><span>{formatCurrency(expectedCash)}</span></div>
+                                        </div>
                                     </div>
-                                </div>
-                            </CardContent>
-                            
-                            {/* Hidden during print */}
-                            <CardFooter className="justify-end gap-2 bg-slate-50/50 print-hide">
-                                <Button variant="outline" onClick={handlePrint}>
-                                    <Printer className="mr-2 h-4 w-4" />
-                                    {translate("reports.print")}
-                                </Button>
-                            </CardFooter>
-                        </Card>
+                                </CardContent>
+                                
+                                {/* Hidden during print */}
+                                <CardFooter className="justify-end gap-2 bg-slate-50/50 print-hide flex-none">
+                                    <Button variant="outline" onClick={handlePrint}>
+                                        <Printer className="mr-2 h-4 w-4" />
+                                        {translate("reports.print")}
+                                    </Button>
+                                </CardFooter>
+                            </Card>
+                        </div>
                     </>
                     )}
                 </TabsContent>
 
                 {/* --- Z-REPORT TAB --- */}
                 <TabsContent value="z-report" className="space-y-4">
+                    {reportLocked ? (
+                        <div className="flex flex-col items-center justify-center h-64 border-2 border-dashed border-slate-300 rounded-lg bg-slate-50">
+                            <Lock className="h-12 w-12 text-emerald-600 mb-4" />
+                            <h3 className="text-lg font-semibold text-emerald-700">Day Already Closed</h3>
+                            <p className="text-slate-500 max-w-sm text-center mt-2">
+                                The Z-Report for today has already been finalized.
+                            </p>
+                            <Button className="mt-6" variant="outline" onClick={() => setActiveTab("history")}>
+                                View Archives
+                            </Button>
+                        </div>
+                    ) : (
                     <div className="grid md:grid-cols-3 gap-6">
                         <div className="md:col-span-1 space-y-4">
                             <Card className="bg-slate-900 text-white border-none">
@@ -418,6 +498,7 @@ export default function ReportsPage() {
                             </CardFooter>
                         </Card>
                     </div>
+                    )}
                 </TabsContent>
 
                 {/* --- HISTORY TAB (Archives) --- */}
