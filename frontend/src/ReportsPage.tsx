@@ -110,6 +110,12 @@ export default function ReportsPage() {
   const expectedCash = (xReport?.cashSales || 0) + OPENING_FLOAT;
   const variance = countedCash ? parseFloat(countedCash) - expectedCash : 0;
 
+  // --- HELPER FOR SPLITTING DATA ---
+  const hourlyTotals = xReport?.hourlyTotals || [];
+  const midPoint = Math.ceil(hourlyTotals.length / 2);
+  const col1 = hourlyTotals.slice(0, midPoint);
+  const col2 = hourlyTotals.slice(midPoint);
+
   // --- API HANDLERS ---
 
   const loadXReport = useCallback(async () => {
@@ -318,7 +324,7 @@ export default function ReportsPage() {
                             </Card>
                         </div>
 
-                        {/* --- HOURLY BREAKDOWN --- */}
+                        {/* --- HOURLY BREAKDOWN & PRINTABLE SNAPSHOT --- */}
                         <div className="grid gap-4 md:grid-cols-2">
                             <Card className="h-full">
                                 <CardHeader>
@@ -328,33 +334,64 @@ export default function ReportsPage() {
                                     </CardTitle>
                                     <CardDescription>Sales activity by hour for current shift</CardDescription>
                                 </CardHeader>
-                                <CardContent className="p-0">
-                                    <div className="h-[300px] overflow-auto">
-                                        <Table>
-                                            <TableHeader>
-                                                <TableRow>
-                                                    <TableHead>Time</TableHead>
-                                                    <TableHead>Orders</TableHead>
-                                                    <TableHead className="text-right">Sales</TableHead>
-                                                </TableRow>
-                                            </TableHeader>
-                                            <TableBody>
-                                                {xReport?.hourlyTotals?.map((row, idx) => (
-                                                    <TableRow key={idx}>
-                                                        <TableCell className="font-medium">{row.hour_label}</TableCell>
-                                                        <TableCell>{row.count}</TableCell>
-                                                        <TableCell className="text-right font-bold">{formatCurrency(row.sales)}</TableCell>
-                                                    </TableRow>
-                                                ))}
-                                                {(!xReport?.hourlyTotals || xReport.hourlyTotals.length === 0) && (
+                                <CardContent className="p-0 pb-4">
+                                    {/* 2-Column Split Container */}
+                                    <div className="h-auto grid grid-cols-2 gap-x-1">
+                                        
+                                        {/* Left Column Table */}
+                                        <div className="border-r border-slate-100">
+                                            <Table>
+                                                <TableHeader>
                                                     <TableRow>
-                                                        <TableCell colSpan={3} className="text-center text-muted-foreground py-8">
-                                                            No hourly data available
-                                                        </TableCell>
+                                                        <TableHead className="py-2 h-9 text-xs">Time</TableHead>
+                                                        <TableHead className="py-2 h-9 text-xs">#</TableHead>
+                                                        <TableHead className="py-2 h-9 text-xs text-right">Sales</TableHead>
                                                     </TableRow>
-                                                )}
-                                            </TableBody>
-                                        </Table>
+                                                </TableHeader>
+                                                <TableBody>
+                                                    {col1.map((row, idx) => (
+                                                        <TableRow key={`col1-${idx}`}>
+                                                            <TableCell className="py-2 font-medium text-xs">{row.hour_label}</TableCell>
+                                                            <TableCell className="py-2 text-xs">{row.count}</TableCell>
+                                                            <TableCell className="py-2 text-xs text-right font-bold">{formatCurrency(row.sales)}</TableCell>
+                                                        </TableRow>
+                                                    ))}
+                                                    {col1.length === 0 && (
+                                                        <TableRow>
+                                                            <TableCell colSpan={3} className="text-center py-4 text-xs text-muted-foreground">No data</TableCell>
+                                                        </TableRow>
+                                                    )}
+                                                </TableBody>
+                                            </Table>
+                                        </div>
+
+                                        {/* Right Column Table */}
+                                        <div>
+                                            <Table>
+                                                <TableHeader>
+                                                    <TableRow>
+                                                        <TableHead className="py-2 h-9 text-xs">Time</TableHead>
+                                                        <TableHead className="py-2 h-9 text-xs">#</TableHead>
+                                                        <TableHead className="py-2 h-9 text-xs text-right">Sales</TableHead>
+                                                    </TableRow>
+                                                </TableHeader>
+                                                <TableBody>
+                                                    {col2.map((row, idx) => (
+                                                        <TableRow key={`col2-${idx}`}>
+                                                            <TableCell className="py-2 font-medium text-xs">{row.hour_label}</TableCell>
+                                                            <TableCell className="py-2 text-xs">{row.count}</TableCell>
+                                                            <TableCell className="py-2 text-xs text-right font-bold">{formatCurrency(row.sales)}</TableCell>
+                                                        </TableRow>
+                                                    ))}
+                                                     {col2.length === 0 && col1.length > 0 && (
+                                                        <TableRow>
+                                                            <TableCell colSpan={3} className="text-center py-4 text-xs text-muted-foreground">-</TableCell>
+                                                        </TableRow>
+                                                    )}
+                                                </TableBody>
+                                            </Table>
+                                        </div>
+
                                     </div>
                                 </CardContent>
                             </Card>
@@ -402,7 +439,11 @@ export default function ReportsPage() {
 
                 {/* --- Z-REPORT TAB --- */}
                 <TabsContent value="z-report" className="space-y-4">
-                    {reportLocked ? (
+                    {loading ? (
+                         <div className="flex h-64 items-center justify-center">
+                            <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+                         </div>
+                    ) : reportLocked ? (
                         <div className="flex flex-col items-center justify-center h-64 border-2 border-dashed border-slate-300 rounded-lg bg-slate-50">
                             <Lock className="h-12 w-12 text-emerald-600 mb-4" />
                             <h3 className="text-lg font-semibold text-emerald-700">Day Already Closed</h3>
@@ -452,10 +493,10 @@ export default function ReportsPage() {
                                         <Label htmlFor="countedCash">{translate("reports.totalCashCounted")}</Label>
                                         <div className="relative">
                                             <DollarSign className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
-                                            <Input 
-                                                id="countedCash" 
-                                                placeholder="0.00" 
-                                                className="pl-9 text-lg" 
+                                            <Input
+                                                id="countedCash"
+                                                placeholder="0.00"
+                                                className="pl-9 text-lg"
                                                 value={countedCash}
                                                 onChange={(e) => setCountedCash(e.target.value)}
                                                 type="number"
