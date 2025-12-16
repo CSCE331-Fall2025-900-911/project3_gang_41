@@ -1,6 +1,6 @@
 import express, { Request, Response } from 'express';
 import db from './db';
-import { sendSuccess, sendError } from './utils/response';
+import { sendSuccess, sendError, sendNotFound } from './utils/response';
 import { buildInsertQuery } from './utils/sql';
 import { TAX_RATE } from '@project3/shared';
 
@@ -9,23 +9,13 @@ const BUSINESS_TZ = 'America/Chicago';
 const TAX_DIVISOR = 1 + TAX_RATE; // e.g. 1.0825
 
 // ----------------------------------------------------------------------
-// HELPER: Get Shift Start Time
+// HELPER: Get Start of Current Business Day
 // ----------------------------------------------------------------------
-// Returns the end_time of the last Z-Report.
-// If no Z-Report exists, returns "Midnight Today" in the Business Timezone.
-const getShiftStartTime = async (): Promise<Date> => {
-  const lastCloseRes = await db.query('SELECT end_time FROM z_reports ORDER BY date_created DESC LIMIT 1');
-  
-  if (lastCloseRes.rows.length > 0) {
-    return new Date(lastCloseRes.rows[0].end_time);
-  }
-
-  // Fallback: Get today's midnight in Chicago, converted to UTC/Server time
-  // syntax: (DATE AT TIME ZONE 'Chicago') AT TIME ZONE 'Chicago' converts local midnight back to absolute UTC timestamp
-  const fallbackRes = await db.query(`
+const getStartOfBusinessDay = async (): Promise<Date> => {
+  const res = await db.query(`
     SELECT (DATE_TRUNC('day', NOW() AT TIME ZONE '${BUSINESS_TZ}') AT TIME ZONE '${BUSINESS_TZ}') as start_time
   `);
-  return new Date(fallbackRes.rows[0].start_time);
+  return new Date(res.rows[0].start_time);
 };
 
 // ----------------------------------------------------------------------
@@ -200,7 +190,6 @@ router.get('/dashboard', async (req: Request, res: Response) => {
 
 router.get('/x-report', async (req: Request, res: Response) => {
   try {
-    // 1. Check for End-of-Day Lock
     if (await isDayLocked()) {
         return res.status(403).json({
             success: false,
@@ -209,18 +198,16 @@ router.get('/x-report', async (req: Request, res: Response) => {
         });
     }
 
-    // 2. Get Safe Start Time
-    const startTime = await getShiftStartTime();
+    const startTime = await getStartOfBusinessDay();
 
-    // 3. Run Query
     const query = `
       SELECT 
         COUNT(DISTINCT orderid)::int as transactions,
         COALESCE(SUM(totalprice), 0)::float as grossSales,
         COALESCE(SUM(CASE WHEN paymentmethod = 'cash' THEN totalprice ELSE 0 END), 0)::float as cashSales,
-        COALESCE(SUM(CASE WHEN paymentmethod = 'card' THEN totalprice ELSE 0 END), 0)::float as cardSales,
+        COALESCE(SUM(CASE WHEN paymentmethod != 'cash' THEN totalprice ELSE 0 END), 0)::float as cardSales,
         (COALESCE(SUM(totalprice), 0) - (COALESCE(SUM(totalprice), 0) / ${TAX_DIVISOR}))::float as tax
-      FROM order_history WHERE orderdate > $1
+      FROM order_history WHERE orderdate >= $1
     `;
 
     const hourlyQuery = `
@@ -230,7 +217,7 @@ router.get('/x-report', async (req: Request, res: Response) => {
         COUNT(DISTINCT orderid)::int as count,
         COALESCE(SUM(totalprice), 0)::float as sales
       FROM order_history 
-      WHERE orderdate > $1
+      WHERE orderdate >= $1
       GROUP BY 1, 2
       ORDER BY 2 ASC
     `;
@@ -261,25 +248,21 @@ router.get('/x-report', async (req: Request, res: Response) => {
 
 router.post('/z-report', async (req: Request, res: Response) => {
   try {
-    // 1. Prevent Duplicate Z-Reports
     if (await isDayLocked()) {
       return sendError(res, 'Z-Report already generated for today.', 403);
     }
 
     const { countedCash, openingFloat = 150.00 } = req.body;
-    
-    // 2. Get Safe Start Time
-    const startTime = await getShiftStartTime();
+    const startTime = await getStartOfBusinessDay();
 
-    // 3. Aggregate Totals
     const aggQuery = `
       SELECT 
         COUNT(DISTINCT orderid)::int as transactions,
         COALESCE(SUM(totalprice), 0)::float as grossSales,
         COALESCE(SUM(CASE WHEN paymentmethod = 'cash' THEN totalprice ELSE 0 END), 0)::float as cashSales,
-        COALESCE(SUM(CASE WHEN paymentmethod = 'card' THEN totalprice ELSE 0 END), 0)::float as cardSales,
+        COALESCE(SUM(CASE WHEN paymentmethod != 'cash' THEN totalprice ELSE 0 END), 0)::float as cardSales,
         (COALESCE(SUM(totalprice), 0) - (COALESCE(SUM(totalprice), 0) / ${TAX_DIVISOR}))::float as tax
-      FROM order_history WHERE orderdate > $1
+      FROM order_history WHERE orderdate >= $1
     `;
 
     const aggRes = await db.query(aggQuery, [startTime]);
@@ -287,9 +270,8 @@ router.post('/z-report', async (req: Request, res: Response) => {
     const expectedCash = Number(openingFloat) + Number(totals.cashsales);
     const variance = Number(countedCash) - expectedCash;
 
-    // 4. Insert Z-Report (Explicitly setting date_created to ensure locking works)
     const insertQ = buildInsertQuery('z_reports', {
-      date_created: new Date(), // EXPLICITLY SET FOR LOCK CHECK
+      date_created: new Date(), 
       start_time: startTime,
       end_time: new Date(),
       total_sales: totals.grosssales,
@@ -317,7 +299,6 @@ router.post('/z-report', async (req: Request, res: Response) => {
   }
 });
 
-// Unlock Day (Delete today's Z-Report)
 router.post('/reset-day', async (req: Request, res: Response) => {
   try {
     const query = `
@@ -329,6 +310,47 @@ router.post('/reset-day', async (req: Request, res: Response) => {
   } catch (error) {
     console.error('Reset Day Error:', error);
     sendError(res, 'Failed to reset day');
+  }
+});
+
+// NEW ENDPOINT: Get Detailed Report History with Hourly Breakdown
+router.get('/history/:id', async (req: Request, res: Response) => {
+  const id = parseInt(req.params.id, 10);
+  if (isNaN(id)) return sendError(res, 'Invalid Report ID', 400);
+
+  try {
+    // 1. Fetch Report Metadata
+    const reportRes = await db.query('SELECT * FROM z_reports WHERE report_id = $1', [id]);
+    if (reportRes.rows.length === 0) return sendNotFound(res, 'Report not found');
+    
+    const report = reportRes.rows[0];
+    const startTime = report.start_time;
+    const endTime = report.end_time;
+
+    // 2. Fetch Hourly Breakdown for that Shift
+    const hourlyQuery = `
+      SELECT
+        TO_CHAR(orderdate::timestamptz AT TIME ZONE '${BUSINESS_TZ}', 'FMHH12AM') as hour_label,
+        EXTRACT(HOUR FROM orderdate::timestamptz AT TIME ZONE '${BUSINESS_TZ}')::int as hour_sort,
+        COUNT(DISTINCT orderid)::int as count,
+        COALESCE(SUM(totalprice), 0)::float as sales
+      FROM order_history 
+      WHERE orderdate >= $1 AND orderdate <= $2
+      GROUP BY 1, 2
+      ORDER BY 2 ASC
+    `;
+
+    const hourlyRes = await db.query(hourlyQuery, [startTime, endTime]);
+
+    // 3. Return Combined Data
+    sendSuccess(res, {
+      ...report,
+      hourlyTotals: hourlyRes.rows
+    });
+
+  } catch (error) {
+    console.error('Report Details Error:', error);
+    sendError(res, 'Failed to fetch report details');
   }
 });
 

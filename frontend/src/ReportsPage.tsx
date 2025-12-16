@@ -84,6 +84,7 @@ type ZReportHistoryItem = {
   opening_float: string | number;
   transaction_count: number;
   counted_cash: string | number;
+  hourlyTotals?: HourlyTotal[]; // Added optional for detail view
 };
 
 const OPENING_FLOAT = 150.00;
@@ -106,16 +107,19 @@ export default function ReportsPage() {
 
   // View Details State
   const [selectedReport, setSelectedReport] = useState<ZReportHistoryItem | null>(null);
+  const [detailsLoading, setDetailsLoading] = useState(false);
 
   // --- CALCULATIONS ---
   const expectedCash = (xReport?.cashSales || 0) + OPENING_FLOAT;
   const variance = countedCash ? parseFloat(countedCash) - expectedCash : 0;
 
   // --- HELPER FOR SPLITTING DATA ---
-  const hourlyTotals = xReport?.hourlyTotals || [];
-  const midPoint = Math.ceil(hourlyTotals.length / 2);
-  const col1 = hourlyTotals.slice(0, midPoint);
-  const col2 = hourlyTotals.slice(midPoint);
+  const getSplitHourly = (totals: HourlyTotal[]) => {
+      const midPoint = Math.ceil(totals.length / 2);
+      return [totals.slice(0, midPoint), totals.slice(midPoint)];
+  };
+
+  const [xCol1, xCol2] = getSplitHourly(xReport?.hourlyTotals || []);
 
   // --- API HANDLERS ---
 
@@ -150,6 +154,19 @@ export default function ReportsPage() {
       setLoading(false);
     }
   }, []);
+
+  const handleViewReport = async (report: ZReportHistoryItem) => {
+      setSelectedReport(report);
+      setDetailsLoading(true);
+      try {
+          const detailData = await fetchApi<ZReportHistoryItem>(`/api/reports/history/${report.report_id}`);
+          setSelectedReport(detailData);
+      } catch(e) {
+          toast.error("Failed to load hourly details");
+      } finally {
+          setDetailsLoading(false);
+      }
+  };
 
   useEffect(() => {
     if (activeTab === 'x-report' || activeTab === 'z-report') {
@@ -232,7 +249,6 @@ export default function ReportsPage() {
           .print-hide {
             display: none !important;
           }
-          /* Ensure modal doesn't block print if open */
           .fixed {
             position: absolute;
           }
@@ -357,8 +373,6 @@ export default function ReportsPage() {
                                 <CardContent className="p-0 pb-4">
                                     {/* 2-Column Split Container */}
                                     <div className="h-auto grid grid-cols-2 gap-x-1">
-                                        
-                                        {/* Left Column Table */}
                                         <div className="border-r border-slate-100">
                                             <Table>
                                                 <TableHeader>
@@ -369,14 +383,14 @@ export default function ReportsPage() {
                                                     </TableRow>
                                                 </TableHeader>
                                                 <TableBody>
-                                                    {col1.map((row, idx) => (
+                                                    {xCol1.map((row, idx) => (
                                                         <TableRow key={`col1-${idx}`}>
                                                             <TableCell className="py-2 font-medium text-xs">{row.hour_label}</TableCell>
                                                             <TableCell className="py-2 text-xs">{row.count}</TableCell>
                                                             <TableCell className="py-2 text-xs text-right font-bold">{formatCurrency(row.sales)}</TableCell>
                                                         </TableRow>
                                                     ))}
-                                                    {col1.length === 0 && (
+                                                    {xCol1.length === 0 && (
                                                         <TableRow>
                                                             <TableCell colSpan={3} className="text-center py-4 text-xs text-muted-foreground">No data</TableCell>
                                                         </TableRow>
@@ -384,8 +398,6 @@ export default function ReportsPage() {
                                                 </TableBody>
                                             </Table>
                                         </div>
-
-                                        {/* Right Column Table */}
                                         <div>
                                             <Table>
                                                 <TableHeader>
@@ -396,14 +408,14 @@ export default function ReportsPage() {
                                                     </TableRow>
                                                 </TableHeader>
                                                 <TableBody>
-                                                    {col2.map((row, idx) => (
+                                                    {xCol2.map((row, idx) => (
                                                         <TableRow key={`col2-${idx}`}>
                                                             <TableCell className="py-2 font-medium text-xs">{row.hour_label}</TableCell>
                                                             <TableCell className="py-2 text-xs">{row.count}</TableCell>
                                                             <TableCell className="py-2 text-xs text-right font-bold">{formatCurrency(row.sales)}</TableCell>
                                                         </TableRow>
                                                     ))}
-                                                     {col2.length === 0 && col1.length > 0 && (
+                                                     {xCol2.length === 0 && xCol1.length > 0 && (
                                                         <TableRow>
                                                             <TableCell colSpan={3} className="text-center py-4 text-xs text-muted-foreground">-</TableCell>
                                                         </TableRow>
@@ -411,7 +423,6 @@ export default function ReportsPage() {
                                                 </TableBody>
                                             </Table>
                                         </div>
-
                                     </div>
                                 </CardContent>
                             </Card>
@@ -443,8 +454,6 @@ export default function ReportsPage() {
                                         </div>
                                     </div>
                                 </CardContent>
-                                
-                                {/* Hidden during print */}
                                 <CardFooter className="justify-end gap-2 bg-slate-50/50 print-hide flex-none">
                                     <Button variant="outline" onClick={handlePrint}>
                                         <Printer className="mr-2 h-4 w-4" />
@@ -601,7 +610,7 @@ export default function ReportsPage() {
                                                 )}
                                             </TableCell>
                                             <TableCell className="text-right">
-                                                <Button variant="ghost" size="sm" onClick={() => setSelectedReport(row)}>
+                                                <Button variant="ghost" size="sm" onClick={() => handleViewReport(row)}>
                                                     <Eye className="h-4 w-4" />
                                                 </Button>
                                             </TableCell>
@@ -655,66 +664,154 @@ export default function ReportsPage() {
         </DialogContent>
       </Dialog>
 
-      {/* --- HISTORY DETAILS DIALOG --- */}
+      {/* --- HISTORY DETAILS DIALOG (Updated to match Screenshot) --- */}
       <Dialog open={!!selectedReport} onOpenChange={(open) => !open && setSelectedReport(null)}>
-        <DialogContent className="sm:max-w-md">
-            <DialogHeader>
-                <DialogTitle>Z-Report #{selectedReport?.report_id}</DialogTitle>
-                <DialogDescription>
+        <DialogContent className="sm:max-w-2xl max-h-[85vh] overflow-y-auto">
+            <DialogHeader className="pb-4">
+                <div className="text-xl font-bold">Z-Report #{selectedReport?.report_id}</div>
+                <div className="text-sm text-muted-foreground">
                     {new Date(selectedReport?.date_created || "").toLocaleString()}
-                </DialogDescription>
+                </div>
             </DialogHeader>
             
             {selectedReport && (
-                <div className="bg-slate-50 border rounded-md p-4 space-y-3 text-sm">
-                    <div className="grid grid-cols-2 gap-2 pb-3 border-b">
-                        <div className="space-y-1">
-                            <span className="text-xs text-muted-foreground">Transactions</span>
-                            <div className="font-bold">{selectedReport.transaction_count}</div>
+                <div className="space-y-6">
+                    {/* Summary Section - EXACT SCREENSHOT LAYOUT */}
+                    <div className="bg-white border rounded-lg p-6 shadow-sm">
+                        {/* Top Row: Transactions + Total Sales */}
+                        <div className="flex justify-between items-end mb-6">
+                            <div>
+                                <div className="text-sm text-muted-foreground mb-1">Transactions</div>
+                                <div className="text-3xl font-bold">{selectedReport.transaction_count}</div>
+                            </div>
+                            <div className="text-right">
+                                <div className="text-sm text-muted-foreground mb-1">Total Sales</div>
+                                <div className="text-3xl font-bold">{formatCurrency(Number(selectedReport.total_sales))}</div>
+                            </div>
                         </div>
-                        <div className="space-y-1 text-right">
-                             <span className="text-xs text-muted-foreground">Total Sales</span>
-                             <div className="font-bold">{formatCurrency(Number(selectedReport.total_sales))}</div>
+
+                        <Separator className="my-4" />
+
+                        {/* List View for Sales Breakdown */}
+                        <div className="space-y-3">
+                            <div className="flex justify-between text-sm">
+                                <span className="text-muted-foreground">Cash Sales</span>
+                                <span className="font-medium">{formatCurrency(Number(selectedReport.cash_sales))}</span>
+                            </div>
+                            <div className="flex justify-between text-sm">
+                                <span className="text-muted-foreground">Card Sales</span>
+                                <span className="font-medium">{formatCurrency(Number(selectedReport.card_sales))}</span>
+                            </div>
+                            <div className="flex justify-between text-sm">
+                                <span className="text-muted-foreground">Tax Collected</span>
+                                <span className="font-medium">{formatCurrency(Number(selectedReport.tax_total))}</span>
+                            </div>
+                        </div>
+
+                        <Separator className="my-4" />
+
+                        {/* List View for Reconciliation */}
+                        <div className="space-y-3">
+                            <div className="flex justify-between text-sm">
+                                <span className="text-muted-foreground">Opening Float</span>
+                                <span className="font-medium">{formatCurrency(Number(selectedReport.opening_float))}</span>
+                            </div>
+                            <div className="flex justify-between text-sm">
+                                <span className="text-muted-foreground">Counted Cash</span>
+                                <span className="font-medium">{formatCurrency(Number(selectedReport.counted_cash))}</span>
+                            </div>
+                            <div className="flex justify-between items-center pt-1">
+                                <span className="font-bold text-base">Variance</span>
+                                <span className={`font-bold text-base ${Number(selectedReport.variance) !== 0 ? "text-red-600" : "text-emerald-600"}`}>
+                                    {formatCurrency(Number(selectedReport.variance))}
+                                </span>
+                            </div>
                         </div>
                     </div>
 
-                    <div className="space-y-1 pt-1">
-                        <div className="flex justify-between">
-                            <span className="text-muted-foreground">Cash Sales</span>
-                            <span>{formatCurrency(Number(selectedReport.cash_sales))}</span>
+                    {/* Hourly Details Section - 2 COLUMN LAYOUT */}
+                    <div className="border rounded-md mt-6">
+                        <div className="bg-slate-100 px-4 py-2 border-b">
+                            <h4 className="font-semibold text-sm">Hourly Breakdown</h4>
                         </div>
-                        <div className="flex justify-between">
-                            <span className="text-muted-foreground">Card Sales</span>
-                            <span>{formatCurrency(Number(selectedReport.card_sales))}</span>
-                        </div>
-                        <div className="flex justify-between">
-                            <span className="text-muted-foreground">Tax</span>
-                            <span>{formatCurrency(Number(selectedReport.tax_total))}</span>
-                        </div>
-                    </div>
+                        <div className="p-0">
+                            {detailsLoading ? (
+                                <div className="p-8 flex justify-center"><Loader2 className="h-6 w-6 animate-spin text-muted-foreground"/></div>
+                            ) : selectedReport.hourlyTotals ? (
+                                (() => {
+                                    // Split logic inside render for the dialog
+                                    const totals = selectedReport.hourlyTotals || [];
+                                    const mid = Math.ceil(totals.length / 2);
+                                    const leftCol = totals.slice(0, mid);
+                                    const rightCol = totals.slice(mid);
 
-                    <Separator />
+                                    return (
+                                        <div className="grid grid-cols-2 gap-x-1">
+                                            {/* Left Column */}
+                                            <div className="border-r border-slate-100">
+                                                <Table>
+                                                    <TableHeader>
+                                                        <TableRow>
+                                                            <TableHead className="h-8 text-xs">Hour</TableHead>
+                                                            <TableHead className="h-8 text-xs text-center">#</TableHead>
+                                                            <TableHead className="h-8 text-xs text-right">Sales</TableHead>
+                                                        </TableRow>
+                                                    </TableHeader>
+                                                    <TableBody>
+                                                        {leftCol.map((row, i) => (
+                                                            <TableRow key={`l-${i}`} className="h-8">
+                                                                <TableCell className="py-1 text-xs font-medium">{row.hour_label}</TableCell>
+                                                                <TableCell className="py-1 text-xs text-center">{row.count}</TableCell>
+                                                                <TableCell className="py-1 text-xs text-right font-mono">{formatCurrency(row.sales)}</TableCell>
+                                                            </TableRow>
+                                                        ))}
+                                                        {leftCol.length === 0 && (
+                                                            <TableRow>
+                                                                <TableCell colSpan={3} className="text-center text-xs text-muted-foreground py-4">No data</TableCell>
+                                                            </TableRow>
+                                                        )}
+                                                    </TableBody>
+                                                </Table>
+                                            </div>
 
-                    <div className="space-y-1 pt-1">
-                        <div className="flex justify-between text-xs text-muted-foreground">
-                            <span>Opening Float</span>
-                            <span>{formatCurrency(Number(selectedReport.opening_float))}</span>
-                        </div>
-                         <div className="flex justify-between text-xs text-muted-foreground">
-                            <span>Counted Cash</span>
-                            <span>{formatCurrency(Number(selectedReport.counted_cash))}</span>
-                        </div>
-                        <div className="flex justify-between font-bold pt-1">
-                            <span>Variance</span>
-                            <span className={Number(selectedReport.variance) !== 0 ? "text-red-500" : "text-emerald-600"}>
-                                {formatCurrency(Number(selectedReport.variance))}
-                            </span>
+                                            {/* Right Column */}
+                                            <div>
+                                                <Table>
+                                                    <TableHeader>
+                                                        <TableRow>
+                                                            <TableHead className="h-8 text-xs">Hour</TableHead>
+                                                            <TableHead className="h-8 text-xs text-center">#</TableHead>
+                                                            <TableHead className="h-8 text-xs text-right">Sales</TableHead>
+                                                        </TableRow>
+                                                    </TableHeader>
+                                                    <TableBody>
+                                                        {rightCol.map((row, i) => (
+                                                            <TableRow key={`r-${i}`} className="h-8">
+                                                                <TableCell className="py-1 text-xs font-medium">{row.hour_label}</TableCell>
+                                                                <TableCell className="py-1 text-xs text-center">{row.count}</TableCell>
+                                                                <TableCell className="py-1 text-xs text-right font-mono">{formatCurrency(row.sales)}</TableCell>
+                                                            </TableRow>
+                                                        ))}
+                                                        {rightCol.length === 0 && leftCol.length > 0 && (
+                                                            <TableRow>
+                                                                <TableCell colSpan={3} className="text-center text-xs text-muted-foreground py-4">-</TableCell>
+                                                            </TableRow>
+                                                        )}
+                                                    </TableBody>
+                                                </Table>
+                                            </div>
+                                        </div>
+                                    );
+                                })()
+                            ) : (
+                                <div className="p-4 text-center text-xs text-muted-foreground">No details loaded</div>
+                            )}
                         </div>
                     </div>
                 </div>
             )}
 
-            <DialogFooter>
+            <DialogFooter className="mt-4">
                 <Button variant="outline" onClick={() => setSelectedReport(null)}>Close</Button>
             </DialogFooter>
         </DialogContent>
