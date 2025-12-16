@@ -2,18 +2,49 @@ import express, { Request, Response } from 'express';
 import db from './db';
 import { sendSuccess, sendError } from './utils/response';
 import { buildInsertQuery } from './utils/sql';
-// Use shared tax rate
 import { TAX_RATE } from '@project3/shared';
 
 const router = express.Router();
 const BUSINESS_TZ = 'America/Chicago';
 const TAX_DIVISOR = 1 + TAX_RATE; // e.g. 1.0825
 
+// ----------------------------------------------------------------------
+// HELPER: Get Shift Start Time
+// ----------------------------------------------------------------------
+// Returns the end_time of the last Z-Report.
+// If no Z-Report exists, returns "Midnight Today" in the Business Timezone.
+const getShiftStartTime = async (): Promise<Date> => {
+  const lastCloseRes = await db.query('SELECT end_time FROM z_reports ORDER BY date_created DESC LIMIT 1');
+  
+  if (lastCloseRes.rows.length > 0) {
+    return new Date(lastCloseRes.rows[0].end_time);
+  }
+
+  // Fallback: Get today's midnight in Chicago, converted to UTC/Server time
+  // syntax: (DATE AT TIME ZONE 'Chicago') AT TIME ZONE 'Chicago' converts local midnight back to absolute UTC timestamp
+  const fallbackRes = await db.query(`
+    SELECT (DATE_TRUNC('day', NOW() AT TIME ZONE '${BUSINESS_TZ}') AT TIME ZONE '${BUSINESS_TZ}') as start_time
+  `);
+  return new Date(fallbackRes.rows[0].start_time);
+};
+
+// ----------------------------------------------------------------------
+// HELPER: Check if Day is Locked
+// ----------------------------------------------------------------------
+const isDayLocked = async (): Promise<boolean> => {
+  const checkLockQuery = `
+    SELECT report_id FROM z_reports 
+    WHERE DATE(date_created::timestamptz AT TIME ZONE '${BUSINESS_TZ}') = DATE(NOW() AT TIME ZONE '${BUSINESS_TZ}')
+    LIMIT 1
+  `;
+  const lockRes = await db.query(checkLockQuery);
+  return lockRes.rows.length > 0;
+};
+
 router.get('/dashboard', async (req: Request, res: Response) => {
     try {
     const { range } = req.query;
 
-    // FIX: Explicitly cast to timestamptz to ensure UTC interpretation before TZ conversion
     const localTs = `(orderdate::timestamptz AT TIME ZONE '${BUSINESS_TZ}')`;
     const nowLocal = `(NOW() AT TIME ZONE '${BUSINESS_TZ}')`;
 
@@ -167,23 +198,10 @@ router.get('/dashboard', async (req: Request, res: Response) => {
   }
 });
 
-const getShiftStartTime = async () => {
-  const lastCloseRes = await db.query('SELECT end_time FROM z_reports ORDER BY date_created DESC LIMIT 1');
-  const prevEndTimeRaw = lastCloseRes.rows[0]?.end_time;
-  return prevEndTimeRaw ? new Date(prevEndTimeRaw) : new Date(new Date().setHours(0,0,0,0));
-};
-
 router.get('/x-report', async (req: Request, res: Response) => {
   try {
-    // 1. Check for End-of-Day Lock (Z-Report exists for today)
-    // FIX: Ensure NOW() comparisons use Business Timezone
-    const checkLockQuery = `
-        SELECT report_id FROM z_reports 
-        WHERE DATE(date_created AT TIME ZONE '${BUSINESS_TZ}') = DATE(NOW() AT TIME ZONE '${BUSINESS_TZ}')
-        LIMIT 1
-    `;
-    const lockRes = await db.query(checkLockQuery);
-    if (lockRes.rows.length > 0) {
+    // 1. Check for End-of-Day Lock
+    if (await isDayLocked()) {
         return res.status(403).json({
             success: false,
             message: "Shift Closed: Z-Report has already been run for today.",
@@ -191,8 +209,10 @@ router.get('/x-report', async (req: Request, res: Response) => {
         });
     }
 
+    // 2. Get Safe Start Time
     const startTime = await getShiftStartTime();
 
+    // 3. Run Query
     const query = `
       SELECT 
         COUNT(DISTINCT orderid)::int as transactions,
@@ -203,7 +223,6 @@ router.get('/x-report', async (req: Request, res: Response) => {
       FROM order_history WHERE orderdate > $1
     `;
 
-    // FIX: Added ::timestamptz to force interpretation as UTC timestamp before rotating to Chicago
     const hourlyQuery = `
       SELECT
         TO_CHAR(orderdate::timestamptz AT TIME ZONE '${BUSINESS_TZ}', 'FMHH12AM') as hour_label,
@@ -242,11 +261,17 @@ router.get('/x-report', async (req: Request, res: Response) => {
 
 router.post('/z-report', async (req: Request, res: Response) => {
   try {
-    const { countedCash, openingFloat = 150.00 } = req.body;
-    const prevEndTimeRaw = (await db.query('SELECT end_time FROM z_reports ORDER BY date_created DESC LIMIT 1')).rows[0]?.end_time;
-    const startTime = prevEndTimeRaw ? new Date(prevEndTimeRaw) : new Date(new Date().setHours(0,0,0,0));
+    // 1. Prevent Duplicate Z-Reports
+    if (await isDayLocked()) {
+      return sendError(res, 'Z-Report already generated for today.', 403);
+    }
 
-    // Aggregate Totals
+    const { countedCash, openingFloat = 150.00 } = req.body;
+    
+    // 2. Get Safe Start Time
+    const startTime = await getShiftStartTime();
+
+    // 3. Aggregate Totals
     const aggQuery = `
       SELECT 
         COUNT(DISTINCT orderid)::int as transactions,
@@ -262,7 +287,9 @@ router.post('/z-report', async (req: Request, res: Response) => {
     const expectedCash = Number(openingFloat) + Number(totals.cashsales);
     const variance = Number(countedCash) - expectedCash;
 
+    // 4. Insert Z-Report (Explicitly setting date_created to ensure locking works)
     const insertQ = buildInsertQuery('z_reports', {
+      date_created: new Date(), // EXPLICITLY SET FOR LOCK CHECK
       start_time: startTime,
       end_time: new Date(),
       total_sales: totals.grosssales,
@@ -290,12 +317,12 @@ router.post('/z-report', async (req: Request, res: Response) => {
   }
 });
 
-// NEW ENDPOINT: Unlock Day (Delete today's Z-Report)
+// Unlock Day (Delete today's Z-Report)
 router.post('/reset-day', async (req: Request, res: Response) => {
   try {
     const query = `
       DELETE FROM z_reports 
-      WHERE DATE(date_created AT TIME ZONE '${BUSINESS_TZ}') = DATE(NOW() AT TIME ZONE '${BUSINESS_TZ}')
+      WHERE DATE(date_created::timestamptz AT TIME ZONE '${BUSINESS_TZ}') = DATE(NOW() AT TIME ZONE '${BUSINESS_TZ}')
     `;
     await db.query(query);
     sendSuccess(res, { message: 'Day unlocked successfully' });
